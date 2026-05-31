@@ -1,0 +1,27 @@
+#pragma once
+
+enum class CommandType {
+  INVALID,
+  HELP,
+  CONFIG,
+  POS,
+  ENABLE,
+  DISABLE,
+  ZERO,
+  TEST_A,
+  TEST_B,
+  XY,
+  PEN_UP,
+  PEN_DOWN,
+  SELFTEST,
+  TMC_INIT,
+  TMC_STATUS,
+  LED,
+  LED_PIXEL,
+  LED_OFF,
+  LED_PATTERN,
+  LED_BRIGHTNESS,
+  LED_PARAM,
+  LED_STATUS,
+  MELODY,
+};
