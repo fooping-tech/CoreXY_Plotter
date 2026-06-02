@@ -28,10 +28,10 @@ void LedPatternEngine::applyCommand(const LedCommand& command) {
   switch (command.type) {
     case LedCommandType::SET_ALL:
       solid_ = {command.r, command.g, command.b};
-      pattern_ = LedPattern::MANUAL;
+      pattern_ = LedPattern::SOLID;
       break;
     case LedCommandType::SET_PIXEL:
-      pattern_ = LedPattern::SOLID;
+      pattern_ = LedPattern::MANUAL;
       if (!controller_->setPixelRgb(command.index, command.r, command.g,
                                     command.b)) {
         logMessage("LED ERROR: index %u out of range", command.index);
