@@ -80,13 +80,17 @@ Motor driver: TMC2209 x2, STEP/DIR + UART shared bus
 | AモータDIR | `MOTOR_A_DIR_PIN` | 26 | CoreXY A = X + Y |
 | BモータSTEP | `MOTOR_B_STEP_PIN` | 27 | CoreXY B = X - Y |
 | BモータDIR | `MOTOR_B_DIR_PIN` | 19 | CoreXY B = X - Y |
-| A/B共通EN | `MOTOR_EN_PIN` | 23 | Low active |
+| A/B共通EN | `EN` | GND固定 | Low active。GPIO制御しない |
 | TMC UART TX | `TMC_UART_TX_PIN` | 14 | Serial2 TX |
 | TMC UART RX | `TMC_UART_RX_PIN` | 13 | Serial2 RX |
 | Xリミット | `X_LIMIT_PIN` | 36 | 入力専用。外付けpull-up推奨 |
 | Yリミット | `Y_LIMIT_PIN` | 35 | 入力専用。外付けpull-up推奨 |
 | ペンサーボ | `PEN_SERVO_PIN` | 32 | PWM |
 | NEOPIXEL | `NEOPIXEL_PIN` | 33 | 外付けNEOPIXEL。データ入力 |
+
+TMC2209 A/Bの`EN`はGND固定で常時activeとする。
+`ENABLE` / `DISABLE`はSTEPコマンド受付の論理ゲートであり、ドライバ通電を遮断しない。
+電気的な遮断が必要な場合は、外部スイッチ、E-stop回路、またはI/O拡張を追加する。
 
 ---
 
@@ -419,8 +423,8 @@ Core 0へ表示するときはStatusQueueを通す。
 | `HELP` | コマンド一覧 |
 | `CONFIG` | ピン、定数、Core割り付け表示 |
 | `POS` | 現在位置と状態 |
-| `ENABLE` | モータEnable |
-| `DISABLE` | モータDisable |
+| `ENABLE` | STEPコマンド受付を有効化。EN端子は操作しない |
+| `DISABLE` | STEPコマンド受付を無効化。EN端子はGND固定のため通電継続 |
 | `ZERO` | 論理原点リセット。homingではない |
 | `TEST_A <steps>` | Aモータ単独テスト |
 | `TEST_B <steps>` | Bモータ単独テスト |

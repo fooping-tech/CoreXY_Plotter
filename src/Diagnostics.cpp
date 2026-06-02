@@ -14,15 +14,17 @@ void Diagnostics::printHelp() {
 
 void Diagnostics::printConfig() {
   logMessage("BOARD=M5STACK_CORE2 SIMULATION_MODE=%u", SIMULATION_MODE);
-  logMessage("MOTOR A STEP=%u DIR=%u B STEP=%u DIR=%u EN=%u low-active",
+  logMessage("MOTOR A STEP=%u DIR=%u B STEP=%u DIR=%u EN=HARDWIRED_GND active",
              MOTOR_A_STEP_PIN, MOTOR_A_DIR_PIN, MOTOR_B_STEP_PIN,
-             MOTOR_B_DIR_PIN, MOTOR_EN_PIN);
+             MOTOR_B_DIR_PIN);
   logMessage("TMC UART TX=%u RX=%u baud=%lu A.address=%u B.address=%u",
              TMC_UART_TX_PIN, TMC_UART_RX_PIN, TMC_UART_BAUD,
              TMC_A_UART_ADDRESS, TMC_B_UART_ADDRESS);
   logMessage("LIMIT X=%u Y=%u PEN=%u NEOPIXEL=%u count=%u brightness_max=%u",
              X_LIMIT_PIN, Y_LIMIT_PIN, PEN_SERVO_PIN, NEOPIXEL_PIN,
              NEOPIXEL_LED_COUNT, NEOPIXEL_BRIGHTNESS_MAX);
+  logMessage("M5_UI=%s LCD_SPI_MOSI=%u MOTOR_EN=HARDWIRED_GND",
+             M5_UI_ENABLED ? "ENABLED" : "DISABLED", CORE2_LCD_SPI_MOSI_PIN);
   logMessage("CORE UI=%u MOTION=%u PRIORITY ui=%u command=%u tmc=%u safety=%u motion=%u stepper=%u",
              CORE_UI, CORE_MOTION, PRIORITY_UI, PRIORITY_COMMAND, PRIORITY_TMC,
              PRIORITY_SAFETY, PRIORITY_MOTION, PRIORITY_STEPPER_FEED);

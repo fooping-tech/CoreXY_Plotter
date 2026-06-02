@@ -81,12 +81,12 @@ void motionTask(void*) {
         }
         stepper_backend.enable();
         machine_state.enabled = true;
-        logMessage("Motors ENABLED");
+        logMessage("Motors ENABLED logical gate; driver EN is hardwired active");
         break;
       case CommandType::DISABLE:
         stepper_backend.disable();
         machine_state.enabled = false;
-        logMessage("Motors DISABLED");
+        logMessage("Motors DISABLED logical gate only; driver EN remains hardwired active");
         break;
       case CommandType::ZERO:
         machine_state.x_mm = 0;

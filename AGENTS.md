@@ -73,7 +73,8 @@ Core2はESP32を搭載しており、2Core構成である。
 | GPIO0 / GPIO2 | boot strap系。原則としてmotion出力に使わない |
 | GPIO32 / GPIO33 | PORT-A。外部I2Cを使わない場合はGPIO/PWMとして使用可 |
 | GPIO14 / GPIO13 | PORT-C。TMC2209 UART用として使用 |
-| GPIO25 / GPIO26 / GPIO27 / GPIO19 / GPIO23 | M-BUS経由でモータ制御に使用 |
+| GPIO23 | Core2内蔵LCDのSPI MOSI。LCDを使う場合はmotion出力に使わない |
+| GPIO25 / GPIO26 / GPIO27 / GPIO19 | M-BUS経由でモータ制御に使用 |
 
 ---
 
@@ -87,13 +88,19 @@ Core2はESP32を搭載しており、2Core構成である。
 | Aモータ | `MOTOR_A_DIR_PIN` | 26 | CoreXY A = X + Y |
 | Bモータ | `MOTOR_B_STEP_PIN` | 27 | CoreXY B = X - Y |
 | Bモータ | `MOTOR_B_DIR_PIN` | 19 | CoreXY B = X - Y |
-| A/B共通 | `MOTOR_EN_PIN` | 23 | Low active想定 |
+| A/B共通 | `EN` | GND固定 | Low active。GPIO制御しない |
 | TMC UART | `TMC_UART_TX_PIN` | 14 | ESP32 TX → TMC2209 PDN_UART |
 | TMC UART | `TMC_UART_RX_PIN` | 13 | ESP32 RX ← TMC2209 PDN_UART |
 | Xリミット | `X_LIMIT_PIN` | 36 | 入力専用。外付けpull-up推奨 |
 | Yリミット | `Y_LIMIT_PIN` | 35 | 入力専用。外付けpull-up推奨 |
 | ペン | `PEN_SERVO_PIN` | 32 | Servo PWM |
 | 予備 | `USER_IO_PIN` | 33 | 将来予備 |
+
+注意:
+
+- TMC2209 A/Bの`EN`はGND固定で常時activeとする
+- `ENABLE` / `DISABLE`はSTEPコマンド受付の論理ゲートであり、ドライバ通電を遮断しない
+- 電気的な遮断が必要な場合は、外部スイッチ、E-stop回路、またはI/O拡張を追加する
 
 ---
 
@@ -279,7 +286,8 @@ Diagnostics
 ### `StepperBackendFastAccel`
 
 - FastAccelStepperを隠蔽する
-- STEP/DIR/ENを扱う
+- STEP/DIRを扱う
+- ENはGND固定のためGPIO制御しない
 - A/Bモータ単独テストを提供する
 - 初期はbring-up用に独立A/B moveを許容する
 

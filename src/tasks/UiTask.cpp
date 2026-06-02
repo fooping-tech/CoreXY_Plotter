@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <M5Unified.h>
 #include "AppContext.h"
+#include "Core2PinMap.h"
 #include "PlotterConfig.h"
 #include <string.h>
 
@@ -28,9 +29,16 @@ void drawStatus(const StatusMessage& status) {
 }
 
 void uiTask(void*) {
-  auto m5_config = M5.config();
-  M5.begin(m5_config);
-  const bool lcd_ready = M5.Display.begin();
+  bool lcd_ready = false;
+  if (M5_UI_ENABLED) {
+    auto m5_config = M5.config();
+    m5_config.internal_spk = false;
+    m5_config.internal_mic = false;
+    M5.begin(m5_config);
+    lcd_ready = M5.Display.begin();
+  } else {
+    logMessage("ERROR: M5 UI disabled by pin configuration");
+  }
   neopixel_controller.begin();
   led_pattern_engine.begin(neopixel_controller);
 
@@ -39,7 +47,7 @@ void uiTask(void*) {
   bool have_displayed_status = false;
   uint32_t last_lcd_draw_ms = 0;
   for (;;) {
-    M5.update();
+    if (M5_UI_ENABLED) M5.update();
     LedCommand led_command;
     while (xQueueReceive(led_command_queue, &led_command, 0) == pdTRUE) {
       led_pattern_engine.applyCommand(led_command);

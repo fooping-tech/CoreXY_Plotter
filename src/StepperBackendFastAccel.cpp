@@ -10,8 +10,6 @@ FastAccelStepperEngine engine;
 }
 
 bool StepperBackendFastAccel::begin() {
-  pinMode(MOTOR_EN_PIN, OUTPUT);
-  digitalWrite(MOTOR_EN_PIN, HIGH);
 #if !SIMULATION_MODE
   engine.init();
   motor_a_ = engine.stepperConnectToPin(MOTOR_A_STEP_PIN);
@@ -21,8 +19,6 @@ bool StepperBackendFastAccel::begin() {
                             DIR_CHANGE_DELAY_US);
   motor_b_->setDirectionPin(MOTOR_B_DIR_PIN, MOTOR_B_DIRECTION_INVERTED,
                             DIR_CHANGE_DELAY_US);
-  motor_a_->setEnablePin(MOTOR_EN_PIN, true);
-  motor_b_->setEnablePin(MOTOR_EN_PIN, true);
   configureSpeed(DEFAULT_FEED_MM_MIN);
 #endif
   ready_ = true;
@@ -32,23 +28,11 @@ bool StepperBackendFastAccel::begin() {
 bool StepperBackendFastAccel::isReady() const { return ready_; }
 
 void StepperBackendFastAccel::enable() {
-#if !SIMULATION_MODE
-  if (!ready_) return;
-  motor_a_->enableOutputs();
-  motor_b_->enableOutputs();
-#else
-  digitalWrite(MOTOR_EN_PIN, HIGH);
-#endif
+  // TMC2209 EN is hardwired active. Command gating is handled by MotionTask.
 }
 
 void StepperBackendFastAccel::disable() {
-#if !SIMULATION_MODE
-  if (!ready_) return;
-  motor_a_->disableOutputs();
-  motor_b_->disableOutputs();
-#else
-  digitalWrite(MOTOR_EN_PIN, HIGH);
-#endif
+  // TMC2209 EN is hardwired active. Command gating is handled by MotionTask.
 }
 
 void StepperBackendFastAccel::configureSpeed(float feed_mm_min) {
