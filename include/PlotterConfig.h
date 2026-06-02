@@ -4,7 +4,7 @@
 
 #define BOARD_M5STACK_CORE2 1
 #ifndef SIMULATION_MODE
-#define SIMULATION_MODE 1
+#define SIMULATION_MODE 0
 #endif
 
 constexpr float STEPS_PER_MM = 80.0f;
