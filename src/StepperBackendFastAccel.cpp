@@ -27,14 +27,6 @@ bool StepperBackendFastAccel::begin() {
 
 bool StepperBackendFastAccel::isReady() const { return ready_; }
 
-void StepperBackendFastAccel::enable() {
-  // TMC2209 EN is hardwired active. Command gating is handled by MotionTask.
-}
-
-void StepperBackendFastAccel::disable() {
-  // TMC2209 EN is hardwired active. Command gating is handled by MotionTask.
-}
-
 void StepperBackendFastAccel::configureSpeed(float feed_mm_min) {
 #if !SIMULATION_MODE
   uint32_t speed_steps_s = lroundf(feed_mm_min * STEPS_PER_MM / 60.0f);

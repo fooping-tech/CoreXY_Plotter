@@ -99,7 +99,6 @@ Core2はESP32を搭載しており、2Core構成である。
 注意:
 
 - TMC2209 A/Bの`EN`はGND固定で常時activeとする
-- `ENABLE` / `DISABLE`はSTEPコマンド受付の論理ゲートであり、ドライバ通電を遮断しない
 - 電気的な遮断が必要な場合は、外部スイッチ、E-stop回路、またはI/O拡張を追加する
 
 ---
@@ -239,7 +238,6 @@ Diagnostics
 - 現在X/Y位置
 - A/Bステップ位置
 - feed
-- enabled
 - homed
 - pen状態
 - alarm状態
@@ -381,8 +379,6 @@ main.cpp
 HELP
 CONFIG
 POS
-ENABLE
-DISABLE
 ZERO
 TEST_A <steps>
 TEST_B <steps>

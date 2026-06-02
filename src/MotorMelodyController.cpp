@@ -21,13 +21,11 @@ bool MotorMelodyController::shouldAbort(SafetyManager& safety) const {
 }
 
 bool MotorMelodyController::play(StepperBackendFastAccel& backend,
-                                 TMC2209Manager& tmc, SafetyManager& safety,
-                                 bool motors_enabled) {
+                                 TMC2209Manager& tmc, SafetyManager& safety) {
 #if SIMULATION_MODE
   (void)backend;
   (void)tmc;
   (void)safety;
-  (void)motors_enabled;
   logMessage("ERROR: MELODY unavailable in SIMULATION_MODE");
   return false;
 #else
@@ -47,11 +45,6 @@ bool MotorMelodyController::play(StepperBackendFastAccel& backend,
     logMessage("ERROR: MELODY alarm or limit active");
     return false;
   }
-  if (!motors_enabled) {
-    logMessage("ERROR: MELODY motors are disabled");
-    return false;
-  }
-
   if (!tmc.applyMelodyProfile()) {
     tmc.applyNormalProfile();
     logMessage("ERROR: MELODY TMC profile validation failed");

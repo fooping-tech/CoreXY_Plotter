@@ -5,8 +5,6 @@ enum class CommandType {
   HELP,
   CONFIG,
   POS,
-  ENABLE,
-  DISABLE,
   ZERO,
   TEST_A,
   TEST_B,

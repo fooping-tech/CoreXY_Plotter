@@ -89,7 +89,6 @@ Motor driver: TMC2209 x2, STEP/DIR + UART shared bus
 | NEOPIXEL | `NEOPIXEL_PIN` | 33 | 外付けNEOPIXEL。データ入力 |
 
 TMC2209 A/Bの`EN`はGND固定で常時activeとする。
-`ENABLE` / `DISABLE`はSTEPコマンド受付の論理ゲートであり、ドライバ通電を遮断しない。
 電気的な遮断が必要な場合は、外部スイッチ、E-stop回路、またはI/O拡張を追加する。
 
 ---
@@ -216,7 +215,7 @@ Core2内蔵LCDには、起動後に機械状態を確認できるステータス
 |---|---|
 | mode | `SIMULATION` / `REAL` |
 | position | 現在の `X` / `Y` 座標 [mm] |
-| motor | `ENABLED` / `DISABLED` |
+| motor | `ACTIVE (EN=GND)` |
 | homing | `HOMED` / `NOT HOMED` |
 | pen | `UP` / `DOWN` |
 | safety | `READY` / `ALARM` |
@@ -403,7 +402,6 @@ struct MachineState {
 
   float feed_mm_min;
 
-  bool enabled;
   bool homed;
   bool pen_down;
   bool alarmed;
@@ -423,8 +421,6 @@ Core 0へ表示するときはStatusQueueを通す。
 | `HELP` | コマンド一覧 |
 | `CONFIG` | ピン、定数、Core割り付け表示 |
 | `POS` | 現在位置と状態 |
-| `ENABLE` | STEPコマンド受付を有効化。EN端子は操作しない |
-| `DISABLE` | STEPコマンド受付を無効化。EN端子はGND固定のため通電継続 |
 | `ZERO` | 論理原点リセット。homingではない |
 | `TEST_A <steps>` | Aモータ単独テスト |
 | `TEST_B <steps>` | Bモータ単独テスト |

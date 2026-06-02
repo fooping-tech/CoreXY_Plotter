@@ -43,8 +43,6 @@ CommandMessage CommandDispatcher::parse(const char* line) {
   if (strcmp(name, "HELP") == 0) command.type = CommandType::HELP;
   else if (strcmp(name, "CONFIG") == 0) command.type = CommandType::CONFIG;
   else if (strcmp(name, "POS") == 0) command.type = CommandType::POS;
-  else if (strcmp(name, "ENABLE") == 0) command.type = CommandType::ENABLE;
-  else if (strcmp(name, "DISABLE") == 0) command.type = CommandType::DISABLE;
   else if (strcmp(name, "ZERO") == 0) command.type = CommandType::ZERO;
   else if (strcmp(name, "PENUP") == 0) command.type = CommandType::PEN_UP;
   else if (strcmp(name, "PENDOWN") == 0) command.type = CommandType::PEN_DOWN;

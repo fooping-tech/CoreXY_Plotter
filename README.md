@@ -22,8 +22,8 @@ pio run
 - サーボ電源はCore2からではなく外部5V電源を推奨します。
 - TMC2209 UART TX側には1kΩ直列抵抗を入れてください。
 - GPIO33の外付けNEOPIXELは初期状態で消灯し、輝度上限を低く設定しています。
-- TMC2209 A/BのENはGND固定です。`DISABLE`はSTEPコマンド受付を止めますが、
-  ドライバ通電は遮断しません。
+- TMC2209 A/BのENはGND固定で常時activeです。電気的に停止するには外部スイッチ
+  またはE-stop回路が必要です。
 
 ## Bring-up commands
 
@@ -37,7 +37,6 @@ LED_PARAM SPEED 160
 LED_STATUS
 LED_OFF
 TMC_INIT
-ENABLE
 MELODY
 ```
 

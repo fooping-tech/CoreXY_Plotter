@@ -7,8 +7,6 @@ class StepperBackend {
   virtual ~StepperBackend() = default;
   virtual bool begin() = 0;
   virtual bool isReady() const = 0;
-  virtual void enable() = 0;
-  virtual void disable() = 0;
   virtual bool moveASteps(int32_t steps) = 0;
   virtual bool moveBSteps(int32_t steps) = 0;
   virtual bool moveABSteps(int32_t a_steps, int32_t b_steps,

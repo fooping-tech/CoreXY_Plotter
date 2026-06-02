@@ -8,8 +8,6 @@ class StepperBackendFastAccel : public StepperBackend {
  public:
   bool begin() override;
   bool isReady() const override;
-  void enable() override;
-  void disable() override;
   bool moveASteps(int32_t steps) override;
   bool moveBSteps(int32_t steps) override;
   bool moveABSteps(int32_t a_steps, int32_t b_steps,

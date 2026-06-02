@@ -16,7 +16,7 @@ void drawStatus(const StatusMessage& status) {
   M5.Display.printf("CoreXY Plotter\n");
   M5.Display.printf("mode: %s\n", SIMULATION_MODE ? "SIMULATION" : "REAL");
   M5.Display.printf("pos: X %.2f Y %.2f\n", state.x_mm, state.y_mm);
-  M5.Display.printf("motor: %s\n", state.enabled ? "ENABLED" : "DISABLED");
+  M5.Display.printf("motor: ACTIVE (EN=GND)\n");
   M5.Display.printf("homing: %s\n", state.homed ? "HOMED" : "NOT HOMED");
   M5.Display.printf("pen: %s\n", state.pen_down ? "DOWN" : "UP");
   M5.Display.printf("safety: %s\n", state.alarmed ? "ALARM" : "READY");

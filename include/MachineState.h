@@ -8,7 +8,6 @@ struct MachineState {
   int32_t a_steps = 0;
   int32_t b_steps = 0;
   float feed_mm_min = 0.0f;
-  bool enabled = false;
   bool homed = false;
   bool pen_down = false;
   bool alarmed = false;

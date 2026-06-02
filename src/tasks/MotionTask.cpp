@@ -20,10 +20,6 @@ void handleXY(const CommandMessage& command) {
 #if SIMULATION_MODE
   logMessage("SIMULATION_MODE: no motor output");
 #else
-  if (!machine_state.enabled) {
-    logMessage("REJECT: motors are disabled");
-    return;
-  }
   if (!stepper_backend.moveABSteps(delta.a_steps, delta.b_steps, feed_mm_min)) {
     logMessage("ERROR: backend rejected XY move");
     return;
@@ -42,10 +38,6 @@ void handleSingleMotor(bool motor_a, int32_t steps) {
   logMessage("SIMULATION_MODE: TEST_%c steps=%ld no motor output",
              motor_a ? 'A' : 'B', steps);
 #else
-  if (!machine_state.enabled) {
-    logMessage("REJECT: motors are disabled");
-    return;
-  }
   const bool accepted = motor_a ? stepper_backend.moveASteps(steps)
                                 : stepper_backend.moveBSteps(steps);
   if (!accepted) {
@@ -74,20 +66,6 @@ void motionTask(void*) {
         Diagnostics::printPosition(status);
         break;
       }
-      case CommandType::ENABLE:
-        if (!stepper_backend.isReady()) {
-          logMessage("ERROR: stepper backend is not ready");
-          break;
-        }
-        stepper_backend.enable();
-        machine_state.enabled = true;
-        logMessage("Motors ENABLED logical gate; driver EN is hardwired active");
-        break;
-      case CommandType::DISABLE:
-        stepper_backend.disable();
-        machine_state.enabled = false;
-        logMessage("Motors DISABLED logical gate only; driver EN remains hardwired active");
-        break;
       case CommandType::ZERO:
         machine_state.x_mm = 0;
         machine_state.y_mm = 0;
@@ -125,7 +103,7 @@ void motionTask(void*) {
         break;
       case CommandType::MELODY:
         motor_melody_controller.play(stepper_backend, tmc_manager,
-                                     safety_manager, machine_state.enabled);
+                                     safety_manager);
         break;
       case CommandType::LED:
       case CommandType::LED_PIXEL:
