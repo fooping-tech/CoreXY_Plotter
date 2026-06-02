@@ -24,8 +24,6 @@ constexpr uint8_t PEN_DOWN_ANGLE_DEG = 70;
 constexpr bool MOTOR_A_DIRECTION_INVERTED = false;
 constexpr bool MOTOR_B_DIRECTION_INVERTED = false;
 
-constexpr uint32_t LCD_RESYNC_INTERVAL_MS = 1000;
-
 constexpr uint16_t NEOPIXEL_LED_COUNT = 8;
 constexpr uint8_t NEOPIXEL_BRIGHTNESS_MAX = 64;
 constexpr uint8_t NEOPIXEL_BRIGHTNESS_DEFAULT = 24;

@@ -45,7 +45,6 @@ void uiTask(void*) {
   StatusMessage status;
   StatusMessage displayed_status;
   bool have_displayed_status = false;
-  uint32_t last_lcd_draw_ms = 0;
   for (;;) {
     if (M5_UI_ENABLED) M5.update();
     LedCommand led_command;
@@ -55,16 +54,13 @@ void uiTask(void*) {
     led_pattern_engine.tick(millis());
 
     if (xQueueReceive(status_queue, &status, pdMS_TO_TICKS(20)) == pdTRUE) {
-      const uint32_t now_ms = millis();
       const bool changed =
           !have_displayed_status ||
           memcmp(&status, &displayed_status, sizeof(status)) != 0;
-      if (lcd_ready &&
-          (changed || now_ms - last_lcd_draw_ms >= LCD_RESYNC_INTERVAL_MS)) {
+      if (lcd_ready && changed) {
         drawStatus(status);
         displayed_status = status;
         have_displayed_status = true;
-        last_lcd_draw_ms = now_ms;
       }
     }
   }
