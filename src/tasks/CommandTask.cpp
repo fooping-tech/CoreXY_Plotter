@@ -17,8 +17,7 @@ void commandTask(void*) {
   for (;;) {
     while (Serial.available() > 0) {
       const char c = static_cast<char>(Serial.read());
-      if (c == '\r') continue;
-      if (c == '\n') {
+      if (c == '\r' || c == '\n') {
         line[length] = '\0';
         if (length > 0) {
           CommandMessage command = CommandDispatcher::parse(line);
