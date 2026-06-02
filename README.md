@@ -49,3 +49,4 @@ readyの場合だけ明示実行します。終了または中断時には通常
 - `moveABSteps()`はbring-up用で、厳密なXY線形補間を保証しません。
 - homing、G-code、look-ahead、junction deviation、timed segmentは未実装です。
 # CoreXY_Plotter
+# CoreXY_Plotter
