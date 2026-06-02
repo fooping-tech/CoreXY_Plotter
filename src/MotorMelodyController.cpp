@@ -23,41 +23,44 @@ bool MotorMelodyController::shouldAbort(SafetyManager& safety) const {
 bool MotorMelodyController::play(StepperBackendFastAccel& backend,
                                  TMC2209Manager& tmc, SafetyManager& safety,
                                  bool motors_enabled) {
+#if SIMULATION_MODE
+  (void)backend;
+  (void)tmc;
+  (void)safety;
+  (void)motors_enabled;
+  logMessage("ERROR: MELODY unavailable in SIMULATION_MODE");
+  return false;
+#else
   if (!MOTOR_MELODY_ENABLED) {
-    logMessage("MELODY rejected: disabled by config");
+    logMessage("ERROR: MELODY disabled by config");
     return false;
   }
   if (!tmc.isReady()) {
-    logMessage("MELODY rejected: TMC UART is not ready");
+    logMessage("ERROR: MELODY TMC UART is not ready");
     return false;
   }
   if (backend.isRunning()) {
-    logMessage("MELODY rejected: motion is running");
+    logMessage("ERROR: MELODY motion is running");
     return false;
   }
   if (shouldAbort(safety)) {
-    logMessage("MELODY rejected: alarm or limit active");
+    logMessage("ERROR: MELODY alarm or limit active");
     return false;
   }
-#if !SIMULATION_MODE
   if (!motors_enabled) {
-    logMessage("MELODY rejected: motors are disabled");
+    logMessage("ERROR: MELODY motors are disabled");
     return false;
   }
-#else
-  (void)motors_enabled;
-#endif
 
   if (!tmc.applyMelodyProfile()) {
     tmc.applyNormalProfile();
-    logMessage("MELODY rejected: melody TMC profile validation failed");
+    logMessage("ERROR: MELODY TMC profile validation failed");
     return false;
   }
   bool completed = true;
   for (const auto& note : NOTES) {
     logMessage("MELODY note frequency=%uHz duration=%ums motor=A direction=+/-",
                note.frequency_hz, note.duration_ms);
-#if !SIMULATION_MODE
     const int32_t half_note_steps = static_cast<int32_t>(
         (static_cast<uint32_t>(note.frequency_hz) * note.duration_ms) / 2000U);
     const int32_t steps = half_note_steps > 0 ? half_note_steps : 1;
@@ -82,11 +85,11 @@ bool MotorMelodyController::play(StepperBackendFastAccel& backend,
       if (!completed) break;
     }
     if (!completed) break;
-#endif
     vTaskDelay(pdMS_TO_TICKS(MOTOR_MELODY_NOTE_GAP_MS));
   }
   tmc.applyNormalProfile();
   logMessage("MELODY %s; normal TMC profile restored",
              completed ? "complete" : "stopped");
   return completed;
+#endif
 }
