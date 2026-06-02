@@ -10,10 +10,11 @@ struct MotorMelodyNote {
 };
 
 constexpr MotorMelodyNote NOTES[] = {
-    {262, 120}, {330, 120}, {392, 140}, {523, 180},
-    {392, 100}, {523, 220},
+    {523, 90},
+    {659, 90},
+    {784, 120},
+    {1047, 180},
 };
-constexpr int8_t NOTE_DIRECTIONS[] = {1, -1};
 }
 
 bool MotorMelodyController::shouldAbort(SafetyManager& safety) const {
@@ -52,31 +53,43 @@ bool MotorMelodyController::play(StepperBackendFastAccel& backend,
   }
   bool completed = true;
   for (const auto& note : NOTES) {
-    logMessage("MELODY note frequency=%uHz duration=%ums motor=A direction=+/-",
+    logMessage("MELODY note frequency=%uHz duration=%ums motor=A direction=alternating",
                note.frequency_hz, note.duration_ms);
-    const int32_t half_note_steps = static_cast<int32_t>(
-        (static_cast<uint32_t>(note.frequency_hz) * note.duration_ms) / 2000U);
-    const int32_t steps = half_note_steps > 0 ? half_note_steps : 1;
-    for (const int8_t direction : NOTE_DIRECTIONS) {
-      if (!backend.setDiagnosticSpeedHz(note.frequency_hz) ||
-          !backend.moveDiagnosticASteps(direction * steps)) {
+    if (!backend.beginDiagnosticTone()) {
+      logMessage("MELODY aborted: backend rejected tone");
+      completed = false;
+      break;
+    }
+    const uint32_t pulse_count =
+        (static_cast<uint32_t>(note.frequency_hz) * note.duration_ms) / 1000U;
+    for (uint32_t pulse = 0; pulse < pulse_count;) {
+      const auto result = backend.queueDiagnosticPulse(note.frequency_hz);
+      if (result == StepperBackend::DiagnosticPulseResult::QUEUED) {
+        ++pulse;
+      } else if (result == StepperBackend::DiagnosticPulseResult::ERROR) {
         logMessage("MELODY aborted: backend rejected note");
         completed = false;
         break;
+      } else {
+        vTaskDelay(pdMS_TO_TICKS(1));
       }
-      const uint32_t timeout_ms = millis() + note.duration_ms / 2U + 500U;
-      while (backend.isRunning()) {
-        if (shouldAbort(safety) ||
-            static_cast<int32_t>(millis() - timeout_ms) >= 0) {
-          backend.stop();
-          logMessage("MELODY aborted: alarm, limit, or note timeout");
-          completed = false;
-          break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(5));
+      if (shouldAbort(safety)) {
+        backend.stop();
+        logMessage("MELODY aborted: alarm or limit");
+        completed = false;
+        break;
       }
-      if (!completed) break;
     }
+    while (completed && backend.isRunning()) {
+      if (shouldAbort(safety)) {
+        backend.stop();
+        logMessage("MELODY aborted: alarm or limit");
+        completed = false;
+        break;
+      }
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    backend.endDiagnosticTone();
     if (!completed) break;
     vTaskDelay(pdMS_TO_TICKS(MOTOR_MELODY_NOTE_GAP_MS));
   }

@@ -49,4 +49,3 @@ constexpr uint16_t MOTOR_MELODY_MICROSTEPS = 2;
 constexpr uint16_t MOTOR_MELODY_RMS_CURRENT_MA = 1200;
 constexpr bool MOTOR_MELODY_SPREADCYCLE = true;
 constexpr uint16_t MOTOR_MELODY_NOTE_GAP_MS = 25;
-constexpr uint32_t MOTOR_MELODY_ACCEL_STEPS_S2 = 20000;

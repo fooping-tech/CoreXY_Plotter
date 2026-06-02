@@ -80,20 +80,51 @@ bool StepperBackendFastAccel::moveABSteps(int32_t a_steps, int32_t b_steps,
 #endif
 }
 
-bool StepperBackendFastAccel::setDiagnosticSpeedHz(uint32_t speed_hz) {
+bool StepperBackendFastAccel::beginDiagnosticTone() {
 #if SIMULATION_MODE
-  (void)speed_hz;
   return true;
 #else
-  if (!ready_ || motor_a_ == nullptr) return false;
-  motor_a_->setSpeedInHz(constrain(speed_hz, 1U, MAX_MOTOR_SPEED_STEPS_S));
-  motor_a_->setAcceleration(MOTOR_MELODY_ACCEL_STEPS_S2);
+  if (!ready_ || motor_a_ == nullptr || motor_a_->isRunning()) return false;
+  diagnostic_direction_positive_ = true;
+  motor_a_->setDirectionPin(MOTOR_A_DIR_PIN, MOTOR_A_DIRECTION_INVERTED, 0);
   return true;
 #endif
 }
 
-bool StepperBackendFastAccel::moveDiagnosticASteps(int32_t steps) {
-  return moveASteps(steps);
+StepperBackend::DiagnosticPulseResult
+StepperBackendFastAccel::queueDiagnosticPulse(uint32_t frequency_hz) {
+#if SIMULATION_MODE
+  (void)frequency_hz;
+  return DiagnosticPulseResult::QUEUED;
+#else
+  if (!ready_ || motor_a_ == nullptr || frequency_hz == 0 ||
+      frequency_hz > MAX_MOTOR_SPEED_STEPS_S) {
+    return DiagnosticPulseResult::ERROR;
+  }
+  const uint32_t ticks = TICKS_PER_S / frequency_hz;
+  if (ticks == 0 || ticks > UINT16_MAX) return DiagnosticPulseResult::ERROR;
+  const stepper_command_s command = {
+      .ticks = static_cast<uint16_t>(ticks),
+      .steps = 1,
+      .count_up = diagnostic_direction_positive_,
+  };
+  const AqeResultCode result = motor_a_->addQueueEntry(&command);
+  if (result == AQE_OK) {
+    diagnostic_direction_positive_ = !diagnostic_direction_positive_;
+    return DiagnosticPulseResult::QUEUED;
+  }
+  return aqeRetry(result) ? DiagnosticPulseResult::RETRY
+                          : DiagnosticPulseResult::ERROR;
+#endif
+}
+
+void StepperBackendFastAccel::endDiagnosticTone() {
+#if !SIMULATION_MODE
+  if (motor_a_ != nullptr) {
+    motor_a_->setDirectionPin(MOTOR_A_DIR_PIN, MOTOR_A_DIRECTION_INVERTED,
+                              DIR_CHANGE_DELAY_US);
+  }
+#endif
 }
 
 void StepperBackendFastAccel::stop() {

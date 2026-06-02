@@ -492,10 +492,11 @@ TMC2209ManagerはFastAccelStepperやplannerに依存しない。
 
 実行ルール:
 
-- `SIMULATION_MODE=1`ではモータを動かさず、予定音符と設定変更をログ表示する
+- `SIMULATION_MODE=1`ではモータを動かさず、実行不可エラーをログ表示する
 - 実行前にmotionがidle、alarmなし、limit入力inactive、TMC UART readyであることを確認する
 - A/Bモータは診断対象を明確にして実行する
-- 音符ごとにSTEP周波数と長さを指定し、短い正逆交互移動で移動量を抑える
+- 音符ごとにSTEP周波数と長さを指定し、各STEPごとにDIRを反転して移動量を抑える
+- 音列は参照実装と同じ`523Hz/90ms`、`659Hz/90ms`、`784Hz/120ms`、`1047Hz/180ms`とする
 - STEPパルスは`StepperBackendFastAccel`経由で生成する
 - `delayMicroseconds()`によるSTEP直接生成は禁止する
 - メロディ中だけTMC2209のmicrosteps、RMS current、chop modeを診断用profileへ一時変更する
