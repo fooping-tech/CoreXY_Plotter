@@ -24,31 +24,41 @@ void LedPatternEngine::tick(uint32_t now_ms) {
 }
 
 void LedPatternEngine::applyCommand(const LedCommand& command) {
-  if (controller_ == nullptr) return;
+  if (controller_ == nullptr) {
+    logMessage("ERROR: LED controller is not ready");
+    return;
+  }
   switch (command.type) {
     case LedCommandType::SET_ALL:
       solid_ = {command.r, command.g, command.b};
       pattern_ = LedPattern::SOLID;
+      logMessage("OK: LED r=%u g=%u b=%u", command.r, command.g, command.b);
       break;
     case LedCommandType::SET_PIXEL:
       pattern_ = LedPattern::MANUAL;
       if (!controller_->setPixelRgb(command.index, command.r, command.g,
                                     command.b)) {
-        logMessage("LED ERROR: index %u out of range", command.index);
+        logMessage("ERROR: LED_PIXEL index %u out of range", command.index);
+        return;
       }
+      logMessage("OK: LED_PIXEL index=%u r=%u g=%u b=%u", command.index,
+                 command.r, command.g, command.b);
       dirty_ = true;
       return;
     case LedCommandType::OFF:
       pattern_ = LedPattern::OFF;
+      logMessage("OK: LED_OFF");
       break;
     case LedCommandType::SET_PATTERN:
       pattern_ = command.pattern;
+      logMessage("OK: LED_PATTERN %s", patternName(pattern_));
       break;
     case LedCommandType::SET_BRIGHTNESS:
       config_.brightness = command.value > NEOPIXEL_BRIGHTNESS_MAX
                                ? NEOPIXEL_BRIGHTNESS_MAX
                                : command.value;
       controller_->setBrightness(config_.brightness);
+      logMessage("OK: LED_BRIGHTNESS %u", config_.brightness);
       break;
     case LedCommandType::SET_PARAMETER:
       switch (command.parameter) {
@@ -65,6 +75,8 @@ void LedPatternEngine::applyCommand(const LedCommand& command) {
         case LedParameter::COOLING: config_.cooling = command.value; break;
         case LedParameter::SPARKING: config_.sparking = command.value; break;
       }
+      logMessage("OK: LED_PARAM %s %u", parameterName(command.parameter),
+                 command.value);
       break;
     case LedCommandType::STATUS:
       printStatus();
@@ -133,6 +145,19 @@ const char* LedPatternEngine::patternName(LedPattern pattern) {
     case LedPattern::MANUAL: return "MANUAL";
     case LedPattern::PACIFICA: return "PACIFICA";
     case LedPattern::FIRE: return "FIRE";
+  }
+  return "UNKNOWN";
+}
+
+const char* LedPatternEngine::parameterName(LedParameter parameter) {
+  switch (parameter) {
+    case LedParameter::BRIGHTNESS: return "BRIGHTNESS";
+    case LedParameter::HUE: return "HUE";
+    case LedParameter::SATURATION: return "SATURATION";
+    case LedParameter::SPEED: return "SPEED";
+    case LedParameter::INTENSITY: return "INTENSITY";
+    case LedParameter::COOLING: return "COOLING";
+    case LedParameter::SPARKING: return "SPARKING";
   }
   return "UNKNOWN";
 }

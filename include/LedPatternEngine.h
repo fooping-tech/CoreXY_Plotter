@@ -18,6 +18,7 @@ class LedPatternEngine {
   void renderPacifica(uint32_t now_ms, RgbColor* leds, uint16_t count);
   void renderFire(RgbColor* leds, uint16_t count);
   static const char* patternName(LedPattern pattern);
+  static const char* parameterName(LedParameter parameter);
 
   NeoPixelController* controller_ = nullptr;
   LedAnimationConfig config_;
