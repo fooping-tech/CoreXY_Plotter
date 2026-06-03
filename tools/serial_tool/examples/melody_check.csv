@@ -1,0 +1,7 @@
+command,delay_ms,expect,comment
+CONFIG,500,MOTOR_EN=HARDWIRED_GND,Confirm motor config before diagnostic melody
+POS,500,ALARM=NO,Confirm no alarm or active limit before melody
+TMC_INIT,1000,TMC_INIT,Initialize TMC profile before melody
+TMC_STATUS,700,TMC_STATUS ready=YES,Confirm TMC UART is ready
+MELODY,3000,MELODY complete,Play diagnostic motor melody and restore normal TMC profile
+TMC_STATUS,700,TMC_STATUS ready=YES,Confirm TMC profile is restored after melody

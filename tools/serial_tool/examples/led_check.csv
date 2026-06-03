@@ -1,0 +1,12 @@
+command,delay_ms,expect,comment
+CONFIG,500,NEOPIXEL,Confirm NEOPIXEL pin count and brightness limit
+LED_STATUS,500,LED_STATUS,Read current LED state before changing it
+LED_BRIGHTNESS 24,500,OK: LED_BRIGHTNESS 24,Set safe LED brightness
+LED 255 0 0,700,OK: LED r=255 g=0 b=0,Check all LEDs show red
+LED 0 255 0,700,OK: LED r=0 g=255 b=0,Check all LEDs show green
+LED 0 0 255,700,OK: LED r=0 g=0 b=255,Check all LEDs show blue
+LED_PIXEL 0 255 255 255,700,OK: LED_PIXEL index=0,Check LED index 0 can be addressed
+LED_PATTERN PACIFICA,1500,OK: LED_PATTERN PACIFICA,Check animated PACIFICA pattern
+LED_PATTERN FIRE,1500,OK: LED_PATTERN FIRE,Check animated FIRE pattern
+LED_OFF,500,OK: LED_OFF,Turn LEDs off after test
+LED_STATUS,500,LED_STATUS,Confirm final LED state

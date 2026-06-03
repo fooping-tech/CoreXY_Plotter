@@ -1,0 +1,6 @@
+command,delay_ms,expect,comment
+CONFIG,500,BOARD,Check board baud pins limits UI and core assignment before motion tests
+POS,500,POS,Check current logical position and alarm/limit state
+SELFTEST,500,SELFTEST PASS,Check firmware-side CoreXY conversion before moving motors
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART settings before real motor motion
+TMC_STATUS,700,TMC_STATUS,Confirm both TMC2209 drivers respond before direction checks

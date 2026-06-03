@@ -1,0 +1,9 @@
+command,delay_ms,expect,comment
+CONFIG,500,PEN=32,Confirm PEN_SERVO_PIN and related config
+POS,500,PEN=UP,Confirm firmware starts with pen up state
+PENDOWN,1000,PEN DOWN,Servo should move to PEN_DOWN_ANGLE_DEG
+POS,500,PEN=DOWN,Confirm firmware state is pen down
+PENUP,1000,PEN UP,Servo should move to PEN_UP_ANGLE_DEG
+POS,500,PEN=UP,Confirm firmware state is pen up
+PENDOWN,1000,PEN DOWN,Repeat pen down to check stable movement
+PENUP,1000,PEN UP,Finish with pen up

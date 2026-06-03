@@ -1,0 +1,13 @@
+command,delay_ms,expect,comment
+CONFIG,500,BOARD,Confirm SIMULATION_MODE is 0 and pin/config values are the intended firmware build
+POS,500,POS,Confirm initial logical position and that LIMIT/ALARM are safe
+SELFTEST,500,SELFTEST PASS,Confirm CoreXY math before any physical direction judgement
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 drivers before motion
+TMC_STATUS,700,TMC_STATUS,Confirm driver communication before motion
+ZERO,500,ZERO,Set the current physical point as logical origin for this direction test
+XY 5 0 300,1500,A=400 B=400,Observe +X: carriage should move right with no Y drift
+ZERO,500,ZERO,Reset logical origin at the current physical point
+XY 0 5 300,1500,A=400 B=-400,Observe +Y: carriage should move away or up according to the machine coordinate definition
+ZERO,500,ZERO,Reset logical origin at the current physical point
+XY 5 5 300,1500,A=800 B=0,Observe +X+Y diagonal: both axes should move positive equally
+ZERO,500,ZERO,Reset logical origin at the current physical point

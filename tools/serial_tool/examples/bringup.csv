@@ -1,0 +1,12 @@
+command,delay_ms,expect,comment
+CONFIG,500,,Show firmware configuration
+POS,500,POS,Show current machine state
+SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
+ZERO,500,ZERO,Reset logical origin
+XY 10 0 600,700,A=800,Validate +X CoreXY mapping
+ZERO,500,ZERO,Reset logical origin
+XY 0 10 600,700,B=-800,Validate +Y CoreXY mapping
+ZERO,500,ZERO,Reset logical origin
+XY 10 10 600,700,A=1600,Validate diagonal CoreXY mapping

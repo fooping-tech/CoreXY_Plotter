@@ -1,0 +1,11 @@
+command,delay_ms,expect,comment
+CONFIG,500,BOARD,Confirm firmware configuration before CoreXY math check
+SELFTEST,500,SELFTEST PASS,Run firmware-side CoreXY conversion self-test
+ZERO,500,ZERO,Reset logical origin
+XY 10 0 600,1000,A=800 B=800,Check +X maps to A positive and B positive
+ZERO,500,ZERO,Reset logical origin
+XY 0 10 600,1000,A=800 B=-800,Check +Y maps to A positive and B negative
+ZERO,500,ZERO,Reset logical origin
+XY 10 10 600,1000,A=1600 B=0,Check +X+Y maps mostly to A only
+XY 20 0 600,1000,A=0 B=1600,Check +X-Y delta from current 10 10 to target 20 0 stays inside soft limits
+ZERO,500,ZERO,Finish with logical origin reset
