@@ -46,7 +46,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の想定フェーズ:
 
 ```text
-現在地: Phase 0〜6.8 完了。Phase 7以降の実装方針確認待ち
+現在地: Phase 0〜6.8 完了。Phase 6.9 Homing bring-upの実装方針確認待ち
 ```
 
 現在の状態:
@@ -69,7 +69,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の最優先作業:
 
 ```text
-Phase 7以降の実装順と範囲を決める。
+Phase 6.9 Homing bring-upの実装順と範囲を決める。
 ```
 
 ---
@@ -89,6 +89,7 @@ Phase 7以降の実装順と範囲を決める。
 | 6.6 | Core2 LCD Status UI | Core2内蔵LCDに機械状態を表示する | [x] |
 | 6.7 | NEOPIXEL Status LED | GPIO33の外付けNEOPIXELを設定灯数で制御する | [x] |
 | 6.8 | Motor Melody Diagnostics | STEP周波数とTMC設定を一時変更して診断メロディを鳴らす | [x] |
+| 6.9 | Homing bring-up | X/Y原点復帰、hard limit、homed状態を実装する | [ ] |
 | 7 | 最小G-code | G0/G1/G90/G91/G20/G21/M3/M5/M114 | [ ] |
 | 8 | 台形加減速 | TrapezoidPlannerを実装 | [ ] |
 | 9 | timed segment | SegmentGeneratorでA/B同期 | [ ] |
@@ -98,11 +99,11 @@ Phase 7以降の実装順と範囲を決める。
 現在の実装対象:
 
 ```text
-Phase 7以降の方針検討
+Phase 6.9 Homing bring-up の実装方針確認
 ```
 
 Phase 0〜6.8は完了済み。  
-Phase 7以降は、実装範囲を確認してから着手する。  
+Phase 6.9以降は、実装範囲を確認してから着手する。  
 ただし、先々の設計を忘れないようチェックリストとして残しておく。
 
 ---
@@ -776,6 +777,181 @@ GPIO33へ接続した外付けNEOPIXELを設定灯数で制御し、bring-upと�
 
 ---
 
+# Phase 6.9: Homing bring-up
+
+Status: 計画追加。まだ実装しない。
+
+## 目的
+
+X/Yリミットスイッチを使って機械原点へ復帰し、`MachineState`のhomed状態とhard limit alarmを安全に扱えるようにする。
+
+G-codeの`G28`を実装する前に、Serialコマンドで原点復帰を検証する。  
+このPhaseでは、planner、look-ahead、timed segmentはまだ実装しない。
+
+`../1stepper_test`のhoming実装を参照要件とする。  
+特に、速いseekで一度リミットへ突き当て、backoffでスイッチを離し、遅いseekでもう一度リミットをONにして、その2回目のON位置を原点として採用する。
+
+## 基本方針
+
+- homingはCore 1のmotion側だけで実行する
+- Core 0は`CommandQueue`へhoming commandを投入するだけにする
+- Core 0からStepperBackend、SafetyManager、TMC2209Managerを直接操作しない
+- X/Y移動は必ず`CoreXYKinematics`経由でA/B stepへ変換する
+- homing中だけsoft limitを一時的に専用扱いにする
+- homing対象軸以外のlimit入力がactiveになった場合はalarmにする
+- `ZERO`は論理原点リセットのままとし、homing扱いにしない
+- 起動時に自動homingしない
+- motor power off、microstep変更、steps/mm変更など位置保持を信用できなくなる操作後は`homed=false`に戻す
+
+## `../1stepper_test`由来の必須動作要件
+
+- [ ] homing開始時に対象軸の`homed`をfalseにする
+- [ ] `SeekFast`でリミット方向へ速く移動する
+- [ ] `SeekFast`中にlimit debounced ONを検出したら即座に`Backoff`へ移行する
+- [ ] 起動時点またはhoming開始時点でlimitがONの場合も、まず`Backoff`へ移行する
+- [ ] `Backoff`ではリミットと反対方向へ移動する
+- [ ] `Backoff`中にlimit debounced OFFを検出したら`SeekSlow`へ移行する
+- [ ] `Backoff`が`HOMING_BACKOFF_MM`に達してもlimitがOFFにならない場合はalarm/errorにする
+- [ ] `SeekSlow`でリミット方向へ低速移動する
+- [ ] `SeekSlow`中にlimit debounced ONを検出したら`SetZero`へ移行する
+- [ ] `SetZero`では2回目のlimit ON位置を機械原点としてX/Y位置とA/B step位置を設定する
+- [ ] homing完了時のlimit状態はONであることを期待値にする
+- [ ] `SeekFast`と`SeekSlow`それぞれでmax travel超過を検出し、超過時はalarm/errorにする
+- [ ] homing完了前の通常XY移動を禁止する
+- [ ] homing完了後もsoft limit外の通常XY移動を拒否する
+- [ ] 通常移動中にlimit ONを検出した場合は安全停止してalarm/errorにする
+- [ ] limit入力はraw値とdebounced値の両方を診断表示できる
+- [ ] debounce時間をconfig化する
+- [ ] homing state遷移とlimit状態をSerial/LogQueueへ出力する
+- [ ] homing完了ログは原点座標、A/B step、limit状態を含める
+- [ ] homing errorログはstate、reason、現在位置、A/B step、limit raw/debouncedを含める
+
+## チェックリスト
+
+### 6.9.1 config
+
+- [ ] `HOMING_ENABLED`を`PlotterConfig.h`で設定できる
+- [ ] `HOMING_X_DIR`を設定できる
+- [ ] `HOMING_Y_DIR`を設定できる
+- [ ] `HOMING_SEEK_FEED_MM_MIN`を設定できる
+- [ ] `HOMING_SLOW_FEED_MM_MIN`を設定できる
+- [ ] `HOMING_BACKOFF_MM`を設定できる
+- [ ] `HOMING_MAX_TRAVEL_X_MM`を設定できる
+- [ ] `HOMING_MAX_TRAVEL_Y_MM`を設定できる
+- [ ] `HOMING_SET_X_MM`を設定できる
+- [ ] `HOMING_SET_Y_MM`を設定できる
+- [ ] `HOMING_LIMIT_DEBOUNCE_MS`を設定できる
+- [ ] `HOMING_REQUIRE_HOMED_FOR_XY_MOVE`を設定できる
+- [ ] limit入力のactive polarityを設定またはコメントで明記する
+- [ ] limit入力に外付けpull-upを使う前提をコメントで明記する
+
+### 6.9.2 command
+
+- [ ] `CommandType::Home`
+- [ ] `CommandType::HomeX`
+- [ ] `CommandType::HomeY`
+- [ ] `HOME`
+- [ ] `HOME_X`
+- [ ] `HOME_Y`
+- [ ] `HOME_STATUS`
+- [ ] `LIMIT_STATUS`
+- [ ] `ALARM_CLEAR`または同等のalarm復帰command
+- [ ] `HELP`へhoming commandを追加する
+- [ ] `G28`はPhase 7で`HOME`へ接続する計画として残す
+- [ ] parserはhomingを直接実行せず、CommandQueueへ投入する
+
+### 6.9.3 `HomingController`
+
+- [ ] `include/HomingController.h`
+- [ ] `src/HomingController.cpp`
+- [ ] homing stateを保持する
+- [ ] `Idle`
+- [ ] `SeekFastX`
+- [ ] `BackoffX`
+- [ ] `SeekSlowX`
+- [ ] `SetXZero`
+- [ ] `SeekFastY`
+- [ ] `BackoffY`
+- [ ] `SeekSlowY`
+- [ ] `SetYZero`
+- [ ] `Complete`
+- [ ] `Alarm`
+- [ ] Xだけ、Yだけ、X/Y連続のhomingを実行できる
+- [ ] `SeekFast -> Backoff -> SeekSlow -> SetZero`の2段階homingを行う
+- [ ] `SeekFast`でmax travel超過時にalarmを立てる
+- [ ] `SeekSlow`でmax travel超過時にalarmを立てる
+- [ ] limitが最初からactiveの場合はbackoffしてからslow seekする
+- [ ] backoff距離内にlimitがOFFにならない場合はalarmを立てる
+- [ ] 2回目のlimit ON位置だけを原点採用する
+- [ ] homing完了時だけMachineStateの位置を設定する
+- [ ] X/Y両方完了時だけ`MachineState::homed = true`にする
+- [ ] homing中は通常motion、MELODY、pen動作と排他にする
+- [ ] homing開始時にMachineStateのhomedをfalseへ戻す
+
+### 6.9.4 SafetyManager連携
+
+- [ ] homing中かどうかをSafetyManagerへ渡す
+- [ ] homing対象軸のlimit activeは停止条件として扱う
+- [ ] homing対象外軸のlimit activeはalarmとして扱う
+- [ ] homing以外の通常移動中にlimit activeになったらalarmにする
+- [ ] alarm中はhomingを含むmotion commandを拒否する
+- [ ] alarm復帰用commandを計画する
+- [ ] homed前の通常XY移動を許可するか禁止するかをconfigで決める
+- [ ] homed前移動を禁止する場合でもhoming commandは許可する
+- [ ] motor power off後はhomedをfalseにする
+- [ ] TMC microstep変更後はhomedをfalseにする
+- [ ] steps/mm相当の設定変更後はhomedをfalseにする
+
+### 6.9.5 StepperBackend連携
+
+- [ ] homing用の低速移動APIをStepperBackendに追加する
+- [ ] FastAccelStepper詳細は`StepperBackendFastAccel`内に閉じ込める
+- [ ] STEPパルスをtaskや`delayMicroseconds()`で直接生成しない
+- [ ] homing move中にlimit状態を定期確認できる構造にする
+- [ ] limit検出時に安全に停止できる構造にする
+- [ ] bring-up段階では短いincremental moveの反復を許容する
+- [ ] incremental move反復では、各反復前後でlimit debounced状態を確認する
+- [ ] 将来のtimed segment化で置き換えられるコメントを残す
+
+### 6.9.6 CoreXY方向確認
+
+- [ ] X homingはXY空間のX方向移動として実行する
+- [ ] Y homingはXY空間のY方向移動として実行する
+- [ ] X homing中のA/B方向が想定通りであることを確認する
+- [ ] Y homing中のA/B方向が想定通りであることを確認する
+- [ ] `MOTOR_A_DIR_INVERT` / `MOTOR_B_DIR_INVERT`調整後もhoming方向がconfigで追従できる
+
+### 6.9.7 Diagnostics / UI
+
+- [ ] `POS`にhomed状態を表示する
+- [ ] `LIMIT_STATUS`または`POS`でlimit状態を確認できる
+- [ ] `HOMING_STATUS`または`POS`でhoming stateを確認できる
+- [ ] limit raw/debouncedを両方表示できる
+- [ ] homing no-step / wait / error reasonを表示できる
+- [ ] LCDにhoming中状態を表示する
+- [ ] homing alarm理由をLogQueueへ出す
+- [ ] homing完了時に設定されたX/Y座標をログ出力する
+- [ ] 実機確認では`Backoff limit=ON`、`SeekSlow limit=OFF`、`SetZero limit=ON`、`Complete limit=ON`相当の遷移ログを確認する
+
+## Phase 6.9 完了条件
+
+- [ ] `HOME_X`でX limitまで移動し、backoff後に低速再検出できる
+- [ ] `HOME_Y`でY limitまで移動し、backoff後に低速再検出できる
+- [ ] `HOME`でX/Yを順番にhomingできる
+- [ ] 2回目の低速seekでlimit ONになった位置だけを原点として採用する
+- [ ] homing完了時のlimit debounced状態がONである
+- [ ] homing後に`POS`が原点座標と`HOMED=YES`を表示する
+- [ ] max travel超過時にalarmになる
+- [ ] backoffしてもlimitがOFFにならない場合にalarmになる
+- [ ] homing対象外limit activeでalarmになる
+- [ ] 通常移動中のlimit activeでalarmになる
+- [ ] alarm中に通常motionが拒否される
+- [ ] `ZERO`がhoming扱いにならない
+- [ ] `pio run`が通る
+- [ ] `pio run --target upload`後、実機で`HOME_X`、`HOME_Y`、`HOME`を確認する
+
+---
+
 # Phase 7: 最小G-code
 
 Status: 将来。まだ実装しない。
@@ -862,11 +1038,12 @@ Status: 将来。まだ実装しない。
 
 ### Homing / Limit
 
-- [ ] `HomingController`
-- [ ] X homing
-- [ ] Y homing
-- [ ] hard limit
-- [ ] homed前移動制限
+- [ ] Phase 6.9完了後のhoming精度改善
+- [ ] G28との統合
+- [ ] homing後の軸別再homing
+- [ ] limit switch debounceの実測調整
+- [ ] hard limit停止経路のtimed segment対応
+- [ ] homed前移動制限の運用方針確定
 - [ ] alarm復帰
 
 ### TMC診断
@@ -1028,6 +1205,48 @@ DISABLE
 - [x] 論理X/Y位置が変化しない
 - [x] 異常発熱がない
 
+## 12.6 Homing bring-up
+
+```text
+CONFIG
+POS
+HOME_X
+POS
+HOME_Y
+POS
+ZERO
+POS
+HOME
+POS
+XY 10 0 300
+XY 10 10 300
+```
+
+チェック:
+
+- [ ] `CONFIG`でhoming設定値を確認できる
+- [ ] `LIMIT_STATUS`または`POS`でX/Y limit入力を確認できる
+- [ ] `HOME_X`でX limit方向へのhoming sequenceを開始する
+- [ ] `HOME_X`で最初に速いseekでX limit ONを検出する
+- [ ] X limit検出後にbackoffして低速再検出する
+- [ ] Xのbackoff中にX limitがOFFになる
+- [ ] Xの低速seekで2回目のX limit ONを検出し、その位置をX原点にする
+- [ ] `HOME_Y`でY limit方向へのhoming sequenceを開始する
+- [ ] `HOME_Y`で最初に速いseekでY limit ONを検出する
+- [ ] Y limit検出後にbackoffして低速再検出する
+- [ ] Yのbackoff中にY limitがOFFになる
+- [ ] Yの低速seekで2回目のY limit ONを検出し、その位置をY原点にする
+- [ ] `HOME`でX/Yを順番にhomingする
+- [ ] homing後に`POS`が原点座標と`HOMED=YES`を表示する
+- [ ] homing完了時にlimit debouncedがONである
+- [ ] `ZERO`は論理原点リセットであり、homed状態を勝手にtrueにしない
+- [ ] limitが最初からONでも、backoffしてから低速seekへ進む
+- [ ] backoff距離内にlimitがOFFにならない場合はalarmになる
+- [ ] homing対象外limit activeでalarmになる
+- [ ] max travel超過でalarmになる
+- [ ] alarm中に通常XY移動が拒否される
+- [ ] homing後の`XY 10 0 300`と`XY 10 10 300`が期待方向に動く
+
 ---
 
 # 13. Codex用プロンプト
@@ -1177,6 +1396,36 @@ delayMicroseconds()でSTEPパルスを直接生成しないでください。
 完了したらPLANS.mdの該当チェックボックスを更新してください。
 ```
 
+## Prompt 10: Homing bring-up
+
+```text
+AGENTS.md、SPEC.md、PLANS.mdを読んでください。
+
+Phase 6.9を実装してください。
+
+目的:
+- HOME_X、HOME_Y、HOMEを追加する
+- X/Y limit入力を使って2段階homingを行う
+- 1回目は速いseekでlimit ONを検出する
+- backoffでlimit OFFまで戻る
+- 2回目は遅いseekでlimit ONを検出し、その位置を原点にする
+- homing完了時だけMachineStateの位置とhomed状態を更新する
+- homing中、通常motion、MELODY、pen動作を排他にする
+- hard limit、max travel超過、対象外limit activeでalarmにする
+
+制約:
+- Core 0からモータを直接動かさないでください
+- CoreXY変換はCoreXYKinematicsだけで行ってください
+- FastAccelStepperはStepperBackendFastAccel内に閉じ込めてください
+- STEPパルスをdelayMicroseconds()で直接生成しないでください
+- G-code parserとG28はまだ実装しないでください
+- look-ahead、junction deviation、timed segmentはまだ実装しないでください
+- ../1stepper_testのSeekFast -> Backoff -> SeekSlow -> SetZeroの動作を要件として反映してください
+- limit raw/debounced、homing state、error reasonを診断ログに出してください
+
+完了したらPLANS.mdの該当チェックボックスを更新してください。
+```
+
 ---
 
 # 14. リスク・未解決事項
@@ -1194,6 +1443,10 @@ delayMicroseconds()でSTEPパルスを直接生成しないでください。
 | R9 | [ ] | メロディ用1200mAがモータ、TMC2209モジュール、電源、放熱条件に適合するか未確認 | 低電流から段階的に確認し、上限を確定 |
 | R10 | [ ] | NEOPIXEL灯数、frame rate、FastLED `show()`時間によるCore 0負荷が未確認 | 実灯数で負荷を測定し、frame intervalと輝度を調整 |
 | R11 | [x] | TMC2209 profile変更はログ経路までで、実レジスタ書込みが未実装 | `TMCStepper`を用い、`TMC2209Manager`内へA/Bアドレス別レジスタ書込みを追加 |
+| R12 | [ ] | limit switchの機械配置、active polarity、bounce量が未確定 | 実配線で`LIMIT_STATUS`を確認し、必要ならdebounceとpolarity設定を追加 |
+| R13 | [ ] | homing中の安全停止は現状backendの実行管理能力に依存する | bring-upでは短いincremental move反復で確認し、Phase 9以降でtimed segment停止へ置き換える |
+| R14 | [ ] | homed前の通常XY移動を許可するか運用方針が未確定 | 初期はconfigで切替可能にし、実機bring-up後に既定値を決める |
+| R15 | [ ] | 2回目の低速seek後にlimit debounced ONで安定するまでの待ち時間が未確定 | `../1stepper_test`同様にraw/debouncedをログ化し、必要ならsettle待ちまたはdebounce値を調整 |
 
 ---
 
@@ -1211,6 +1464,8 @@ delayMicroseconds()でSTEPパルスを直接生成しないでください。
 | 2026-05-31 | Phase 6.6〜6.8を実装。FastLED LED制御、LCD差分更新、診断メロディ経路を追加しsimulation/real mode buildを確認 | Codex |
 | 2026-05-31 | `../1stepper_test`を参考にTMCStepperを導入。A/Bアドレス別レジスタ設定、profile切替、UART診断読出しを実装 | Codex |
 | 2026-06-03 | Phase 4 / 6.6〜6.8の実機bring-up確認完了を反映。M0完了条件を達成済みに更新 | Codex |
+| 2026-06-03 | Phase 6.9 Homing bring-upの実装計画、手動テスト、Codex用プロンプト、リスク項目を追加 | Codex |
+| 2026-06-03 | `../1stepper_test`の二段階homing、backoff、低速再検出、debounce診断をPhase 6.9要件へ反映 | Codex |
 
 ---
 
@@ -1235,6 +1490,16 @@ M0: M5Stack Core2用の安全なファームウェア土台を作る
 - [x] Phase 6.6 Core2 LCD Status UI complete
 - [x] Phase 6.7 NEOPIXEL Status LED complete
 - [x] Phase 6.8 Motor Melody Diagnostics complete
+
+次マイルストーンは以下。
+
+```text
+M1: 実機homingとhard limit alarmの土台を作る
+```
+
+完了条件:
+
+- [ ] Phase 6.9 Homing bring-up complete
 
 未実装のままでよいもの:
 
