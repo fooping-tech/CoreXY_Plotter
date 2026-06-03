@@ -46,7 +46,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の想定フェーズ:
 
 ```text
-現在地: Phase 0〜6.8 実装済み。Phase 4 / 6.6〜6.8の実機bring-up確認待ち
+現在地: Phase 0〜6.8 完了。Phase 7以降の実装方針確認待ち
 ```
 
 現在の状態:
@@ -56,12 +56,12 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 対象ボード | M5Stack Core2 |
 | Core割り付け | 実装済み |
 | ピン割り付け | 実装済み |
-| TMC2209 UART共通バス | `TMCStepper`でA/Bアドレス別レジスタ設定を実装済み、実機確認待ち |
+| TMC2209 UART共通バス | `TMCStepper`でA/Bアドレス別レジスタ設定を実装済み、実機確認完了 |
 | CoreXY変換 | 実装済み |
-| FastAccelStepper backend | 実装済み、実機確認待ち |
-| Core2 LCD Status UI | 実装済み、実機表示確認待ち |
-| 外付けNEOPIXEL | 実装済み、実機点灯確認待ち |
-| Motor Melody Diagnostics | 実装済み、TMC profile実レジスタ書込み経路あり、実機確認待ち |
+| FastAccelStepper backend | 実装済み、実機確認完了 |
+| Core2 LCD Status UI | 実装済み、実機表示確認完了 |
+| 外付けNEOPIXEL | 実装済み、実機点灯確認完了 |
+| Motor Melody Diagnostics | 実装済み、TMC profile実レジスタ書込み経路あり、実機確認完了 |
 | G-code parser | 未実装予定 |
 | look-ahead | 未実装予定 |
 | junction deviation | 未実装予定 |
@@ -69,7 +69,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の最優先作業:
 
 ```text
-実機でPhase 4の低速移動、LCD、NEOPIXEL、診断メロディを確認する。
+Phase 7以降の実装順と範囲を決める。
 ```
 
 ---
@@ -83,12 +83,12 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 1 | Simulation CoreXY | モータを動かさずA/B変換を検証 | [x] |
 | 2 | TMC2209 UART | TMC2209 A/Bを共通UARTで初期化 | [x] |
 | 3 | FastAccelStepper単軸 | A/Bモータを低速で個別に動かす | [x] |
-| 4 | XY低速移動 | CoreXYとして四角を低速で動かす | [-] |
+| 4 | XY低速移動 | CoreXYとして四角を低速で動かす | [x] |
 | 5 | Safety / Diagnostics | soft limit、limit、POS、CONFIG、SELFTEST | [x] |
 | 6 | Planner placeholder | MotionBlock、PlannerQueue等を用意 | [x] |
-| 6.6 | Core2 LCD Status UI | Core2内蔵LCDに機械状態を表示する | [-] |
-| 6.7 | NEOPIXEL Status LED | GPIO33の外付けNEOPIXELを設定灯数で制御する | [-] |
-| 6.8 | Motor Melody Diagnostics | STEP周波数とTMC設定を一時変更して診断メロディを鳴らす | [-] |
+| 6.6 | Core2 LCD Status UI | Core2内蔵LCDに機械状態を表示する | [x] |
+| 6.7 | NEOPIXEL Status LED | GPIO33の外付けNEOPIXELを設定灯数で制御する | [x] |
+| 6.8 | Motor Melody Diagnostics | STEP周波数とTMC設定を一時変更して診断メロディを鳴らす | [x] |
 | 7 | 最小G-code | G0/G1/G90/G91/G20/G21/M3/M5/M114 | [ ] |
 | 8 | 台形加減速 | TrapezoidPlannerを実装 | [ ] |
 | 9 | timed segment | SegmentGeneratorでA/B同期 | [ ] |
@@ -98,10 +98,11 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の実装対象:
 
 ```text
-Phase 0 〜 Phase 6.8
+Phase 7以降の方針検討
 ```
 
-Phase 7以降は、今は実装しない。  
+Phase 0〜6.8は完了済み。  
+Phase 7以降は、実装範囲を確認してから着手する。  
 ただし、先々の設計を忘れないようチェックリストとして残しておく。
 
 ---
@@ -436,10 +437,10 @@ FastAccelStepperでA/Bモータを個別に動かす。
 
 ### 4.2 方向確認
 
-- [-] +XでA/B同方向
-- [-] +YでA/B逆方向
-- [-] +X+Yで片側が主に動く
-- [-] +X-Yで反対側が主に動く
+- [x] +XでA/B同方向
+- [x] +YでA/B逆方向
+- [x] +X+Yで片側が主に動く
+- [x] +X-Yで反対側が主に動く
 - [x] 方向反転設定で調整できる
 
 ### 4.3 四角テスト
@@ -453,13 +454,13 @@ XY 0 0 300
 ```
 
 - [x] 上記テストが実行できる
-- [ ] 低速で安全に動く
-- [ ] 異常時に止められる
+- [x] 低速で安全に動く
+- [x] 異常時に止められる
 
 ## Phase 4 完了条件
 
-- [ ] CoreXYとして期待方向に動く
-- [ ] 四角移動が低速で実行できる
+- [x] CoreXYとして期待方向に動く
+- [x] 四角移動が低速で実行できる
 - [x] ログが十分に出る
 - [x] 厳密補間ではなくbring-up実装であることが明記されている
 
@@ -621,8 +622,8 @@ Core2内蔵LCDに機械状態を表示し、Serial接続なしでもbring-upと�
 
 ## Phase 6.6 完了条件
 
-- [-] Core2内蔵LCDに全ステータス項目が表示される
-- [-] Serial未接続でもposition、alarm、limit状態を確認できる
+- [x] Core2内蔵LCDに全ステータス項目が表示される
+- [x] Serial未接続でもposition、alarm、limit状態を確認できる
 - [x] Core 0だけがLCDを描画する
 - [x] Core 1からの状態は`StatusQueue`経由で表示される
 - [x] LCD更新中もmotion処理が不必要に停止しない
@@ -685,7 +686,7 @@ GPIO33へ接続した外付けNEOPIXELを設定灯数で制御し、bring-upと�
 - [x] 1 frameごとにpattern render後、必要時だけ`show()`する
 - [x] `delay()`や`FastLED.delay()`でtaskを待機させない
 - [x] LED更新でmotion、safety、stepper処理をブロックしない
-- [-] 灯数とframe rateを増やした場合のCore 0負荷を確認する
+- [x] 灯数とframe rateを増やした場合のCore 0負荷を確認する
 
 ### 6.7.5 外部設定とコマンド
 
@@ -707,12 +708,12 @@ GPIO33へ接続した外付けNEOPIXELを設定灯数で制御し、bring-upと�
 
 ## Phase 6.7 完了条件
 
-- [-] `LED 255 0 0`で赤色に点灯する
-- [-] `LED_PIXEL 0 0 255 0`で指定LEDだけを緑色にできる
-- [-] `LED_PATTERN PACIFICA`でPacificaパターンを選択できる
-- [-] `LED_PATTERN FIRE`でFireパターンを選択できる
+- [x] `LED 255 0 0`で赤色に点灯する
+- [x] `LED_PIXEL 0 0 255 0`で指定LEDだけを緑色にできる
+- [x] `LED_PATTERN PACIFICA`でPacificaパターンを選択できる
+- [x] `LED_PATTERN FIRE`でFireパターンを選択できる
 - [x] brightness、hue、speed等の外部引数が対応パターンへ反映される
-- [-] `LED_OFF`で消灯する
+- [x] `LED_OFF`で消灯する
 - [x] Core 0のUI側だけがNEOPIXELを更新する
 - [x] アニメーション更新中もmotion処理が不必要に停止しない
 - [x] `pio run`が通る
@@ -766,8 +767,8 @@ GPIO33へ接続した外付けNEOPIXELを設定灯数で制御し、bring-upと�
 
 ## Phase 6.8 完了条件
 
-- [-] `MELODY`で短い診断メロディが鳴る
-- [-] メロディ中だけSTEP周波数、電流、microstep、chop modeが変更される
+- [x] `MELODY`で短い診断メロディが鳴る
+- [x] メロディ中だけSTEP周波数、電流、microstep、chop modeが変更される
 - [x] 正常終了後に通常profileへ復元される
 - [x] limitまたはalarm中断後にも通常profileへ復元される
 - [x] 通常motionと同時実行されない
@@ -968,14 +969,14 @@ DISABLE
 
 チェック:
 
-- [ ] Aだけ動く
-- [ ] Bだけ動く
-- [ ] +XでA/B同方向
-- [ ] +YでA/B逆方向
-- [ ] 異音なし
-- [ ] 発熱が異常でない
-- [ ] 脱調しない
-- [ ] リミット異常なし
+- [x] Aだけ動く
+- [x] Bだけ動く
+- [x] +XでA/B同方向
+- [x] +YでA/B逆方向
+- [x] 異音なし
+- [x] 発熱が異常でない
+- [x] 脱調しない
+- [x] リミット異常なし
 
 ## 12.4 NEOPIXEL
 
@@ -997,14 +998,14 @@ LED_OFF
 
 チェック:
 
-- [ ] 赤、緑、青が順に点灯する
-- [ ] `LED_PIXEL`で指定indexだけを点灯できる
-- [ ] 範囲外indexが拒否される
-- [ ] `PACIFICA`と`FIRE`を選択して切り替えられる
-- [ ] brightness、hue、speed、cooling、sparkingが対応パターンへ反映される
-- [ ] `LED_STATUS`で選択中patternとparameterを確認できる
-- [ ] `LED_OFF`で消灯する
-- [ ] LED更新中もmotion処理が不必要に停止しない
+- [x] 赤、緑、青が順に点灯する
+- [x] `LED_PIXEL`で指定indexだけを点灯できる
+- [x] 範囲外indexが拒否される
+- [x] `PACIFICA`と`FIRE`を選択して切り替えられる
+- [x] brightness、hue、speed、cooling、sparkingが対応パターンへ反映される
+- [x] `LED_STATUS`で選択中patternとparameterを確認できる
+- [x] `LED_OFF`で消灯する
+- [x] LED更新中もmotion処理が不必要に停止しない
 
 ## 12.5 診断用モータメロディ
 
@@ -1020,12 +1021,12 @@ DISABLE
 
 チェック:
 
-- [ ] motion idle時だけメロディを実行できる
-- [ ] メロディ中だけSTEP周波数、電流、microstep、chop modeが変更される
-- [ ] 正常終了後に通常TMC profileへ復元される
-- [ ] limitまたはalarm中断後にも通常TMC profileへ復元される
-- [ ] 論理X/Y位置が変化しない
-- [ ] 異常発熱がない
+- [x] motion idle時だけメロディを実行できる
+- [x] メロディ中だけSTEP周波数、電流、microstep、chop modeが変更される
+- [x] 正常終了後に通常TMC profileへ復元される
+- [x] limitまたはalarm中断後にも通常TMC profileへ復元される
+- [x] 論理X/Y位置が変化しない
+- [x] 異常発熱がない
 
 ---
 
@@ -1209,6 +1210,7 @@ delayMicroseconds()でSTEPパルスを直接生成しないでください。
 | 2026-05-31 | FastLEDのPacifica、Fire等を選択できるNEOPIXELパターンエンジンと外部parameter設定の計画を追加 | Codex |
 | 2026-05-31 | Phase 6.6〜6.8を実装。FastLED LED制御、LCD差分更新、診断メロディ経路を追加しsimulation/real mode buildを確認 | Codex |
 | 2026-05-31 | `../1stepper_test`を参考にTMCStepperを導入。A/Bアドレス別レジスタ設定、profile切替、UART診断読出しを実装 | Codex |
+| 2026-06-03 | Phase 4 / 6.6〜6.8の実機bring-up確認完了を反映。M0完了条件を達成済みに更新 | Codex |
 
 ---
 
@@ -1227,12 +1229,12 @@ M0: M5Stack Core2用の安全なファームウェア土台を作る
 - [x] Phase 1 complete
 - [x] Phase 2 structure complete
 - [x] Phase 3 simulation or low-speed complete
-- [-] Phase 4 low-speed complete
+- [x] Phase 4 low-speed complete
 - [x] Phase 5 complete
 - [x] Phase 6 placeholder complete
-- [-] Phase 6.6 Core2 LCD Status UI complete
-- [-] Phase 6.7 NEOPIXEL Status LED complete
-- [-] Phase 6.8 Motor Melody Diagnostics complete
+- [x] Phase 6.6 Core2 LCD Status UI complete
+- [x] Phase 6.7 NEOPIXEL Status LED complete
+- [x] Phase 6.8 Motor Melody Diagnostics complete
 
 未実装のままでよいもの:
 
