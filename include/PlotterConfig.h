@@ -24,6 +24,21 @@ constexpr uint8_t PEN_DOWN_ANGLE_DEG = 70;
 constexpr bool MOTOR_A_DIRECTION_INVERTED = false;
 constexpr bool MOTOR_B_DIRECTION_INVERTED = false;
 
+constexpr bool HOMING_ENABLED = true;
+constexpr int8_t HOMING_X_DIR = -1;
+constexpr int8_t HOMING_Y_DIR = -1;
+constexpr float HOMING_SEEK_FEED_MM_MIN = 600.0f;
+constexpr float HOMING_SLOW_FEED_MM_MIN = 60.0f;
+constexpr float HOMING_BACKOFF_MM = 8.0f;
+constexpr float HOMING_MAX_TRAVEL_X_MM = 320.0f;
+constexpr float HOMING_MAX_TRAVEL_Y_MM = 320.0f;
+constexpr float HOMING_SET_X_MM = 0.0f;
+constexpr float HOMING_SET_Y_MM = 0.0f;
+constexpr float HOMING_INCREMENT_MM = 0.25f;
+constexpr uint32_t HOMING_LIMIT_DEBOUNCE_MS = 30;
+constexpr bool HOMING_REQUIRE_HOMED_FOR_XY_MOVE = true;
+constexpr bool LIMIT_ACTIVE_LOW = true;
+
 constexpr uint16_t NEOPIXEL_LED_COUNT = 8;
 constexpr uint8_t NEOPIXEL_BRIGHTNESS_MAX = 64;
 constexpr uint8_t NEOPIXEL_BRIGHTNESS_DEFAULT = 24;

@@ -49,6 +49,12 @@ CommandMessage CommandDispatcher::parse(const char* line) {
   else if (strcmp(name, "SELFTEST") == 0) command.type = CommandType::SELFTEST;
   else if (strcmp(name, "TMC_INIT") == 0) command.type = CommandType::TMC_INIT;
   else if (strcmp(name, "TMC_STATUS") == 0) command.type = CommandType::TMC_STATUS;
+  else if (strcmp(name, "HOME") == 0) command.type = CommandType::HOME;
+  else if (strcmp(name, "HOME_X") == 0) command.type = CommandType::HOME_X;
+  else if (strcmp(name, "HOME_Y") == 0) command.type = CommandType::HOME_Y;
+  else if (strcmp(name, "HOME_STATUS") == 0) command.type = CommandType::HOME_STATUS;
+  else if (strcmp(name, "LIMIT_STATUS") == 0) command.type = CommandType::LIMIT_STATUS;
+  else if (strcmp(name, "ALARM_CLEAR") == 0) command.type = CommandType::ALARM_CLEAR;
   else if (strcmp(name, "LED_OFF") == 0) {
     command.type = CommandType::LED_OFF;
     command.led.type = LedCommandType::OFF;

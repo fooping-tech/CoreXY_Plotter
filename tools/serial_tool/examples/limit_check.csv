@@ -1,0 +1,6 @@
+command,delay_ms,expect,comment
+CONFIG,500,LIMIT X=36 Y=35,Confirm firmware limit pin assignment
+LIMIT_STATUS,500,LIMIT_STATUS,Observe both switches released
+LIMIT_STATUS,5000,LIMIT_STATUS,Press and hold only the X limit switch before this sample is read
+LIMIT_STATUS,5000,LIMIT_STATUS,Release X then press and hold only the Y limit switch before this sample is read
+LIMIT_STATUS,5000,LIMIT_STATUS,Release both switches before this final sample is read

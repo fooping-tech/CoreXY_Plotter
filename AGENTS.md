@@ -437,6 +437,12 @@ pio run
 pio run --target upload
 ```
 
+機能を追加した場合は、その機能を単体検査できるように`tools/serial_tool`へ以下を追加する。
+
+- チェック用CSV: `tools/serial_tool/examples/<feature>_check.csv`
+- 手順書: `tools/serial_tool/docs/<feature>-check.md`
+- 必要に応じて`tools/serial_tool/README.md`のCheck一覧へリンクを追加する
+
 デバイスへの書き込み後はSerial Monitorを接続し、変更内容に応じた実機動作テストを行う。
 少なくとも`SELFTEST`を実行する。
 

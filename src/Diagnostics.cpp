@@ -7,7 +7,8 @@
 
 void Diagnostics::printHelp() {
   logMessage("HELP CONFIG POS ZERO TEST_A <steps> TEST_B <steps>");
-  logMessage("XY <x_mm> <y_mm> <feed_mm_min> PENUP PENDOWN SELFTEST TMC_INIT TMC_STATUS");
+  logMessage("XY <x_mm> <y_mm> <feed_mm_min> HOME HOME_X HOME_Y HOME_STATUS LIMIT_STATUS ALARM_CLEAR");
+  logMessage("PENUP PENDOWN SELFTEST TMC_INIT TMC_STATUS");
   logMessage("LED <r> <g> <b> LED_PIXEL <index> <r> <g> <b> LED_OFF LED_STATUS");
   logMessage("LED_PATTERN <OFF|SOLID|PACIFICA|FIRE> LED_BRIGHTNESS <value> LED_PARAM <name> <value> MELODY");
 }
@@ -23,6 +24,12 @@ void Diagnostics::printConfig() {
   logMessage("LIMIT X=%u Y=%u PEN=%u NEOPIXEL=%u count=%u brightness_max=%u",
              X_LIMIT_PIN, Y_LIMIT_PIN, PEN_SERVO_PIN, NEOPIXEL_PIN,
              NEOPIXEL_LED_COUNT, NEOPIXEL_BRIGHTNESS_MAX);
+  logMessage("HOMING enabled=%u require_homed_xy=%u x_dir=%d y_dir=%d seek=%.3f slow=%.3f backoff=%.3f maxX=%.3f maxY=%.3f debounce=%lums active=%s",
+             HOMING_ENABLED, HOMING_REQUIRE_HOMED_FOR_XY_MOVE, HOMING_X_DIR,
+             HOMING_Y_DIR, HOMING_SEEK_FEED_MM_MIN, HOMING_SLOW_FEED_MM_MIN,
+             HOMING_BACKOFF_MM, HOMING_MAX_TRAVEL_X_MM,
+             HOMING_MAX_TRAVEL_Y_MM, HOMING_LIMIT_DEBOUNCE_MS,
+             LIMIT_ACTIVE_LOW ? "LOW" : "HIGH");
   logMessage("M5_UI=%s LCD_SPI_MOSI=%u MOTOR_EN=HARDWIRED_GND",
              M5_UI_ENABLED ? "ENABLED" : "DISABLED", CORE2_LCD_SPI_MOSI_PIN);
   logMessage("CORE UI=%u MOTION=%u PRIORITY ui=%u command=%u tmc=%u safety=%u motion=%u stepper=%u",
@@ -32,13 +39,37 @@ void Diagnostics::printConfig() {
 
 void Diagnostics::printPosition(const StatusMessage& status) {
   const MachineState& state = status.machine;
-  logMessage("POS X=%.3f Y=%.3f A=%ld B=%ld F=%.3f EN=HARDWIRED_ACTIVE HOMED=%s PEN=%s ALARM=%s TMC=%s LIMIT_X=%s LIMIT_Y=%s",
+  logMessage("POS X=%.3f Y=%.3f A=%ld B=%ld F=%.3f EN=HARDWIRED_ACTIVE HOMED=%s X_HOMED=%s Y_HOMED=%s HOMING=%s PEN=%s ALARM=%s TMC=%s LIMIT_X=%s LIMIT_Y=%s LIMIT_X_RAW=%s LIMIT_Y_RAW=%s",
              state.x_mm, state.y_mm, state.a_steps, state.b_steps,
              state.feed_mm_min, state.homed ? "YES" : "NO",
+             state.x_homed ? "YES" : "NO", state.y_homed ? "YES" : "NO",
+             state.homing_state,
              state.pen_down ? "DOWN" : "UP",
              state.alarmed ? "YES" : "NO", state.tmc_ready ? "READY" : "NO",
              status.x_limit_active ? "ACTIVE" : "OPEN",
-             status.y_limit_active ? "ACTIVE" : "OPEN");
+             status.y_limit_active ? "ACTIVE" : "OPEN",
+             status.x_limit_raw_active ? "ACTIVE" : "OPEN",
+             status.y_limit_raw_active ? "ACTIVE" : "OPEN");
+}
+
+void Diagnostics::printLimitStatus(const StatusMessage& status) {
+  logMessage("LIMIT_STATUS X_RAW=%s X_DEBOUNCED=%s Y_RAW=%s Y_DEBOUNCED=%s debounce=%lums active=%s",
+             status.x_limit_raw_active ? "ON" : "OFF",
+             status.x_limit_active ? "ON" : "OFF",
+             status.y_limit_raw_active ? "ON" : "OFF",
+             status.y_limit_active ? "ON" : "OFF",
+             HOMING_LIMIT_DEBOUNCE_MS, LIMIT_ACTIVE_LOW ? "LOW" : "HIGH");
+}
+
+void Diagnostics::printHomingStatus(const StatusMessage& status) {
+  const MachineState& state = status.machine;
+  logMessage("HOME_STATUS state=%s active=%s homed=%s x_homed=%s y_homed=%s alarm=%s limitX=%s limitY=%s reason=%s",
+             state.homing_state, state.homing_active ? "YES" : "NO",
+             state.homed ? "YES" : "NO", state.x_homed ? "YES" : "NO",
+             state.y_homed ? "YES" : "NO", state.alarmed ? "YES" : "NO",
+             status.x_limit_active ? "ON" : "OFF",
+             status.y_limit_active ? "ON" : "OFF",
+             homing_controller.lastReason());
 }
 
 bool Diagnostics::runSelfTest() {

@@ -17,6 +17,7 @@ PenController pen_controller;
 NeoPixelController neopixel_controller;
 LedPatternEngine led_pattern_engine;
 MotorMelodyController motor_melody_controller;
+HomingController homing_controller;
 
 void logMessage(const char* format, ...) {
   LogMessage message{};
@@ -34,7 +35,9 @@ void publishStatus() {
     return;
   }
   StatusMessage status{machine_state, safety_manager.xLimitActive(),
-                       safety_manager.yLimitActive()};
+                       safety_manager.yLimitActive(),
+                       safety_manager.xLimitRawActive(),
+                       safety_manager.yLimitRawActive()};
   xQueueOverwrite(status_queue, &status);
 }
 

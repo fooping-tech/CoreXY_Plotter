@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "CommandMessage.h"
 #include "MachineState.h"
+#include "HomingController.h"
 #include "LedPatternEngine.h"
 #include "NeoPixelController.h"
 #include "MotorMelodyController.h"
@@ -23,6 +24,7 @@ extern PenController pen_controller;
 extern NeoPixelController neopixel_controller;
 extern LedPatternEngine led_pattern_engine;
 extern MotorMelodyController motor_melody_controller;
+extern HomingController homing_controller;
 
 void logMessage(const char* format, ...);
 void publishStatus();

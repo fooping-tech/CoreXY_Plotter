@@ -81,6 +81,8 @@ python tools/serial_tool/serial_send.py \
 | [Bringup Check](docs/bringup-check.md) | Serial、基本設定、TMC、CoreXYログの初期確認 | `examples/bringup.csv` |
 | [Direction Check](docs/direction-check.md) | XY実機方向とA/Bモータ方向反転設定 | `examples/config_check.csv`, `examples/xy_direction_check.csv` |
 | [CoreXY Check](docs/corexy-check.md) | CoreXY変換ログと短いXY移動 | `examples/corexy_check.csv` |
+| [Limit Check](docs/limit-check.md) | X/Y limit switch入力のpin、極性、debounce確認 | `examples/limit_check.csv` |
+| [Homing Check](docs/homing-check.md) | X/Y limitを使った二段階homingとhomed状態 | `examples/homing_check.csv` |
 | [Servo On/Off Check](docs/servo-on-off-check.md) | ペン上げ/下げサーボ角度と配線 | `examples/servo_check.csv` |
 | [LED Check](docs/led-check.md) | NEOPIXEL配線、色、輝度、pattern | `examples/led_check.csv` |
 | [Melody Check](docs/melody-check.md) | TMC UART、Aモータ、診断メロディprofile | `examples/melody_check.csv` |
@@ -135,4 +137,5 @@ Python側でCoreXYのA/B変換、soft limit判定、planner相当の補間を重
 
 - 初回確認はモータ電源を切るか、`SIMULATION_MODE`で行ってください。
 - `XY`や`TEST_A`/`TEST_B`を含むCSVは実機を動かす可能性があります。
+- `HOME`、`HOME_X`、`HOME_Y`を含むCSVはlimit方向へ実機を動かします。E-stopまたはモータ電源を切れる状態で実行してください。
 - `expect`はログ確認用であり、機械的な安全確認の代替ではありません。

@@ -5,6 +5,33 @@
 #include "PlotterConfig.h"
 
 namespace {
+StatusMessage currentStatus() {
+  return StatusMessage{machine_state, safety_manager.xLimitActive(),
+                       safety_manager.yLimitActive(),
+                       safety_manager.xLimitRawActive(),
+                       safety_manager.yLimitRawActive()};
+}
+
+void invalidateHomed(const char* reason) {
+  machine_state.homed = false;
+  machine_state.x_homed = false;
+  machine_state.y_homed = false;
+  logMessage("HOMED invalidated: %s", reason);
+}
+
+bool waitForMotionOrLimit() {
+  while (stepper_backend.isRunning()) {
+    safety_manager.poll();
+    if (safety_manager.isAlarmed()) {
+      stepper_backend.stop();
+      logMessage("Motion stopped: alarm reason=%s", safety_manager.alarmReason());
+      return false;
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  return true;
+}
+
 void handleXY(const CommandMessage& command) {
   float feed_mm_min = command.feed_mm_min;
   if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
@@ -24,7 +51,9 @@ void handleXY(const CommandMessage& command) {
     logMessage("ERROR: backend rejected XY move");
     return;
   }
-  stepper_backend.waitUntilIdle();
+  if (!waitForMotionOrLimit()) {
+    return;
+  }
 #endif
   machine_state.x_mm = command.x_mm;
   machine_state.y_mm = command.y_mm;
@@ -34,6 +63,7 @@ void handleXY(const CommandMessage& command) {
 }
 
 void handleSingleMotor(bool motor_a, int32_t steps) {
+  invalidateHomed("independent motor test");
 #if SIMULATION_MODE
   logMessage("SIMULATION_MODE: TEST_%c steps=%ld no motor output",
              motor_a ? 'A' : 'B', steps);
@@ -61,9 +91,7 @@ void motionTask(void*) {
         Diagnostics::printConfig();
         break;
       case CommandType::POS: {
-        StatusMessage status{machine_state, safety_manager.xLimitActive(),
-                             safety_manager.yLimitActive()};
-        Diagnostics::printPosition(status);
+        Diagnostics::printPosition(currentStatus());
         break;
       }
       case CommandType::ZERO:
@@ -71,6 +99,7 @@ void motionTask(void*) {
         machine_state.y_mm = 0;
         machine_state.a_steps = 0;
         machine_state.b_steps = 0;
+        invalidateHomed("ZERO logical origin reset");
         logMessage("ZERO logical origin reset; this is not homing");
         break;
       case CommandType::TEST_A:
@@ -100,6 +129,30 @@ void motionTask(void*) {
         break;
       case CommandType::TMC_STATUS:
         tmc_manager.printStatus();
+        break;
+      case CommandType::HOME:
+        homing_controller.runHome(stepper_backend, safety_manager,
+                                  machine_state);
+        break;
+      case CommandType::HOME_X:
+        homing_controller.runHomeX(stepper_backend, safety_manager,
+                                   machine_state);
+        break;
+      case CommandType::HOME_Y:
+        homing_controller.runHomeY(stepper_backend, safety_manager,
+                                   machine_state);
+        break;
+      case CommandType::HOME_STATUS:
+        Diagnostics::printHomingStatus(currentStatus());
+        break;
+      case CommandType::LIMIT_STATUS:
+        safety_manager.poll();
+        Diagnostics::printLimitStatus(currentStatus());
+        break;
+      case CommandType::ALARM_CLEAR:
+        safety_manager.clearAlarm();
+        machine_state.alarmed = false;
+        logMessage("ALARM_CLEAR complete");
         break;
       case CommandType::MELODY:
         motor_melody_controller.play(stepper_backend, tmc_manager,

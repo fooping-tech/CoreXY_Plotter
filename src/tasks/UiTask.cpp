@@ -17,12 +17,17 @@ void drawStatus(const StatusMessage& status) {
   M5.Display.printf("mode: %s\n", SIMULATION_MODE ? "SIMULATION" : "REAL");
   M5.Display.printf("pos: X %.2f Y %.2f\n", state.x_mm, state.y_mm);
   M5.Display.printf("motor: ACTIVE (EN=GND)\n");
-  M5.Display.printf("homing: %s\n", state.homed ? "HOMED" : "NOT HOMED");
+  M5.Display.printf("home: %s X%s Y%s\n", state.homed ? "YES" : "NO",
+                    state.x_homed ? "+" : "-", state.y_homed ? "+" : "-");
+  M5.Display.printf("hstate: %s\n", state.homing_state);
   M5.Display.printf("pen: %s\n", state.pen_down ? "DOWN" : "UP");
   M5.Display.printf("safety: %s\n", state.alarmed ? "ALARM" : "READY");
   M5.Display.printf("limit: X %s Y %s\n",
                     status.x_limit_active ? "ON" : "OFF",
                     status.y_limit_active ? "ON" : "OFF");
+  M5.Display.printf("raw: X %s Y %s\n",
+                    status.x_limit_raw_active ? "ON" : "OFF",
+                    status.y_limit_raw_active ? "ON" : "OFF");
   M5.Display.printf("TMC: %s\n", state.tmc_ready ? "READY" : "NOT READY");
   M5.Display.endWrite();
 }
