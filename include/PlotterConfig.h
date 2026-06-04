@@ -9,7 +9,7 @@
 
 constexpr float STEPS_PER_MM = 80.0f;
 constexpr float DEFAULT_FEED_MM_MIN = 600.0f;
-constexpr float MAX_FEED_MM_MIN = 1200.0f;
+constexpr float MAX_FEED_MM_MIN = 3000.0f;
 constexpr uint32_t DEFAULT_MOTOR_SPEED_STEPS_S = 3000;
 constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 5000;
 constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = 10000;

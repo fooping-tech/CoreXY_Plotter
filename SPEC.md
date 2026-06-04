@@ -311,7 +311,7 @@ MotorMelodyController
 |---|---:|
 | `STEPS_PER_MM` | `80.0f` |
 | `DEFAULT_FEED_MM_MIN` | `600.0f` |
-| `MAX_FEED_MM_MIN` | `1200.0f` |
+| `MAX_FEED_MM_MIN` | `3000.0f` |
 | `DEFAULT_MOTOR_SPEED_STEPS_S` | `3000` |
 | `MAX_MOTOR_SPEED_STEPS_S` | `5000` |
 | `DEFAULT_MOTOR_ACCEL_STEPS_S2` | `10000` |

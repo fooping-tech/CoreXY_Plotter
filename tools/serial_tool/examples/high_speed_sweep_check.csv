@@ -1,0 +1,24 @@
+command,delay_ms,expect,comment
+CONFIG,500,max_feed=3000.000,Confirm max feed is high enough for the sweep
+POS,500,HOMED=YES,Confirm HOME completed before high-speed sweep
+TMC_STATUS,700,TMC_STATUS ready=YES,Confirm TMC normal profile before high-speed sweep
+XY 10 10 600,2500,"ACK_XY target=(10.000,10.000)",Move away from home limits at conservative feed
+XY 45 10 1200,2500,"ACK_XY target=(45.000,10.000)",X sweep 1200 mm/min outbound
+XY 10 10 1200,2500,"ACK_XY target=(10.000,10.000)",X sweep 1200 mm/min return
+XY 45 10 1600,2500,"ACK_XY target=(45.000,10.000)",X sweep 1600 mm/min outbound
+XY 10 10 1600,2500,"ACK_XY target=(10.000,10.000)",X sweep 1600 mm/min return
+XY 45 10 2000,2500,"ACK_XY target=(45.000,10.000)",X sweep 2000 mm/min outbound
+XY 10 10 2000,2500,"ACK_XY target=(10.000,10.000)",X sweep 2000 mm/min return
+XY 45 10 2400,2500,"ACK_XY target=(45.000,10.000)",X sweep 2400 mm/min outbound
+XY 10 10 2400,2500,"ACK_XY target=(10.000,10.000)",X sweep 2400 mm/min return
+XY 45 10 2800,2500,"ACK_XY target=(45.000,10.000)",X sweep 2800 mm/min outbound
+XY 10 10 2800,2500,"ACK_XY target=(10.000,10.000)",X sweep 2800 mm/min return
+XY 45 10 3000,2500,"ACK_XY target=(45.000,10.000)",X sweep 3000 mm/min outbound
+XY 10 10 3000,2500,"ACK_XY target=(10.000,10.000)",X sweep 3000 mm/min return
+XY 10 45 2000,2500,"ACK_XY target=(10.000,45.000)",Y validation 2000 mm/min outbound
+XY 10 10 2000,2500,"ACK_XY target=(10.000,10.000)",Y validation 2000 mm/min return
+XY 45 45 2400,3000,"ACK_XY target=(45.000,45.000)",Diagonal validation 2400 mm/min outbound
+XY 10 10 2400,3000,"ACK_XY target=(10.000,10.000)",Diagonal validation 2400 mm/min return
+XY 45 45 3000,3000,"ACK_XY target=(45.000,45.000)",Diagonal validation 3000 mm/min outbound
+XY 10 10 3000,3000,"ACK_XY target=(10.000,10.000)",Diagonal validation 3000 mm/min return
+POS,500,POS,Confirm final position and alarm state

@@ -24,6 +24,9 @@ void Diagnostics::printConfig() {
   logMessage("LIMIT X=%u Y=%u PEN=%u NEOPIXEL=%u count=%u brightness_max=%u",
              X_LIMIT_PIN, Y_LIMIT_PIN, PEN_SERVO_PIN, NEOPIXEL_PIN,
              NEOPIXEL_LED_COUNT, NEOPIXEL_BRIGHTNESS_MAX);
+  logMessage("MOTION steps_per_mm=%.3f default_feed=%.3f max_feed=%.3f soft_limit X=[%.3f,%.3f] Y=[%.3f,%.3f]",
+             STEPS_PER_MM, DEFAULT_FEED_MM_MIN, MAX_FEED_MM_MIN, X_MIN_MM,
+             X_MAX_MM, Y_MIN_MM, Y_MAX_MM);
   logMessage("HOMING enabled=%u require_homed_xy=%u x_dir=%d y_dir=%d seek=%.3f slow=%.3f backoff=%.3f maxX=%.3f maxY=%.3f debounce=%lums active=%s",
              HOMING_ENABLED, HOMING_REQUIRE_HOMED_FOR_XY_MOVE, HOMING_X_DIR,
              HOMING_Y_DIR, HOMING_SEEK_FEED_MM_MIN, HOMING_SLOW_FEED_MM_MIN,
