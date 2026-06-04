@@ -435,6 +435,12 @@ Core 0へ表示するときはStatusQueueを通す。
 | `LED_OFF` | 外付けNEOPIXELを消灯 |
 | `MELODY` | 診断用モータメロディを明示実行 |
 
+受信応答:
+
+- parseに成功し、対象キューへ投入できたコマンドは`ACK QUEUED <command>`を返す。
+- parse失敗またはキュー満杯の場合は`ERROR: ...`を返し、`ACK QUEUED`は返さない。
+- motion側で安全確認または実行投入に失敗した場合は`REJECT: ...`または`ERROR: ...`に加えて、XYでは`NACK_XY ...`を返す。
+
 ---
 
 ## 16. `XY`コマンド仕様
@@ -446,10 +452,11 @@ Core 0へ表示するときはStatusQueueを通す。
 3. feed確認
 4. currentからdelta計算
 5. CoreXYKinematicsでA/B step算出
-6. ログ出力
+6. CoreXY変換ログ出力
 7. SIMULATION_MODEなら実モータ出力なし
 8. Real modeならStepperBackendへ渡す
-9. 成功時のみMachineState更新
+9. XY移動が受理されたら`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`を返す
+10. 成功時のみMachineState更新
 
 ログ例:
 

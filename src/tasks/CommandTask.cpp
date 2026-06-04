@@ -30,6 +30,8 @@ void commandTask(void*) {
                      xQueueSend(command_queue, &command, pdMS_TO_TICKS(50)) !=
                      pdTRUE) {
             logMessage("ERROR: CommandQueue full");
+          } else {
+            logMessage("ACK QUEUED %s", command.name);
           }
         }
         length = 0;

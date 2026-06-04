@@ -105,6 +105,10 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 | `expect` | no | 受信ログに含まれるべき部分文字列。不一致なら非ゼロ終了 |
 | `comment` | no | 人間用メモ。送信されません |
 
+ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。
+XY移動はmotion側で受理されると`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`も返します。
+拒否されたXY移動は`NACK_XY ...`を返します。
+
 例:
 
 ```csv

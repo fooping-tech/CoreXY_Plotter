@@ -35,6 +35,8 @@ bool waitForMotionOrLimit() {
 void handleXY(const CommandMessage& command) {
   float feed_mm_min = command.feed_mm_min;
   if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
+    logMessage("NACK_XY target=(%.3f,%.3f) reason=rejected",
+               command.x_mm, command.y_mm);
     return;
   }
   const CoreXYDelta delta = CoreXYKinematics::xyMoveToABSteps(
@@ -46,11 +48,19 @@ void handleXY(const CommandMessage& command) {
              feed_mm_min);
 #if SIMULATION_MODE
   logMessage("SIMULATION_MODE: no motor output");
+  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
+             command.x_mm, command.y_mm, delta.a_steps, delta.b_steps,
+             feed_mm_min);
 #else
   if (!stepper_backend.moveABSteps(delta.a_steps, delta.b_steps, feed_mm_min)) {
     logMessage("ERROR: backend rejected XY move");
+    logMessage("NACK_XY target=(%.3f,%.3f) reason=backend",
+               command.x_mm, command.y_mm);
     return;
   }
+  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
+             command.x_mm, command.y_mm, delta.a_steps, delta.b_steps,
+             feed_mm_min);
   if (!waitForMotionOrLimit()) {
     return;
   }

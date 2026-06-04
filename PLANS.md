@@ -46,7 +46,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の想定フェーズ:
 
 ```text
-現在地: Phase 0〜6.8 完了。Phase 6.9 Homing bring-up実装済み、upload失敗対応/実機確認待ち
+現在地: Phase 0〜6.8 完了。Phase 6.9 Homing bring-up実装済み、HOME_X/HOME_Y/HOME実機確認中
 ```
 
 現在の状態:
@@ -62,7 +62,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | Core2 LCD Status UI | 実装済み、実機表示確認完了 |
 | 外付けNEOPIXEL | 実装済み、実機点灯確認完了 |
 | Motor Melody Diagnostics | 実装済み、TMC profile実レジスタ書込み経路あり、実機確認完了 |
-| Homing bring-up | `HOME`/`HOME_X`/`HOME_Y`、二段階homing、hard limit alarmを実装済み、upload失敗対応/実機確認待ち |
+| Homing bring-up | `HOME`/`HOME_X`/`HOME_Y`、二段階homing、hard limit alarmを実装済み、HOME_X/HOME_Y/HOME実機確認中 |
 | G-code parser | 未実装予定 |
 | look-ahead | 未実装予定 |
 | junction deviation | 未実装予定 |
@@ -70,7 +70,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の最優先作業:
 
 ```text
-upload失敗原因を解消し、Phase 6.9 Homing bring-upを実機でHOME_X/HOME_Y/HOME確認する。
+Phase 6.9 Homing bring-upの異常系とhoming後XY移動を実機確認する。
 ```
 
 ---
@@ -918,8 +918,8 @@ G-codeの`G28`を実装する前に、Serialコマンドで原点復帰を検証
 
 - [x] X homingはXY空間のX方向移動として実行する
 - [x] Y homingはXY空間のY方向移動として実行する
-- [ ] X homing中のA/B方向が想定通りであることを確認する
-- [ ] Y homing中のA/B方向が想定通りであることを確認する
+- [x] X homing中のA/B方向が想定通りであることを確認する
+- [x] Y homing中のA/B方向が想定通りであることを確認する
 - [x] `MOTOR_A_DIR_INVERT` / `MOTOR_B_DIR_INVERT`調整後もhoming方向がconfigで追従できる
 
 ### 6.9.7 Diagnostics / UI
@@ -932,24 +932,24 @@ G-codeの`G28`を実装する前に、Serialコマンドで原点復帰を検証
 - [x] LCDにhoming中状態を表示する
 - [x] homing alarm理由をLogQueueへ出す
 - [x] homing完了時に設定されたX/Y座標をログ出力する
-- [ ] 実機確認では`Backoff limit=ON`、`SeekSlow limit=OFF`、`SetZero limit=ON`、`Complete limit=ON`相当の遷移ログを確認する
+- [x] 実機確認では`Backoff limit=ON`、`SeekSlow limit=OFF`、`SetZero limit=ON`、`Complete limit=ON`相当の遷移ログを確認する
 
 ## Phase 6.9 完了条件
 
-- [ ] `HOME_X`でX limitまで移動し、backoff後に低速再検出できる
-- [ ] `HOME_Y`でY limitまで移動し、backoff後に低速再検出できる
-- [ ] `HOME`でX/Yを順番にhomingできる
-- [ ] 2回目の低速seekでlimit ONになった位置だけを原点として採用する
-- [ ] homing完了時のlimit debounced状態がONである
-- [ ] homing後に`POS`が原点座標と`HOMED=YES`を表示する
+- [x] `HOME_X`でX limitまで移動し、backoff後に低速再検出できる
+- [x] `HOME_Y`でY limitまで移動し、backoff後に低速再検出できる
+- [x] `HOME`でX/Yを順番にhomingできる
+- [x] 2回目の低速seekでlimit ONになった位置だけを原点として採用する
+- [x] homing完了時のlimit debounced状態がONである
+- [x] homing後に`POS`が原点座標と`HOMED=YES`を表示する
 - [ ] max travel超過時にalarmになる
 - [ ] backoffしてもlimitがOFFにならない場合にalarmになる
 - [ ] homing対象外limit activeでalarmになる
 - [ ] 通常移動中のlimit activeでalarmになる
 - [ ] alarm中に通常motionが拒否される
-- [ ] `ZERO`がhoming扱いにならない
+- [x] `ZERO`がhoming扱いにならない
 - [x] `pio run`が通る
-- [!] `pio run --target upload`後、実機で`HOME_X`、`HOME_Y`、`HOME`を確認する
+- [x] `pio run --target upload`後、実機で`HOME_X`、`HOME_Y`、`HOME`を確認する
 
 ---
 

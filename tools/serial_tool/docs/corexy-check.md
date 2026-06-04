@@ -9,6 +9,9 @@ CoreXY変換ログと短いXY移動を確認するチェックです。
 
 ## Run
 
+このチェックで`ACK_XY`を見るには、`CONFIG`で`require_homed_xy=1`の場合、先にhomingを完了して`POS`が`HOMED=YES`になっている必要があります。
+未homingの場合、XYは`REJECT: machine is not homed`と`NACK_XY ...`を返します。
+
 ```bash
 python tools/serial_tool/serial_send.py \
   --port /dev/cu.usbserial-023591AC \
@@ -20,12 +23,16 @@ python tools/serial_tool/serial_send.py \
 
 ## Expected Logs
 
-| Command | Expected A/B |
+各Serialコマンドはparseとキュー投入に成功すると`ACK QUEUED <command>`を返します。
+XY移動はmotion側で受理されると、以下の`ACK_XY`も返します。
+安全確認などで拒否された場合は`NACK_XY`が返ります。
+
+| Command | Expected ACK |
 |---|---|
-| `XY 10 0 600` | `A=800 B=800` |
-| `XY 0 10 600` | `A=800 B=-800` |
-| `XY 10 10 600` | `A=1600 B=0` |
-| `XY 20 0 600` from current `(10,10)` | `A=0 B=1600` |
+| `XY 10 0 600` | `ACK_XY target=(10.000,0.000) A=800 B=800` |
+| `XY 0 10 600` | `ACK_XY target=(0.000,10.000) A=800 B=-800` |
+| `XY 10 10 600` | `ACK_XY target=(10.000,10.000) A=1600 B=0` |
+| `XY 20 0 600` from current `(10,10)` | `ACK_XY target=(20.000,0.000) A=0 B=1600` |
 
 ## Related Config
 

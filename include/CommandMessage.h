@@ -6,6 +6,7 @@
 
 struct CommandMessage {
   CommandType type = CommandType::INVALID;
+  char name[16] = {};
   float x_mm = 0.0f;
   float y_mm = 0.0f;
   float feed_mm_min = 0.0f;

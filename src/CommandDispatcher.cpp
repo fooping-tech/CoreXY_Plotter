@@ -39,6 +39,7 @@ CommandMessage CommandDispatcher::parse(const char* line) {
     snprintf(command.error, sizeof(command.error), "empty command");
     return command;
   }
+  snprintf(command.name, sizeof(command.name), "%s", name);
 
   if (strcmp(name, "HELP") == 0) command.type = CommandType::HELP;
   else if (strcmp(name, "CONFIG") == 0) command.type = CommandType::CONFIG;
