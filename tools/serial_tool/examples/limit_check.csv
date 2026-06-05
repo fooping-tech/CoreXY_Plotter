@@ -1,5 +1,7 @@
 command,delay_ms,expect,comment
 CONFIG,500,LIMIT X=36 Y=35,Confirm firmware limit pin assignment
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 LIMIT_STATUS,500,LIMIT_STATUS,Observe both switches released
 LIMIT_STATUS,5000,LIMIT_STATUS,Press and hold only the X limit switch before this sample is read
 LIMIT_STATUS,5000,LIMIT_STATUS,Release X then press and hold only the Y limit switch before this sample is read

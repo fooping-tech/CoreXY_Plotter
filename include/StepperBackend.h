@@ -10,6 +10,12 @@ class StepperBackend {
     ERROR,
   };
 
+  enum class TimedSegmentResult {
+    QUEUED,
+    RETRY,
+    ERROR,
+  };
+
   virtual ~StepperBackend() = default;
   virtual bool begin() = 0;
   virtual bool isReady() const = 0;

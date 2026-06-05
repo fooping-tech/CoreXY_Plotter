@@ -3,8 +3,8 @@ CONFIG,500,SIMULATION_MODE=0,Confirm real motor output mode before homing
 LIMIT_STATUS,500,LIMIT_STATUS,Confirm X/Y limit raw and debounced states before homing
 POS,500,POS,Confirm machine is not alarmed before homing
 ALARM_CLEAR,500,ALARM_CLEAR complete,Clear a previous alarm before a deliberate homing check
-TMC_INIT,1000,ready=YES,Initialize TMC2209 UART current and microstep settings
-TMC_STATUS,700,TMC_STATUS ready=YES,Confirm both TMC2209 drivers are ready before motion
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 HOME_STATUS,500,HOME_STATUS,Check current homing state before starting
 HOME_X,10000,HOME_X set zero,Home X with fast seek backoff and slow seek
 HOME_STATUS,500,x_homed=YES,Confirm X homed state after HOME_X

@@ -981,35 +981,35 @@ Status: 将来。まだ実装しない。
 
 # Phase 8: 台形加減速
 
-Status: 将来。まだ実装しない。
+Status: 実装済み。Phase 9のtimed segmentまでは既存backend経路へ渡す。
 
 ## チェックリスト
 
-- [ ] `TrapezoidPlanner`を実装
-- [ ] acceleration phase
-- [ ] cruise phase
-- [ ] deceleration phase
-- [ ] short move triangular profile
-- [ ] max velocity制限
-- [ ] max acceleration制限
-- [ ] MotionBlockに計画結果を保持
-- [ ] StepperBackendに加減速ロジックを入れない
+- [x] `TrapezoidPlanner`を実装
+- [x] acceleration phase
+- [x] cruise phase
+- [x] deceleration phase
+- [x] short move triangular profile
+- [x] max velocity制限
+- [x] max acceleration制限
+- [x] MotionBlockに計画結果を保持
+- [x] StepperBackendに加減速ロジックを入れない
 
 ---
 
 # Phase 9: timed segment
 
-Status: 将来。まだ実装しない。
+Status: 実装済み。MotionTaskがSegmentQueueを補充し、FastAccelStepper `moveTimed()`でA/B timed segmentを実行する。
 
 ## チェックリスト
 
-- [ ] `SegmentGenerator`を実装
-- [ ] DDAまたは同等のA/B同期
-- [ ] `MotionSegment`生成
-- [ ] `SegmentQueue`実装
-- [ ] FastAccelStepper `moveTimed`検討
-- [ ] 低レベルqueue検討
-- [ ] SegmentGeneratorとStepperBackendの責務分離
+- [x] `SegmentGenerator`を実装
+- [x] DDAまたは同等のA/B同期
+- [x] `MotionSegment`生成
+- [x] `SegmentQueue`実装
+- [x] FastAccelStepper `moveTimed`検討
+- [x] 低レベルqueue検討
+- [x] SegmentGeneratorとStepperBackendの責務分離
 
 ---
 

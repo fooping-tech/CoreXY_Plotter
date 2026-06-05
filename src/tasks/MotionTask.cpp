@@ -3,8 +3,15 @@
 #include "CoreXYKinematics.h"
 #include "Diagnostics.h"
 #include "PlotterConfig.h"
+#include "SegmentGenerator.h"
+#include "SegmentQueue.h"
+#include "TrapezoidPlanner.h"
 
 namespace {
+TrapezoidPlanner trapezoid_planner;
+SegmentGenerator segment_generator;
+SegmentQueue segment_queue;
+
 StatusMessage currentStatus() {
   return StatusMessage{machine_state, safety_manager.xLimitActive(),
                        safety_manager.yLimitActive(),
@@ -32,6 +39,35 @@ bool waitForMotionOrLimit() {
   return true;
 }
 
+bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start) {
+  for (;;) {
+    const StepperBackend::TimedSegmentResult result =
+        stepper_backend.queueTimedSegment(segment, start);
+    if (result == StepperBackend::TimedSegmentResult::QUEUED) return true;
+    if (result == StepperBackend::TimedSegmentResult::ERROR) return false;
+    safety_manager.poll();
+    if (safety_manager.isAlarmed()) {
+      stepper_backend.stop();
+      logMessage("Motion stopped while queueing segment: alarm reason=%s",
+                 safety_manager.alarmReason());
+      return false;
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+bool executeTimedSegments(SegmentQueue& queue) {
+  MotionSegment segment{};
+  if (!queue.dequeue(segment)) return false;
+  if (!queueTimedSegmentWithRetry(segment, false)) return false;
+  if (!stepper_backend.startTimedSegments()) return false;
+
+  while (queue.dequeue(segment)) {
+    if (!queueTimedSegmentWithRetry(segment, true)) return false;
+  }
+  return waitForMotionOrLimit();
+}
+
 void handleXY(const CommandMessage& command) {
   float feed_mm_min = command.feed_mm_min;
   if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
@@ -42,18 +78,55 @@ void handleXY(const CommandMessage& command) {
   const CoreXYDelta delta = CoreXYKinematics::xyMoveToABSteps(
       machine_state.x_mm, machine_state.y_mm, command.x_mm, command.y_mm,
       STEPS_PER_MM);
+  MotionBlock block{};
+  block.start_x_mm = machine_state.x_mm;
+  block.start_y_mm = machine_state.y_mm;
+  block.target_x_mm = command.x_mm;
+  block.target_y_mm = command.y_mm;
+  block.dx_mm = delta.dx_mm;
+  block.dy_mm = delta.dy_mm;
+  block.length_mm = sqrtf(delta.dx_mm * delta.dx_mm + delta.dy_mm * delta.dy_mm);
+  block.nominal_speed_mm_min = feed_mm_min;
+  block.entry_speed_mm_min = 0.0f;
+  block.exit_speed_mm_min = 0.0f;
+  block.a_steps = delta.a_steps;
+  block.b_steps = delta.b_steps;
+  block.pen_down = machine_state.pen_down;
+  if (!trapezoid_planner.plan(block)) {
+    logMessage("ERROR: trapezoid planner rejected XY move");
+    logMessage("NACK_XY target=(%.3f,%.3f) reason=planner",
+               command.x_mm, command.y_mm);
+    return;
+  }
   logMessage("XY current=(%.3f,%.3f) target=(%.3f,%.3f) dx=%.3f dy=%.3f A=%ld B=%ld F=%.3f",
              machine_state.x_mm, machine_state.y_mm, command.x_mm, command.y_mm,
              delta.dx_mm, delta.dy_mm, delta.a_steps, delta.b_steps,
              feed_mm_min);
+  logMessage("TRAPEZOID profile=%s length=%.3f accel=%.3f peak=%.3f accel_d=%.3f cruise_d=%.3f decel_d=%.3f t=%.3f",
+             block.triangular_profile ? "TRIANGULAR" : "TRAPEZOID",
+             block.length_mm, block.acceleration_mm_s2, block.peak_speed_mm_s,
+             block.acceleration_distance_mm, block.cruise_distance_mm,
+             block.deceleration_distance_mm,
+             block.acceleration_time_s + block.cruise_time_s +
+                 block.deceleration_time_s);
+  if (!segment_generator.generate(block, segment_queue)) {
+    logMessage("ERROR: segment generator rejected XY move");
+    logMessage("NACK_XY target=(%.3f,%.3f) reason=segment",
+               command.x_mm, command.y_mm);
+    return;
+  }
+  logMessage("SEGMENTS count=%u duration=%.3f dda=YES",
+             static_cast<unsigned>(segment_queue.count()),
+             block.acceleration_time_s + block.cruise_time_s +
+                 block.deceleration_time_s);
 #if SIMULATION_MODE
   logMessage("SIMULATION_MODE: no motor output");
   logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
              command.x_mm, command.y_mm, delta.a_steps, delta.b_steps,
              feed_mm_min);
 #else
-  if (!stepper_backend.moveABSteps(delta.a_steps, delta.b_steps, feed_mm_min)) {
-    logMessage("ERROR: backend rejected XY move");
+  if (!executeTimedSegments(segment_queue)) {
+    logMessage("ERROR: backend rejected timed XY move");
     logMessage("NACK_XY target=(%.3f,%.3f) reason=backend",
                command.x_mm, command.y_mm);
     return;
@@ -61,9 +134,6 @@ void handleXY(const CommandMessage& command) {
   logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
              command.x_mm, command.y_mm, delta.a_steps, delta.b_steps,
              feed_mm_min);
-  if (!waitForMotionOrLimit()) {
-    return;
-  }
 #endif
   machine_state.x_mm = command.x_mm;
   machine_state.y_mm = command.y_mm;

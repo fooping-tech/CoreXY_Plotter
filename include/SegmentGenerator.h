@@ -1,7 +1,10 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 #include "MotionBlock.h"
+
+class SegmentQueue;
 
 struct MotionSegment {
   int32_t a_steps = 0;
@@ -9,9 +12,11 @@ struct MotionSegment {
   uint32_t duration_us = 0;
 };
 
-// Placeholder: future implementation generates timed A/B synchronized
-// segments from planned MotionBlocks.
 class SegmentGenerator {
  public:
   bool generate(const MotionBlock& block, MotionSegment& segment) const;
+  bool generate(const MotionBlock& block, SegmentQueue& queue) const;
+
+ private:
+  float distanceAtTime(const MotionBlock& block, float time_s) const;
 };

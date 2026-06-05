@@ -7,6 +7,7 @@
 
 namespace {
 FastAccelStepperEngine engine;
+constexpr uint8_t TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN = 2;
 }
 
 bool StepperBackendFastAccel::begin() {
@@ -80,6 +81,68 @@ bool StepperBackendFastAccel::moveABSteps(int32_t a_steps, int32_t b_steps,
 #endif
 }
 
+StepperBackend::TimedSegmentResult StepperBackendFastAccel::queueTimedSegment(
+    const MotionSegment& segment, bool start) {
+#if SIMULATION_MODE
+  (void)segment;
+  (void)start;
+  return TimedSegmentResult::QUEUED;
+#else
+  if (motor_a_ == nullptr || motor_b_ == nullptr) {
+    return TimedSegmentResult::ERROR;
+  }
+  if (segment.a_steps < INT16_MIN || segment.a_steps > INT16_MAX ||
+      segment.b_steps < INT16_MIN || segment.b_steps > INT16_MAX ||
+      segment.duration_us == 0) {
+    return TimedSegmentResult::ERROR;
+  }
+  const uint32_t duration_ticks =
+      segment.duration_us * (TICKS_PER_S / 1000000UL);
+  if (estimateMoveTimedEntries(segment.a_steps, duration_ticks) +
+              TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN >=
+          QUEUE_LEN ||
+      estimateMoveTimedEntries(segment.b_steps, duration_ticks) +
+              TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN >=
+          QUEUE_LEN) {
+    return TimedSegmentResult::ERROR;
+  }
+  if (!hasTimedSegmentCapacity(segment, duration_ticks)) {
+    return TimedSegmentResult::RETRY;
+  }
+  uint32_t actual_a_ticks = 0;
+  uint32_t actual_b_ticks = 0;
+  const MoveTimedResultCode result_a = motor_a_->moveTimed(
+      static_cast<int16_t>(segment.a_steps), duration_ticks, &actual_a_ticks,
+      start);
+  const TimedSegmentResult mapped_a =
+      mapMoveTimedResult(static_cast<int8_t>(result_a));
+  if (mapped_a != TimedSegmentResult::QUEUED) return mapped_a;
+
+  const MoveTimedResultCode result_b = motor_b_->moveTimed(
+      static_cast<int16_t>(segment.b_steps), duration_ticks, &actual_b_ticks,
+      start);
+  const TimedSegmentResult mapped_b =
+      mapMoveTimedResult(static_cast<int8_t>(result_b));
+  if (mapped_b != TimedSegmentResult::QUEUED) return mapped_b;
+
+  return TimedSegmentResult::QUEUED;
+#endif
+}
+
+bool StepperBackendFastAccel::startTimedSegments() {
+#if SIMULATION_MODE
+  return true;
+#else
+  if (motor_a_ == nullptr || motor_b_ == nullptr) return false;
+  const MoveTimedResultCode result_a = motor_a_->moveTimed(0, 0, nullptr, true);
+  const MoveTimedResultCode result_b = motor_b_->moveTimed(0, 0, nullptr, true);
+  return mapMoveTimedResult(static_cast<int8_t>(result_a)) ==
+             TimedSegmentResult::QUEUED &&
+         mapMoveTimedResult(static_cast<int8_t>(result_b)) ==
+             TimedSegmentResult::QUEUED;
+#endif
+}
+
 bool StepperBackendFastAccel::beginDiagnosticTone() {
 #if SIMULATION_MODE
   return true;
@@ -147,4 +210,49 @@ void StepperBackendFastAccel::waitUntilIdle() {
   while (isRunning()) {
     vTaskDelay(pdMS_TO_TICKS(5));
   }
+}
+
+StepperBackend::TimedSegmentResult StepperBackendFastAccel::mapMoveTimedResult(
+    int8_t result) const {
+  if (result == static_cast<int8_t>(MOVE_TIMED_OK) ||
+      result == static_cast<int8_t>(MOVE_TIMED_EMPTY) ||
+      result == static_cast<int8_t>(AqeResultCode::DirPin2msPauseAdded)) {
+    return TimedSegmentResult::QUEUED;
+  }
+  if (result > 0) return TimedSegmentResult::RETRY;
+  return TimedSegmentResult::ERROR;
+}
+
+uint16_t StepperBackendFastAccel::estimateMoveTimedEntries(
+    int32_t steps, uint32_t duration_ticks) const {
+  steps = abs(steps);
+  if (duration_ticks == 0) return 0;
+  if (steps == 0) {
+    return static_cast<uint16_t>((duration_ticks + 65534UL) / 65535UL);
+  }
+  uint32_t rate = duration_ticks / static_cast<uint32_t>(steps);
+  if (rate > 65535UL) {
+    const uint16_t commands_per_step = (rate >> 16) + 1;
+    return static_cast<uint16_t>(steps * commands_per_step);
+  }
+  return static_cast<uint16_t>((steps + 254L) / 255L);
+}
+
+bool StepperBackendFastAccel::hasTimedSegmentCapacity(
+    const MotionSegment& segment, uint32_t duration_ticks) const {
+#if SIMULATION_MODE
+  (void)segment;
+  (void)duration_ticks;
+  return true;
+#else
+  const uint16_t needed_a =
+      estimateMoveTimedEntries(segment.a_steps, duration_ticks) +
+      TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN;
+  const uint16_t needed_b =
+      estimateMoveTimedEntries(segment.b_steps, duration_ticks) +
+      TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN;
+  if (needed_a >= QUEUE_LEN || needed_b >= QUEUE_LEN) return false;
+  return motor_a_->queueEntries() + needed_a < QUEUE_LEN &&
+         motor_b_->queueEntries() + needed_b < QUEUE_LEN;
+#endif
 }

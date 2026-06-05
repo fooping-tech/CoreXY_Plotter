@@ -1,5 +1,7 @@
 command,delay_ms,expect,comment
 CONFIG,500,NEOPIXEL,Confirm NEOPIXEL pin count and brightness limit
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 LED_STATUS,500,LED_STATUS,Read current LED state before changing it
 LED_BRIGHTNESS 24,500,OK: LED_BRIGHTNESS 24,Set safe LED brightness
 LED 255 0 0,700,OK: LED r=255 g=0 b=0,Check all LEDs show red

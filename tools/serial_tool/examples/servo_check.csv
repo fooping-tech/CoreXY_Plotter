@@ -1,5 +1,7 @@
 command,delay_ms,expect,comment
 CONFIG,500,PEN=32,Confirm PEN_SERVO_PIN and related config
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 POS,500,PEN=UP,Confirm firmware starts with pen up state
 PENDOWN,1000,PEN DOWN,Servo should move to PEN_DOWN_ANGLE_DEG
 POS,500,PEN=DOWN,Confirm firmware state is pen down

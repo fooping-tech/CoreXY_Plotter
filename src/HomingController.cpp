@@ -138,6 +138,9 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
   safety.poll();
   const int8_t seek_dir = directionForAxis(axis);
   bool other_limit_allowed_active = otherLimitActive(axis, safety);
+  const bool target_limit_active_at_start = targetLimitActive(axis, safety);
+  const float backoff_limit_mm =
+      target_limit_active_at_start ? HOMING_START_BACKOFF_MM : HOMING_BACKOFF_MM;
   float travel_mm = 0.0f;
   float backoff_mm = 0.0f;
 
@@ -149,12 +152,12 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
   setState(seek_fast, machine, "START");
   logMessage("HOME_%s started direction=%d fast=%.3f slow=%.3f backoff=%.3f max=%.3f limitRaw=%s limitDebounced=%s",
              axisName(axis), seek_dir, HOMING_SEEK_FEED_MM_MIN,
-             HOMING_SLOW_FEED_MM_MIN, HOMING_BACKOFF_MM,
+             HOMING_SLOW_FEED_MM_MIN, backoff_limit_mm,
              maxTravelForAxis(axis),
              targetLimitRawActive(axis, safety) ? "ON" : "OFF",
              targetLimitActive(axis, safety) ? "ON" : "OFF");
 
-  if (targetLimitActive(axis, safety)) {
+  if (target_limit_active_at_start) {
     setState(backoff, machine, "LIMIT_ON_AT_START");
   }
 
@@ -200,7 +203,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
           setState(seek_slow, machine, "BACKOFF_LIMIT_RELEASED");
           break;
         }
-        if (backoff_mm >= HOMING_BACKOFF_MM) {
+        if (backoff_mm >= backoff_limit_mm) {
           markAlarm("homing backoff limit still on", safety, machine);
           return false;
         }

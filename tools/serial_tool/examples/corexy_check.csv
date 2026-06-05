@@ -1,6 +1,8 @@
 command,delay_ms,expect,comment
 CONFIG,500,BOARD,Confirm firmware configuration before CoreXY math check
 SELFTEST,500,SELFTEST PASS,Run firmware-side CoreXY conversion self-test
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 ZERO,500,ZERO,Reset logical origin
 XY 10 0 600,1000,ACK_XY target=(10.000,0.000) A=800 B=800,Check +X maps to A positive and B positive
 ZERO,500,ZERO,Reset logical origin

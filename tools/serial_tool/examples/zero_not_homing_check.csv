@@ -1,5 +1,7 @@
 command,delay_ms,expect,comment
 POS,500,POS,Record homed state before ZERO
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 ZERO,500,ZERO logical origin reset; this is not homing,Reset logical origin and invalidate homed state
 POS,500,HOMED=NO,Confirm ZERO did not mark the machine as homed
 XY 10 0 300,1000,NACK_XY,Confirm XY is still rejected until real homing completes

@@ -1,0 +1,11 @@
+command,delay_ms,expect,comment
+CONFIG,1500,accel=125.000,Confirm acceleration configuration is present
+SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion before motion checks
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
+ALARM_CLEAR,500,ALARM_CLEAR complete,Clear any previous alarm before homing
+LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing; HOME can start with target limit ON
+HOME,20000,HOME complete,Home before XY moves when homing is required
+XY 0.5 0 600,1500,TRAPEZOID profile=TRIANGULAR,Very short move should use triangular profile
+XY 50 0 600,6500,TRAPEZOID profile=TRAPEZOID,Longer move should include cruise phase
+POS,1000,POS,Confirm final state after motion is idle

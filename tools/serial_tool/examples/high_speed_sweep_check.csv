@@ -1,7 +1,8 @@
 command,delay_ms,expect,comment
 CONFIG,500,max_feed=3000.000,Confirm max feed is high enough for the sweep
 POS,500,HOMED=YES,Confirm HOME completed before high-speed sweep
-TMC_STATUS,700,TMC_STATUS ready=YES,Confirm TMC normal profile before high-speed sweep
+TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
+TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 XY 10 10 600,2500,"ACK_XY target=(10.000,10.000)",Move away from home limits at conservative feed
 XY 45 10 1200,2500,"ACK_XY target=(45.000,10.000)",X sweep 1200 mm/min outbound
 XY 10 10 1200,2500,"ACK_XY target=(10.000,10.000)",X sweep 1200 mm/min return
