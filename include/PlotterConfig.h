@@ -75,7 +75,7 @@ constexpr uint32_t DIR_CHANGE_DELAY_US = 200;
 // ============================================================================
 // ペン上げ/下げのサーボ角度 [deg]。
 // 決め方: 機構に合わせて、紙を擦らない上げ角と十分に接地する下げ角を実測する。
-constexpr uint8_t PEN_UP_ANGLE_DEG = 30;
+constexpr uint8_t PEN_UP_ANGLE_DEG = 60;
 constexpr uint8_t PEN_DOWN_ANGLE_DEG = 70;
 
 // ============================================================================
