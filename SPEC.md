@@ -447,6 +447,25 @@ Core 0へ表示するときはStatusQueueを通す。
 
 ---
 
+## 15.1 Serial Tool CSV送信仕様
+
+`tools/serial_tool/serial_send.py`はCSV行を順番にファームウェアへ送る検査用ツールである。
+ファームウェア仕様をPython側で重複実装せず、応答待ちと期待文字列確認だけを行う。
+
+待ち時間の扱い:
+
+- `--startup-delay`: serial port open後、最初のコマンド送信前に固定で待つ時間
+- `--startup-drain`: `--startup-delay`後に起動ログを読み捨てる最大時間
+- `--timeout`: 各コマンド応答の最大待ち時間
+- CSV `delay_ms`: 各コマンド送信後の最小読み取り時間
+- 各行の最大待ち時間は`max(delay_ms, --timeout)`
+- `expect`が指定されている場合、`delay_ms`経過後に`expect`を受信済みで、受信が短時間idleになったら次の行へ進む
+
+`--timeout`は`HOME`や長いXY移動の最大待ち時間として使う。
+起動ログ読み捨て時間には使わない。
+
+---
+
 ## 16. `XY`コマンド仕様
 
 処理順:

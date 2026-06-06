@@ -24,7 +24,8 @@ python tools/serial_tool/serial_send.py \
   --port /dev/cu.usbserial-023591AC \
   --csv tools/serial_tool/examples/high_speed_check.csv \
   --startup-delay 2 \
-  --timeout 8 \
+  --startup-drain 1 \
+  --timeout 60 \
   --echo
 ```
 
@@ -35,7 +36,8 @@ python tools/serial_tool/serial_send.py \
   --port /dev/cu.usbserial-023591AC \
   --csv tools/serial_tool/examples/high_speed_sweep_check.csv \
   --startup-delay 2 \
-  --timeout 8 \
+  --startup-drain 1 \
+  --timeout 60 \
   --echo
 ```
 
@@ -61,8 +63,9 @@ python tools/serial_tool/serial_send.py \
 ## Notes
 
 - feedはファームウェアの`XY <x_mm> <y_mm> <feed_mm_min>`契約に合わせて`mm/min`です。
+- `HOME`行は`HOME complete`を`expect`で待ちます。`--timeout 60`はHOMEや長い移動の最大待ち時間で、起動時読み捨て時間は`--startup-drain`で別管理します。
 - `5000 mm/min`は`83.333 mm/s`です。`STEPS_PER_MM=80`では約`6667 steps/s`相当です。
 - 現在の`MAX_MOTOR_SPEED_STEPS_S=7000`では、理論上のfeed上限は`5250 mm/min`相当です。
-- 現在の`DEFAULT_ACCEL_MM_S2=125`では、短い移動では5000 mm/minへ到達する前に減速へ入ることがあります。
+- 現在の`DEFAULT_ACCEL_MM_S2=37.5`では、短い移動では5000 mm/minへ到達する前に減速へ入ることがあります。
 - `Motion stopped: alarm reason=hard limit active away from home`が出る場合は、速度評価を止めて`LIMIT_STATUS`を確認してください。原点から離れた位置でlimitがONなら、脱調判定より先にlimit配線、switch戻り、ノイズ、debounceを切り分けます。
 - 通常XY移動は`MotionBlock`、`TrapezoidPlanner`、`SegmentGenerator`、FastAccelStepper `moveTimed()`経由で実行します。

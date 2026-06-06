@@ -16,6 +16,7 @@ DEFAULT_BAUD = 115200
 DEFAULT_TIMEOUT_S = 2.0
 DEFAULT_DELAY_MS = 250
 DEFAULT_STARTUP_DELAY_S = 4.0
+DEFAULT_STARTUP_DRAIN_S = 0.5
 DEFAULT_OPEN_RETRIES = 3
 DEFAULT_CLOSE_DELAY_S = 0.3
 READ_DRAIN_S = 0.2
@@ -64,6 +65,15 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Seconds to wait after opening the serial port before sending commands. "
             f"Default: {DEFAULT_STARTUP_DELAY_S}."
+        ),
+    )
+    parser.add_argument(
+        "--startup-drain",
+        type=float,
+        default=DEFAULT_STARTUP_DRAIN_S,
+        help=(
+            "Maximum seconds to drain startup serial logs after startup-delay. "
+            f"Default: {DEFAULT_STARTUP_DRAIN_S}. This is independent of --timeout."
         ),
     )
     parser.add_argument(
@@ -279,6 +289,8 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
         raise ValueError("--timeout must be >= 0")
     if args.startup_delay < 0:
         raise ValueError("--startup-delay must be >= 0")
+    if args.startup_drain < 0:
+        raise ValueError("--startup-drain must be >= 0")
     if args.open_retries < 1:
         raise ValueError("--open-retries must be >= 1")
     if args.close_delay < 0:
@@ -298,7 +310,7 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
             time.sleep(0.1)
         serial_port.reset_input_buffer()
         time.sleep(args.startup_delay)
-        startup_text = read_available_text(serial_port, max(READ_DRAIN_S, args.timeout))
+        startup_text = read_available_text(serial_port, args.startup_drain)
         if startup_text:
             print(startup_text, end="" if startup_text.endswith("\n") else "\n", flush=True)
 

@@ -1289,6 +1289,7 @@ python tools/serial_tool/serial_send.py \
   --port /dev/cu.usbserial-023591AC \
   --csv tools/serial_tool/examples/center_shapes.csv \
   --startup-delay 4 \
+  --startup-drain 1 \
   --timeout 8 \
   --echo
 ```
@@ -1303,6 +1304,16 @@ python tools/serial_tool/serial_send.py \
 - [x] 最終`POS`で`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
 - [ ] 実際の線が目視で大きくずれない
 - [ ] 連続実行後もモータ/TMC温度が許容範囲に収まる
+
+## 12.8 Serial Tool待ち時間仕様
+
+チェック:
+
+- [x] `--timeout`は各コマンド応答の最大待ち時間として扱う
+- [x] 起動ログ読み捨て時間は`--startup-drain`で指定できる
+- [x] `--startup-delay 0 --timeout 60`でも、最初のコマンド送信前に60秒待たない
+- [x] `HOME`行はCSV `delay_ms`を短くし、`expect=HOME complete`と長めの`--timeout`で完了待ちできる
+- [ ] high-speed / homing系CSVのHOME行を、固定長待ちからexpect主体の短い`delay_ms`へ整理する
 
 ---
 
@@ -1532,6 +1543,7 @@ Phase 6.9を実装してください。
 | 2026-06-06 | Phase 8台形加減速とPhase 9 timed segmentを実装し、TrapezoidPlanner、SegmentGenerator、SegmentQueue、FastAccelStepper `moveTimed()`経路を追加 | Codex |
 | 2026-06-06 | `PlotterConfig.h`へ日本語コメントを追加し、最大feed 5000mm/min、servo up/down角度config化、high-speed checkを追加 | Codex |
 | 2026-06-07 | timed segment実機描画で脱調対策を追加。加速度37.5mm/s^2、TMC通常電流850mA、hard limit継続時間判定、center shapes低速CSVを計画へ反映 | Codex |
+| 2026-06-07 | Serial Toolの起動ログ読み捨て時間を`--startup-drain`として`--timeout`から分離し、HOME完了待ちをexpect主体で短縮できる仕様を追加 | Codex |
 
 ---
 

@@ -42,6 +42,7 @@ ls /dev/cu.*
 ```
 
 Core2はシリアルポートを開いた時にリセットされることがあります。その場合、起動中に最初のコマンドが失われるため、`--startup-delay`を長めにしてください。ログが遅れて返る場合は`--timeout`も調整します。
+起動直後に出ているログを読み捨てる時間は`--startup-drain`で指定します。`--timeout`は各コマンド応答の最大待ち時間であり、起動時読み捨て時間には使いません。
 このツールは既定ではDTR/RTSを変更しません。USBシリアルアダプタに合わせて必要な場合だけ`--dtr`、`--no-dtr`、`--rts`、`--no-rts`を指定してください。
 macOSで`/dev/cu.*`が不安定な場合は、対応する`/dev/tty.*`も試してください。
 
@@ -68,6 +69,7 @@ python tools/serial_tool/serial_send.py \
   --port /dev/cu.usbserial-023591AC \
   --csv tools/serial_tool/examples/config_check.csv \
   --startup-delay 6 \
+  --startup-drain 1 \
   --timeout 5 \
   --echo
 ```
@@ -107,6 +109,9 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 | `delay_ms` | no | 送信後の待ち時間。空なら`--default-delay-ms`を使用 |
 | `expect` | no | 受信ログに含まれるべき部分文字列。不一致なら非ゼロ終了 |
 | `comment` | no | 人間用メモ。送信されません |
+
+`delay_ms`は各コマンド送信後の最小読み取り時間です。`expect`がある場合は、`delay_ms`経過後に`expect`を受信し、受信が短時間idleになると次の行へ進みます。
+最大待ち時間は`max(delay_ms, --timeout)`です。`HOME`のように完了時間が読みにくいコマンドは、CSV側の`delay_ms`を短くし、実行時の`--timeout`を長くしてください。
 
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。
 XY移動はmotion側で受理されると`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`も返します。
