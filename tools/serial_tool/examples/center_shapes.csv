@@ -5,7 +5,7 @@ TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
 TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 ALARM_CLEAR,500,ALARM_CLEAR complete,Clear any previous alarm before homing
 LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing
-HOME,45000,HOME complete,Home before drawing centered shapes
+HOME,500,HOME complete,Home before drawing centered shapes
 POS,1000,HOMED=YES,Confirm machine is homed
 PENUP,500,PEN UP,Start with pen up
 XY 45.500 27.500 600,7000,"ACK_XY target=(45.500,27.500)",Move to circle start
@@ -61,5 +61,5 @@ XY 21.794 25.646 300,1700,,Star outer point
 XY 25.878 25.267 300,1700,,Star inner point
 XY 27.500 21.500 300,1900,"ACK_XY target=(27.500,21.500)",Close star
 PENUP,700,PEN UP,Finish drawing with pen up
-MELODY,3000,MELODY complete,Play diagnostic motor melody and restore normal TMC profile
+MELODY,3000,MELODY complete,End melody and restore normal TMC profile
 POS,1000,POS,Confirm final position

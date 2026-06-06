@@ -5,8 +5,10 @@ TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
 TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 ALARM_CLEAR,500,ALARM_CLEAR complete,Clear any previous alarm before homing
 LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing; HOME can start with target limit ON
-HOME,20000,HOME complete,Home before XY moves when homing is required
-XY 10 0 600,2000,SEGMENTS count=,Confirm timed segment generation for +X
-XY 10 10 600,2000,SEGMENTS count=,Confirm timed segment generation for +Y
+HOME,500,HOME complete,Home before XY moves when homing is required
+XY 10 10 600,2500,"ACK_XY target=(10.000,10.000)",Move away from home limits before melody
+XY 20 10 600,2000,SEGMENTS count=,Confirm timed segment generation for +X
+XY 20 20 600,2000,SEGMENTS count=,Confirm timed segment generation for +Y
 XY 40 40 1200,3000,SEGMENTS count=,Confirm timed segment generation for diagonal move
+MELODY,3000,MELODY complete,End melody and restore normal TMC profile
 POS,500,POS,Confirm final position

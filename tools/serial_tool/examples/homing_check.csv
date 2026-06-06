@@ -6,12 +6,15 @@ ALARM_CLEAR,500,ALARM_CLEAR complete,Clear a previous alarm before a deliberate 
 TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
 TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 HOME_STATUS,500,HOME_STATUS,Check current homing state before starting
-HOME_X,10000,HOME_X set zero,Home X with fast seek backoff and slow seek
+HOME_X,500,HOME_X set zero,Home X with fast seek backoff and slow seek
 HOME_STATUS,500,x_homed=YES,Confirm X homed state after HOME_X
 POS,500,X_HOMED=YES,Confirm X position and limit state after HOME_X
-HOME_Y,10000,HOME_Y set zero,Home Y with fast seek backoff and slow seek
+HOME_Y,500,HOME_Y set zero,Home Y with fast seek backoff and slow seek
 HOME_STATUS,500,y_homed=YES,Confirm Y homed state after HOME_Y
 POS,500,HOMED=YES,Confirm both axes are homed after HOME_X and HOME_Y
-HOME,5000,HOME complete,Run full X then Y homing sequence
+HOME,500,HOME complete,Run full X then Y homing sequence
 HOME_STATUS,500,homed=YES,Confirm full homing state after HOME
 POS,500,HOMED=YES,Confirm final homed position and limit state
+XY 10 10 600,2500,"ACK_XY target=(10.000,10.000)",Move away from home limits before melodies
+MELODY,3000,MELODY complete,End melody after homing check
+POS,500,POS,Confirm final position after melodies
