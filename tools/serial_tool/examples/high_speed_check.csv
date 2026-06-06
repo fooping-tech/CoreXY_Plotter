@@ -7,6 +7,7 @@ LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing; HOME can start w
 HOME,45000,HOME complete,Home before high-speed moves
 POS,1000,HOMED=YES,Confirm HOME completed before high-speed moves
 XY 10 10 600,2500,"ACK_XY target=(10.000,10.000)",Move away from both home limits at conservative feed
+PENDOWN,700,PEN DOWN,Draw largest circle centered at 27.5 27.5 radius 18
 XY 45 10 900,3500,"ACK_XY target=(45.000,10.000)",X-axis 900 mm/min outbound
 XY 10 10 900,3500,"ACK_XY target=(10.000,10.000)",X-axis 900 mm/min return
 XY 45 10 2000,2500,"ACK_XY target=(45.000,10.000)",X-axis 2000 mm/min outbound
@@ -17,4 +18,6 @@ XY 45 45 3000,3000,"ACK_XY target=(45.000,45.000)",Diagonal max feed outbound
 XY 10 10 3000,3000,"ACK_XY target=(10.000,10.000)",Diagonal max feed return
 XY 45 45 5000,3000,"ACK_XY target=(45.000,45.000)",Diagonal 5000 mm/min command outbound
 XY 10 10 5000,3000,"ACK_XY target=(10.000,10.000)",Diagonal 5000 mm/min command return
+PENUP,500,PEN UP,Lift after circle
 POS,500,POS,Confirm final position and alarm state
+MELODY,3000,MELODY complete,Play diagnostic motor melody and restore normal TMC profile

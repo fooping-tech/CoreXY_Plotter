@@ -61,4 +61,5 @@ XY 21.794 25.646 300,1700,,Star outer point
 XY 25.878 25.267 300,1700,,Star inner point
 XY 27.500 21.500 300,1900,"ACK_XY target=(27.500,21.500)",Close star
 PENUP,700,PEN UP,Finish drawing with pen up
+MELODY,3000,MELODY complete,Play diagnostic motor melody and restore normal TMC profile
 POS,1000,POS,Confirm final position
