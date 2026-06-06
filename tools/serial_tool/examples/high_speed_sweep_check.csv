@@ -1,8 +1,11 @@
 command,delay_ms,expect,comment
-CONFIG,500,max_feed=3000.000,Confirm max feed is high enough for the sweep
-POS,500,HOMED=YES,Confirm HOME completed before high-speed sweep
+CONFIG,500,max_feed=5000.000,Confirm max feed is high enough for the sweep
 TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
 TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
+ALARM_CLEAR,500,ALARM_CLEAR complete,Clear any previous alarm before homing
+LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing; HOME can start with target limit ON
+HOME,45000,HOME complete,Home before high-speed sweep
+POS,1000,HOMED=YES,Confirm HOME completed before high-speed sweep
 XY 10 10 600,2500,"ACK_XY target=(10.000,10.000)",Move away from home limits at conservative feed
 XY 45 10 1200,2500,"ACK_XY target=(45.000,10.000)",X sweep 1200 mm/min outbound
 XY 10 10 1200,2500,"ACK_XY target=(10.000,10.000)",X sweep 1200 mm/min return
@@ -22,4 +25,8 @@ XY 45 45 2400,3000,"ACK_XY target=(45.000,45.000)",Diagonal validation 2400 mm/m
 XY 10 10 2400,3000,"ACK_XY target=(10.000,10.000)",Diagonal validation 2400 mm/min return
 XY 45 45 3000,3000,"ACK_XY target=(45.000,45.000)",Diagonal validation 3000 mm/min outbound
 XY 10 10 3000,3000,"ACK_XY target=(10.000,10.000)",Diagonal validation 3000 mm/min return
+XY 45 45 4000,3000,"ACK_XY target=(45.000,45.000)",Diagonal validation 4000 mm/min outbound
+XY 10 10 4000,3000,"ACK_XY target=(10.000,10.000)",Diagonal validation 4000 mm/min return
+XY 45 45 5000,3000,"ACK_XY target=(45.000,45.000)",Diagonal validation 5000 mm/min outbound
+XY 10 10 5000,3000,"ACK_XY target=(10.000,10.000)",Diagonal validation 5000 mm/min return
 POS,500,POS,Confirm final position and alarm state
