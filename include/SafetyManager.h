@@ -33,5 +33,7 @@ class SafetyManager {
   bool y_debounced_ = false;
   uint32_t x_last_change_ms_ = 0;
   uint32_t y_last_change_ms_ = 0;
+  uint32_t x_unexpected_since_ms_ = 0;
+  uint32_t y_unexpected_since_ms_ = 0;
   char alarm_reason_[64] = "none";
 };

@@ -314,15 +314,19 @@ MotorMelodyController
 | `MAX_FEED_MM_MIN` | `5000.0f` |
 | `DEFAULT_MOTOR_SPEED_STEPS_S` | `3000` |
 | `MAX_MOTOR_SPEED_STEPS_S` | `7000` |
-| `DEFAULT_MOTOR_ACCEL_STEPS_S2` | `10000` |
+| `DEFAULT_MOTOR_ACCEL_STEPS_S2` | `3000` |
+| `DEFAULT_ACCEL_MM_S2` | `37.5f` |
 | `X_MIN_MM` | `0.0f` |
-| `X_MAX_MM` | `300.0f` |
+| `X_MAX_MM` | `55.0f` |
 | `Y_MIN_MM` | `0.0f` |
-| `Y_MAX_MM` | `300.0f` |
+| `Y_MAX_MM` | `55.0f` |
 | `SERIAL_BAUD` | `115200` |
 | `TMC_UART_BAUD` | `115200` |
 | `DIR_CHANGE_DELAY_US` | `200` |
-| `SIMULATION_MODE` | `1` |
+| `SIMULATION_MODE` | `0` |
+
+実機描画ではペンが紙に接触して負荷が増えるため、初期加速度は保守的に設定する。
+加速度、feed上限、TMC電流、ペン角度は、脱調、発熱、線品質を見ながら実機で再調整する。
 
 ---
 
@@ -452,11 +456,13 @@ Core 0へ表示するときはStatusQueueを通す。
 3. feed確認
 4. currentからdelta計算
 5. CoreXYKinematicsでA/B step算出
-6. CoreXY変換ログ出力
-7. SIMULATION_MODEなら実モータ出力なし
-8. Real modeならStepperBackendへ渡す
-9. XY移動が受理されたら`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`を返す
-10. 成功時のみMachineState更新
+6. TrapezoidPlannerで台形または三角加減速profileを生成
+7. SegmentGeneratorでA/B同期timed segmentを生成
+8. CoreXY変換、trapezoid profile、segment数をログ出力
+9. SIMULATION_MODEなら実モータ出力なし
+10. Real modeならStepperBackendへtimed segmentを渡す
+11. XY移動が受理されたら`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`を返す
+12. 成功時のみMachineState更新
 
 ログ例:
 
@@ -464,6 +470,27 @@ Core 0へ表示するときはStatusQueueを通す。
 XY target=(10.000,0.000) current=(0.000,0.000) dx=10.000 dy=0.000 A=800 B=800 F=600.000
 SIMULATION_MODE: no motor output
 ```
+
+### 台形加減速仕様
+
+`TrapezoidPlanner`は1本のXY線分ごとに以下を計算する。
+
+- nominal speed [mm/s]
+- acceleration [mm/s^2]
+- acceleration distance
+- cruise distance
+- deceleration distance
+- acceleration/cruise/deceleration time
+- short moveではtriangular profile
+
+加減速profileは`MotionBlock`へ保持する。StepperBackendへplanner処理を入れてはいけない。
+
+### timed segment仕様
+
+`SegmentGenerator`は計画済み`MotionBlock`からA/B同期用の`MotionSegment`列を生成する。
+実機ではFastAccelStepperの`moveTimed()`経路でA/Bを同じsegment durationへ投入し、CoreXYの直線性を保つ。
+
+timed segment実行中もSafetyManagerを定期pollし、alarm発生時はStepperBackendを停止する。
 
 ---
 
@@ -481,7 +508,7 @@ SIMULATION_MODE: no motor output
 | B address | 1 |
 | microsteps | 16 |
 | interpolation | ON |
-| current | 600〜800mAから開始 |
+| current | 通常profileは850mAを暫定値とする |
 | mode | 初期はspreadCycle寄り |
 | diagnostics | 低頻度 |
 
@@ -521,7 +548,7 @@ TMC2209ManagerはFastAccelStepperやplannerに依存しない。
 | chop mode | spreadCycle |
 | note gap | 25ms |
 
-1200mAは参照実装の値であり、使用するモータ、TMC2209モジュール、電源、放熱条件を確認してから確定する。
+通常profileの850mAおよび診断用profileの1200mA以下設定は暫定値であり、使用するモータ、TMC2209モジュール、電源、放熱条件を確認してから確定する。
 
 ---
 
@@ -539,8 +566,8 @@ soft limit:
 
 | 軸 | 範囲 |
 |---|---|
-| X | 0〜300 mm |
-| Y | 0〜300 mm |
+| X | 0〜55 mm |
+| Y | 0〜55 mm |
 
 limit switch:
 
@@ -550,6 +577,10 @@ limit switch:
 | Y_LIMIT | 35 | Low |
 
 GPIO35/36は内部pull-upに頼らず、外付けpull-upを前提とする。
+
+通常移動中、homing完了後の原点外位置でlimit activeが検出された場合はhard limit異常として扱う。
+ただし、瞬間的な入力ノイズで即alarmにしないため、`HARD_LIMIT_UNEXPECTED_ALARM_MS`で指定した時間だけ継続してactiveの場合にalarmへ入る。
+初期値は500msとし、安全停止遅延とノイズ耐性のバランスを実機で確認する。
 
 ---
 
@@ -565,8 +596,11 @@ GPIO35/36は内部pull-upに頼らず、外付けpull-upを前提とする。
 
 | 状態 | 角度 |
 |---|---:|
-| PEN_UP | 30度 |
-| PEN_DOWN | 70度 |
+| PEN_UP | 60度 |
+| PEN_DOWN | 66度 |
+
+ペン下げ角度は紙への押し付け力に直結する。
+脱調や引っかかりがある場合は、まずペン圧を下げる方向で`PEN_DOWN_ANGLE_DEG`を調整する。
 
 将来的にM3/M5へ接続する。
 
@@ -657,3 +691,5 @@ F値はmm/minとして扱う。
 - Core2内蔵LCDにmode、位置、motor、homing、pen、safety、limit、TMC状態が表示される
 - 外付けNEOPIXELを`LED` / `LED_PIXEL` / `LED_OFF`コマンドで制御できる
 - `MELODY`が通常motionと排他実行され、終了または中断後にTMC通常profileへ復元される
+- 台形加減速profileとtimed segmentによるA/B同期XY移動が実行できる
+- `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる

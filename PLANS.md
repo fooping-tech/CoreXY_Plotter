@@ -46,7 +46,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の想定フェーズ:
 
 ```text
-現在地: Phase 0〜6.8 完了。Phase 6.9 Homing bring-up実装済み、HOME_X/HOME_Y/HOME実機確認中
+現在地: Phase 0〜6.9 完了。Phase 8 台形加減速、Phase 9 timed segment実装済み。実機bring-upで脱調対策を調整中
 ```
 
 現在の状態:
@@ -62,7 +62,10 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | Core2 LCD Status UI | 実装済み、実機表示確認完了 |
 | 外付けNEOPIXEL | 実装済み、実機点灯確認完了 |
 | Motor Melody Diagnostics | 実装済み、TMC profile実レジスタ書込み経路あり、実機確認完了 |
-| Homing bring-up | `HOME`/`HOME_X`/`HOME_Y`、二段階homing、hard limit alarmを実装済み、HOME_X/HOME_Y/HOME実機確認中 |
+| Homing bring-up | `HOME`/`HOME_X`/`HOME_Y`、二段階homing、hard limit alarmを実装済み、HOME実機確認完了 |
+| 台形加減速 | `TrapezoidPlanner`でTRAPEZOID/TRIANGULAR profileを実装済み |
+| timed segment | `SegmentGenerator`とFastAccelStepper `moveTimed()`によるA/B同期実行を実装済み |
+| 脱調対策 | 描画用の保守的な速度/加速度/電流/ペン圧設定とcenter shapes実機確認を追加 |
 | G-code parser | 未実装予定 |
 | look-ahead | 未実装予定 |
 | junction deviation | 未実装予定 |
@@ -70,7 +73,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の最優先作業:
 
 ```text
-Phase 6.9 Homing bring-upの異常系とhoming後XY移動を実機確認する。
+実機で脱調しない描画条件を確認し、TMC電流、ペン圧、加速度、limit入力ノイズ耐性を安全側に調整する。
 ```
 
 ---
@@ -90,21 +93,21 @@ Phase 6.9 Homing bring-upの異常系とhoming後XY移動を実機確認する�
 | 6.6 | Core2 LCD Status UI | Core2内蔵LCDに機械状態を表示する | [x] |
 | 6.7 | NEOPIXEL Status LED | GPIO33の外付けNEOPIXELを設定灯数で制御する | [x] |
 | 6.8 | Motor Melody Diagnostics | STEP周波数とTMC設定を一時変更して診断メロディを鳴らす | [x] |
-| 6.9 | Homing bring-up | X/Y原点復帰、hard limit、homed状態を実装する | [-] |
+| 6.9 | Homing bring-up | X/Y原点復帰、hard limit、homed状態を実装する | [x] |
 | 7 | 最小G-code | G0/G1/G90/G91/G20/G21/M3/M5/M114 | [ ] |
-| 8 | 台形加減速 | TrapezoidPlannerを実装 | [ ] |
-| 9 | timed segment | SegmentGeneratorでA/B同期 | [ ] |
+| 8 | 台形加減速 | TrapezoidPlannerを実装 | [x] |
+| 9 | timed segment | SegmentGeneratorでA/B同期 | [x] |
 | 10 | look-ahead | JunctionPlanner、junction deviation | [ ] |
 | 11 | 高級機能 | homing、TMC診断、SD/WebUI、補正系 | [ ] |
 
 現在の実装対象:
 
 ```text
-Phase 6.9 Homing bring-up のupload/実機確認
+Phase 9 timed segment実装後の実機描画安定化
 ```
 
-Phase 0〜6.8は完了済み。  
-Phase 6.9以降は、実装範囲を確認してから着手する。  
+Phase 0〜6.9、Phase 8、Phase 9は完了済み。
+Phase 7、Phase 10以降は、実装範囲を確認してから着手する。
 ただし、先々の設計を忘れないようチェックリストとして残しておく。
 
 ---
@@ -1011,6 +1014,37 @@ Status: 実装済み。MotionTaskがSegmentQueueを補充し、FastAccelStepper 
 - [x] 低レベルqueue検討
 - [x] SegmentGeneratorとStepperBackendの責務分離
 
+## 9.1 実機描画安定化 / 脱調対策
+
+Phase 9のtimed segment実装後、中心図形描画で一部脱調および原点外でのX limit active alarmが発生した。
+追加仕様として、描画負荷を下げる保守的な初期設定と、limit入力ノイズで即停止しない安全判定を導入する。
+
+### 9.1.1 Motion / TMC / Pen設定
+
+- [x] `DEFAULT_MOTOR_ACCEL_STEPS_S2`を実機描画用に保守的な値へ下げる
+- [x] `DEFAULT_ACCEL_MM_S2`の`CONFIG`表示とcheck CSV期待値を追従させる
+- [x] `TMC_NORMAL_RMS_CURRENT_MA`を実機で脱調しない方向へ調整する
+- [x] `PEN_DOWN_ANGLE_DEG`をconfig化した上で、紙への押し付けを弱める方向へ調整する
+- [ ] TMC電流増加後のモータ/ドライバ温度を連続描画で確認し、必要なら電流を下げる
+
+### 9.1.2 hard limit入力の通常移動中判定
+
+- [x] homing中ではない通常移動で、原点外のlimit activeが一定時間継続した場合だけalarmへ入れる
+- [x] 継続時間を`HARD_LIMIT_UNEXPECTED_ALARM_MS`として`PlotterConfig.h`から設定できる
+- [x] 瞬間的なlimitノイズでは即alarmにしない
+- [x] limitが継続ONの場合は従来通り安全停止できる構造にする
+- [ ] 実配線でX/Y limit入力のノイズ量を確認し、必要なら外付けpull-up、配線取り回し、RC filterを追加する
+
+### 9.1.3 center shapes実機確認
+
+- [x] `tools/serial_tool/examples/center_shapes.csv`を追加する
+- [x] 紙面中心を`(X_MIN+X_MAX)/2`, `(Y_MIN+Y_MAX)/2`相当の`(27.5, 27.5)`として扱う
+- [x] マル、四角、三角、星を中心付近へ描画する
+- [x] 図形サイズはsoft limit端から十分余白を残す
+- [x] 描画feedは保守的な`300 mm/min`、移動feedは`600 mm/min`から開始する
+- [x] `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認する
+- [ ] 脱調が再発しないか、同じCSVを複数回連続で実行して確認する
+
 ---
 
 # Phase 10: look-ahead / junction deviation
@@ -1248,6 +1282,28 @@ XY 10 10 300
 - [ ] alarm中に通常XY移動が拒否される
 - [ ] homing後の`XY 10 0 300`と`XY 10 10 300`が期待方向に動く
 
+## 12.7 中心図形描画 / 脱調確認
+
+```text
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --csv tools/serial_tool/examples/center_shapes.csv \
+  --startup-delay 4 \
+  --timeout 8 \
+  --echo
+```
+
+チェック:
+
+- [x] `CONFIG`で`accel=37.500`を確認できる
+- [x] `TMC_STATUS`で通常profileの電流設定を確認できる
+- [x] `HOME`が完了する
+- [x] マル、四角、三角、星の描画コマンドが最後までACKされる
+- [x] 最終`POS`で`ALARM=NO`を確認できる
+- [x] 最終`POS`で`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
+- [ ] 実際の線が目視で大きくずれない
+- [ ] 連続実行後もモータ/TMC温度が許容範囲に収まる
+
 ---
 
 # 13. Codex用プロンプト
@@ -1449,6 +1505,9 @@ Phase 6.9を実装してください。
 | R14 | [ ] | homed前の通常XY移動を許可するか運用方針が未確定 | 初期はconfigで切替可能にし、実機bring-up後に既定値を決める |
 | R15 | [ ] | 2回目の低速seek後にlimit debounced ONで安定するまでの待ち時間が未確定 | `../1stepper_test`同様にraw/debouncedをログ化し、必要ならsettle待ちまたはdebounce値を調整 |
 | R16 | [!] | uploadが`/dev/cu.usbserial-023591AC`で`termios.error: (22, 'Invalid argument')`により失敗 | USB/シリアルドライバ、port占有、接続状態、upload_speed設定を確認して再試行 |
+| R17 | [ ] | 通常TMC電流を850mAへ上げたため、モータ/TMC2209/電源の発熱余裕が未確定 | center shapes連続実行後に温度を確認し、熱い場合は800mA以下へ下げる |
+| R18 | [ ] | 原点外でX limitが継続ACTIVEになる現象があり、脱調による座標ずれかlimit入力ノイズか未確定 | 低速・低加速度で再現性を確認し、limit配線、pull-up、機械干渉を切り分ける |
+| R19 | [ ] | `HARD_LIMIT_UNEXPECTED_ALARM_MS=500`は実機暫定値であり、安全停止遅延とノイズ耐性のバランスが未確定 | 実機でlimitを意図的に押して停止距離を確認し、必要なら値を短くする |
 
 ---
 
@@ -1470,6 +1529,9 @@ Phase 6.9を実装してください。
 | 2026-06-03 | `../1stepper_test`の二段階homing、backoff、低速再検出、debounce診断をPhase 6.9要件へ反映 | Codex |
 | 2026-06-04 | Phase 6.9を実装。HOME/HOME_X/HOME_Y、二段階homing、limit raw/debounced診断、homed前移動制限、hard limit alarmを追加し`pio run`成功 | Codex |
 | 2026-06-04 | `pio run --target upload`を通常権限と権限付きで実行したが、`/dev/cu.usbserial-023591AC`のtermios設定エラーで失敗 | Codex |
+| 2026-06-06 | Phase 8台形加減速とPhase 9 timed segmentを実装し、TrapezoidPlanner、SegmentGenerator、SegmentQueue、FastAccelStepper `moveTimed()`経路を追加 | Codex |
+| 2026-06-06 | `PlotterConfig.h`へ日本語コメントを追加し、最大feed 5000mm/min、servo up/down角度config化、high-speed checkを追加 | Codex |
+| 2026-06-07 | timed segment実機描画で脱調対策を追加。加速度37.5mm/s^2、TMC通常電流850mA、hard limit継続時間判定、center shapes低速CSVを計画へ反映 | Codex |
 
 ---
 

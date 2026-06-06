@@ -42,8 +42,9 @@ constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 7000;
 
 // モータ加速度 [steps/s^2]。
 // 決め方: 低めから上げ、脱調や振動が出ない値にする。
+// ペンが紙に接触する描画では負荷が増えるため、まず保守的な値にする。
 // DEFAULT_ACCEL_MM_S2 = DEFAULT_MOTOR_ACCEL_STEPS_S2 / STEPS_PER_MM。
-constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = 10000;
+constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = 3000;
 
 // TrapezoidPlannerで使う加速度 [mm/s^2]。
 // 上のsteps単位設定から自動換算するため、通常は直接変更しない。
@@ -133,6 +134,11 @@ constexpr float HOMING_INCREMENT_MM = 0.25f;
 // 決め方: チャタリングが消える最小値。長すぎると検出が遅れる。
 constexpr uint32_t HOMING_LIMIT_DEBOUNCE_MS = 30;
 
+// homing中ではない通常移動で、原点から離れた位置なのにlimitがONになった時に、
+// アラームへ入れるまでの継続時間 [ms]。
+// 決め方: 配線ノイズや瞬間的な接触では止めず、本当にlimitが押された時だけ止める。
+constexpr uint32_t HARD_LIMIT_UNEXPECTED_ALARM_MS = 500;
+
 // trueならhoming完了前の通常XY移動を拒否する。
 // 実機安全のためtrue推奨。ZEROはhoming扱いにしない。
 constexpr bool HOMING_REQUIRE_HOMED_FOR_XY_MOVE = true;
@@ -169,7 +175,7 @@ constexpr uint16_t TMC_NORMAL_MICROSTEPS = 16;
 
 // 通常動作時のモータ電流 [mA RMS]。
 // 決め方: 脱調しない最小値から始め、モータ/ドライバ温度を見て調整する。
-constexpr uint16_t TMC_NORMAL_RMS_CURRENT_MA = 700;
+constexpr uint16_t TMC_NORMAL_RMS_CURRENT_MA = 1100;
 
 // trueならspreadCycle、falseならstealthChop寄りの設定。
 // plotterの確実な駆動と高めの速度ではspreadCycle推奨。

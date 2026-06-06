@@ -1,5 +1,5 @@
 command,delay_ms,expect,comment
-CONFIG,1500,accel=125.000,Confirm motion configuration
+CONFIG,1500,accel=37.500,Confirm motion configuration
 SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion before timed moves
 TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
 TMC_STATUS,700,TMC_STATUS,Show TMC2209 status

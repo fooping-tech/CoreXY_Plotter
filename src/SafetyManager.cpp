@@ -117,6 +117,7 @@ void SafetyManager::poll() {
   updateDebounced(yLimitRawActive(), y_last_raw_, y_debounced_,
                   y_last_change_ms_);
   if (!homing_active_ && machine_state.homed) {
+    const uint32_t now_ms = millis();
     const bool x_unexpected =
         x_debounced_ &&
         ((HOMING_X_DIR < 0 && machine_state.x_mm > HOMING_SET_X_MM + 0.5f) ||
@@ -125,8 +126,27 @@ void SafetyManager::poll() {
         y_debounced_ &&
         ((HOMING_Y_DIR < 0 && machine_state.y_mm > HOMING_SET_Y_MM + 0.5f) ||
          (HOMING_Y_DIR > 0 && machine_state.y_mm < HOMING_SET_Y_MM - 0.5f));
-    if (x_unexpected || y_unexpected) {
+    if (x_unexpected && x_unexpected_since_ms_ == 0) {
+      x_unexpected_since_ms_ = now_ms;
+    } else if (!x_unexpected) {
+      x_unexpected_since_ms_ = 0;
+    }
+    if (y_unexpected && y_unexpected_since_ms_ == 0) {
+      y_unexpected_since_ms_ = now_ms;
+    } else if (!y_unexpected) {
+      y_unexpected_since_ms_ = 0;
+    }
+    const bool x_unexpected_persistent =
+        x_unexpected_since_ms_ != 0 &&
+        now_ms - x_unexpected_since_ms_ >= HARD_LIMIT_UNEXPECTED_ALARM_MS;
+    const bool y_unexpected_persistent =
+        y_unexpected_since_ms_ != 0 &&
+        now_ms - y_unexpected_since_ms_ >= HARD_LIMIT_UNEXPECTED_ALARM_MS;
+    if (x_unexpected_persistent || y_unexpected_persistent) {
       setAlarm("hard limit active away from home");
     }
+  } else {
+    x_unexpected_since_ms_ = 0;
+    y_unexpected_since_ms_ = 0;
   }
 }
