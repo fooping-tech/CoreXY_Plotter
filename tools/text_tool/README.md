@@ -32,6 +32,9 @@ python tools/text_tool/kst32b_to_gcode.py \
   --feed 3000 \
   --rapid-feed 8000 \
   --dwell-ms 80 \
+  --max-x 55 \
+  --max-y 55 \
+  --auto-scale-to-fit \
   -o tools/text_tool/examples/gcode/text_robo.gcode
 ```
 
@@ -41,6 +44,9 @@ python tools/text_tool/kst32b_to_gcode.py \
 python tools/text_tool/kst32b_to_gcode.py \
   --font tools/text_tool/fonts/KST32B.TXT \
   --input-file tools/text_tool/examples/text_konnichiwa.txt \
+  --max-x 55 \
+  --max-y 55 \
+  --auto-scale-to-fit \
   -o tools/text_tool/examples/gcode/text_konnichiwa.gcode
 ```
 
@@ -67,7 +73,7 @@ G4 P<ms>
 
 ```bash
 python tools/serial_tool/serial_send.py \
-  --port /dev/cu.usbserial-0001 \
+  --port /dev/cu.usbserial-023591AC \
   --preamble-csv tools/serial_tool/examples/gcode_preamble.csv \
   --gcode tools/text_tool/examples/gcode/text_robo.gcode \
   --startup-delay 4 \
@@ -78,6 +84,7 @@ python tools/serial_tool/serial_send.py \
 ## Notes
 
 - KST32Bの座標は`--size`で指定した1文字高さmmへスケーリングします。
+- `--max-x`、`--max-y`、`--auto-scale-to-fit`を指定すると、生成G-codeが指定範囲内へ収まるように文字サイズを自動縮小します。
 - 文字間は`--char-spacing`、改行後の行間は`--line-spacing`で調整します。
 - 文字が上下反転する場合は`--flip-y`を付けてください。
 - 濁点、半濁点、小さい「ゃゅょっ」などの短いストロークは、実機ではペン先径や紙質で潰れやすいです。

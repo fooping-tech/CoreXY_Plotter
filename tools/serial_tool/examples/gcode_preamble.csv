@@ -1,5 +1,4 @@
 command,delay_ms,expect,comment
-HELP,1500,G0/G1,Confirm firmware help includes minimal G-code support
 SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion before G-code moves
 ZERO,500,ZERO,Forget stale logical position before clearing alarm
 ALARM_CLEAR,500,ALARM_CLEAR complete,Clear any previous alarm before homing

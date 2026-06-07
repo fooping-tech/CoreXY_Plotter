@@ -67,10 +67,10 @@ def test_load_gcode_rows_skips_comments_and_blank_lines(tmp_path: Path) -> None:
 
     rows = serial_send.load_gcode_rows(gcode_path, default_delay_ms=123)
 
-    assert [(row.line_number, row.command, row.delay_ms) for row in rows] == [
-        (3, "G21", 123),
-        (4, "G90", 123),
-        (6, "G0 X1 Y2 F3000 ; inline comment is firmware-safe", 123),
+    assert [(row.line_number, row.command, row.delay_ms, row.expect) for row in rows] == [
+        (3, "G21", 123, "units=MM"),
+        (4, "G90", 123, "distance=ABSOLUTE"),
+        (6, "G0 X1 Y2 F3000 ; inline comment is firmware-safe", 123, "ACK_XY target="),
     ]
 
 
@@ -96,3 +96,18 @@ def test_load_input_rows_prepends_preamble_csv_to_gcode(tmp_path: Path) -> None:
     assert [row.command for row in rows] == ["ZERO", "G28", "G21", "G90"]
     assert rows[0].expect == "ZERO"
     assert rows[1].expect == "HOME complete"
+    assert rows[2].expect == "units=MM"
+
+
+def test_default_gcode_expect_for_drawing_commands() -> None:
+    assert serial_send.default_gcode_expect("G1 X10 Y20 F3000") == "ACK_XY target="
+    assert serial_send.default_gcode_expect("G4 P80") == "DWELL P="
+    assert serial_send.default_gcode_expect("M3") == "PEN DOWN"
+    assert serial_send.default_gcode_expect("M5") == "PEN UP"
+
+
+def test_firmware_failure_line_detects_reject_and_nack() -> None:
+    assert serial_send.firmware_failure_line("REJECT: machine is alarmed reason=hard limit")
+    assert serial_send.firmware_failure_line("NACK_XY target=(1,2) reason=rejected")
+    assert serial_send.firmware_failure_line("POS ALARM=YES")
+    assert not serial_send.firmware_failure_line("ACK_XY target=(1,2)")

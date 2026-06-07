@@ -1521,7 +1521,7 @@ KST32Bストロークフォントデータをホスト側で読み、日本語�
 - [x] `tools/text_tool/kst32b_to_gcode.py`を追加する
 - [x] `--font`でKST32B.TXTを指定できる
 - [x] `--text`と`--input-file`を排他入力にする
-- [x] `--x`、`--y`、`--size`、`--char-spacing`、`--line-spacing`、`--feed`、`--rapid-feed`、`--dwell-ms`、`--flip-y`、`-o/--output`を実装する
+- [x] `--x`、`--y`、`--size`、`--char-spacing`、`--line-spacing`、`--feed`、`--rapid-feed`、`--dwell-ms`、`--flip-y`、`--max-x`、`--max-y`、`--auto-scale-to-fit`、`-o/--output`を実装する
 - [x] CSF/1のX/Y move、draw、next-X命令をデコードし、30x32格子をmmへスケーリングする
 - [x] ペンアップ移動を`G0`、描画移動を`G1`、ペンダウンを`M3`、ペンアップを`M5`、dwellを`G4 P<ms>`で出力する
 - [x] 改行を扱い、次行へ進める
@@ -1532,6 +1532,9 @@ KST32Bストロークフォントデータをホスト側で読み、日本語�
 - [x] `G4 P<ms>`をファームウェアの最小G-codeとして追加し、Text Tool既定出力をそのまま送れるようにする
 - [x] `serial_send.py --gcode`で生成G-codeを直接送信できるようにする
 - [x] `serial_send.py --preamble-csv`で描画前のalarm clear、limit確認、homing確認CSVを前置できるようにする
+- [x] `--gcode`行に既定expectを付け、`NACK`、`REJECT:`、alarm、`ERROR:`受信時に停止する
+- [x] Text Toolで直前位置と同じ座標へのペンアップ`G0`を省略し、plannerのゼロ長XY拒否を避ける
+- [x] Text Toolで`--max-x`/`--max-y`範囲検査と`--auto-scale-to-fit`自動縮小を追加し、サンプルG-codeを55x55mm範囲内へ再生成する
 - [ ] 生成G-codeを実機へ送信し、濁点、半濁点、小さい文字、dwell、feedを調整する
 
 ---
@@ -1744,6 +1747,7 @@ Phase 6.9を実装してください。
 | R23 | [ ] | Phase 7最小G-codeはbuild確認のみで、実機での`G28`、相対移動、inch換算、pen動作確認が未完了 | `gcode_check.csv`を実行し、`ACK_XY`、`POS`、pen、limit/homing状態を確認する |
 | R24 | [ ] | 2026-06-07時点でCore2 USB serial portが見えず、`pio run --target upload`がBluetooth port自動検出で失敗 | Core2をUSB接続し、`/dev/cu.usbserial-*`等のportを指定してuploadとSerial Monitor確認を実行する |
 | R25 | [ ] | KST32B Text Toolの生成G-codeは実KST32Bデータで生成確認済みだが、実機での文字潰れ、dwell、feed、soft limit余裕が未確認 | 小さい文字や濁点を含むサンプルを低速から送信し、`--size`、`--dwell-ms`、feedを調整する |
+| R26 | [ ] | Text Tool生成G-code実機送信で、homing後もlimitがACTIVEのまま残り、X方向戻りストロークで`NACK_XY`後にhard-limit alarmへ入った | homing後のlimit解放距離、switch機械位置、配線ノイズ、`HARD_LIMIT_UNEXPECTED_ALARM_MS`、描画開始位置を確認する |
 
 ---
 
@@ -1789,6 +1793,9 @@ Phase 6.9を実装してください。
 | 2026-06-07 | KST32B Text Toolを追加。CSF/1デコード、CLI、サンプル入力/生成G-code、README、`G4 P<ms>` dwell対応を追加 | Codex |
 | 2026-06-08 | Serial Toolへ`--gcode`入力を追加し、Text Tool生成G-codeを直接送信できるようにした | Codex |
 | 2026-06-08 | Serial Toolへ`--preamble-csv`と`gcode_preamble.csv`を追加し、Text Tool生成G-code送信前にalarm clear、limit確認、homing確認を前置できるようにした | Codex |
+| 2026-06-08 | Text Tool生成G-code実機ログの`NACK_XY`継続送信問題を受け、Serial ToolでG-code行の既定expectとfirmware failure検出を追加 | Codex |
+| 2026-06-08 | Text Tool生成G-code実機ログの`junction planner rejected XY batch`を受け、同一座標へのペンアップ`G0`を省略するよう修正し、サンプルG-codeを再生成 | Codex |
+| 2026-06-08 | Text Tool生成G-code実機ログのsoft limit超過を受け、`--max-x`/`--max-y`範囲検査と`--auto-scale-to-fit`を追加し、サンプルG-codeを55x55mm範囲内へ再生成 | Codex |
 
 ---
 

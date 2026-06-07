@@ -28,6 +28,12 @@ INTERRUPT_ABORT_MIN_READ_S = 0.2
 QUEUE_ACK_PATTERNS = ("ACK QUEUED", "ACK ABORT requested")
 QUEUE_FULL_PATTERN = "ERROR: CommandQueue full"
 ERROR_PATTERN = "ERROR:"
+FIRMWARE_FAILURE_PATTERNS = (
+    "NACK",
+    "REJECT:",
+    "ALARM=YES",
+    "machine is alarmed",
+)
 SYNC_COMPLETION_BY_COMMAND = {
     "HOME": "HOME complete",
     "HOME_X": "HOME_X set zero",
@@ -275,7 +281,7 @@ def load_gcode_rows(gcode_path: Path, default_delay_ms: int) -> list[CommandRow]
                     line_number=line_number,
                     command=command,
                     delay_ms=default_delay_ms,
-                    expect="",
+                    expect=default_gcode_expect(command),
                     comment="",
                 )
             )
@@ -307,6 +313,48 @@ def print_plan(rows: Iterable[CommandRow]) -> None:
 
 def command_name(command: str) -> str:
     return command.split(maxsplit=1)[0].upper() if command.strip() else ""
+
+
+def default_gcode_expect(command: str) -> str:
+    name = command_name(command)
+    if name in ("G0", "G1"):
+        return "ACK_XY target="
+    if name == "G4":
+        return "DWELL P="
+    if name == "G21":
+        return "units=MM"
+    if name == "G20":
+        return "units=INCH"
+    if name == "G90":
+        return "distance=ABSOLUTE"
+    if name == "G91":
+        return "distance=RELATIVE"
+    if name == "G28":
+        return "HOME complete"
+    if name == "M3":
+        return "PEN DOWN"
+    if name == "M5":
+        return "PEN UP"
+    if name == "M114":
+        return "POS"
+    return ""
+
+
+def firmware_failure_line(response: str) -> str:
+    for line in response.splitlines():
+        if ERROR_PATTERN in line and QUEUE_FULL_PATTERN not in line:
+            return line
+        if any(pattern in line for pattern in FIRMWARE_FAILURE_PATTERNS):
+            return line
+    return ""
+
+
+def stop_patterns_with_failures(patterns: str | tuple[str, ...]) -> tuple[str, ...]:
+    if isinstance(patterns, str):
+        base = (patterns,) if patterns else ()
+    else:
+        base = patterns
+    return base + (ERROR_PATTERN,) + FIRMWARE_FAILURE_PATTERNS
 
 
 def contains_any(text: str, patterns: str | tuple[str, ...]) -> bool:
@@ -470,7 +518,7 @@ def queue_completion_timeout_s(row: CommandRow, args: argparse.Namespace) -> flo
 
 def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: CommandRow) -> int:
     retry_deadline = time.monotonic() + args.queue_retry_timeout
-    stop_on = QUEUE_ACK_PATTERNS + (QUEUE_FULL_PATTERN, ERROR_PATTERN)
+    stop_on = QUEUE_ACK_PATTERNS + (QUEUE_FULL_PATTERN,) + stop_patterns_with_failures("")
     attempt = 0
     response = ""
 
@@ -501,6 +549,15 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
             time.sleep(args.queue_retry_delay_ms / 1000.0)
             continue
 
+        failure = firmware_failure_line(response)
+        if failure:
+            print(
+                f"ERROR: line {row.line_number}: firmware failure: {failure}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 1
+
         if contains_any(response, QUEUE_ACK_PATTERNS):
             break
 
@@ -526,10 +583,19 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
             serial_port,
             min_duration_s=delay_s,
             max_duration_s=queue_completion_timeout_s(row, args),
-            stop_on=completion,
+            stop_on=stop_patterns_with_failures(completion),
         )
         print_response(completion_response)
         response += completion_response
+
+    failure = firmware_failure_line(response)
+    if failure:
+        print(
+            f"ERROR: line {row.line_number}: firmware failure: {failure}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 1
 
     if completion and completion not in response:
         print(
@@ -553,9 +619,17 @@ def send_row_standard_mode(serial_port, args: argparse.Namespace, index: int, ro
         serial_port,
         min_duration_s=delay_s,
         max_duration_s=max(args.timeout, delay_s),
-        stop_on=row.expect,
+        stop_on=stop_patterns_with_failures(row.expect),
     )
     print_response(response)
+    failure = firmware_failure_line(response)
+    if failure:
+        print(
+            f"ERROR: line {row.line_number}: firmware failure: {failure}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 1
     if row.expect and row.expect not in response:
         print(
             f"ERROR: line {row.line_number}: expected {row.expect!r} "

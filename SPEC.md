@@ -774,14 +774,19 @@ F値はmm/minとして扱う。
 - 入力は`--text`またはUTF-8の`--input-file`のどちらか一方とする
 - 出力は`G21`、`G90`、`G0`、`G1`、`M3`、`M5`、必要に応じて`G4 P<ms>`を使う
 - KST32Bの30x32格子座標を`--size`の文字高さmmへスケーリングする
+- `--max-x`、`--max-y`を指定した場合、生成座標が範囲外ならエラーにする
+- `--auto-scale-to-fit`を指定した場合、生成座標が`--max-x`/`--max-y`内へ収まるように`--size`を自動縮小する
 - ペンアップ移動は`G0`、描画移動は`G1`、ペンダウンは`M3`、ペンアップは`M5`で表す
 - 濁点、半濁点、小さい文字などの短い線分を削除しない
 - 線分簡略化、字形補正、SVG変換、vpype連携、G2/G3円弧補間は行わない
 - 未対応文字は警告を出し、既定では代替四角形、`--missing-glyph skip`ではスキップする
+- 直前の物理位置と同じ座標へのペンアップ`G0`は出力しない。ファームウェア側plannerのゼロ長XY拒否を避けるためであり、短い描画線分は削除しない
 - 生成したG-codeの実機品質はペン先径、紙質、ペン上下dwell、feed、機械剛性で調整する
 
 `tools/serial_tool/serial_send.py`は`--gcode`でG-codeファイルを直接送信できる。空行、`;`開始コメント行、`%`行は送信せず、その他の行を1行1コマンドとして扱う。
 描画前の準備手順は`--preamble-csv tools/serial_tool/examples/gcode_preamble.csv`で前置する。標準preambleは`HELP`、`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、alarm解除、limit状態、homing完了、`HOMED=YES`を確認する。
+`--gcode`で読み込んだ行には、コマンド種別ごとの既定expectを付ける。`G0/G1`は`ACK_XY target=`、`G4`は`DWELL P=`、`M3/M5`は`PEN DOWN`/`PEN UP`などを待つ。
+Serial Toolは`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`を受信した場合、その行を失敗扱いにして、既定では後続行を送信しない。
 
 ---
 

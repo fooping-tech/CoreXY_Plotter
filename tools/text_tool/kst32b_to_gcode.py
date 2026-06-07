@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -218,6 +219,12 @@ def fmt_coord(value: float) -> str:
     return f"{value:.3f}"
 
 
+def same_point(a: Point | None, b: Point, tolerance_mm: float = 0.0005) -> bool:
+    if a is None:
+        return False
+    return abs(a[0] - b[0]) <= tolerance_mm and abs(a[1] - b[1]) <= tolerance_mm
+
+
 def text_to_gcode(
     glyphs: dict[int, Glyph],
     text: str,
@@ -235,6 +242,7 @@ def text_to_gcode(
     scale = size_mm / GRID_HEIGHT
     x_mm = start_x_mm
     y_mm = start_y_mm
+    current_position_mm: Point | None = None
     display_text = text.replace("\n", "\\n")
     lines = [
         "G21",
@@ -280,13 +288,17 @@ def text_to_gcode(
             if len(stroke) < 2:
                 continue
             first_x, first_y = transform_point(stroke[0], x_mm, y_mm, scale, flip_y)
-            lines.append(f"G0 X{fmt_coord(first_x)} Y{fmt_coord(first_y)} F{rapid_feed_mm_min:g}")
+            first_point_mm = (first_x, first_y)
+            if not same_point(current_position_mm, first_point_mm):
+                lines.append(f"G0 X{fmt_coord(first_x)} Y{fmt_coord(first_y)} F{rapid_feed_mm_min:g}")
+                current_position_mm = first_point_mm
             lines.append("M3")
             if dwell_ms > 0:
                 lines.append(f"G4 P{dwell_ms}")
             for point in stroke[1:]:
                 draw_x, draw_y = transform_point(point, x_mm, y_mm, scale, flip_y)
                 lines.append(f"G1 X{fmt_coord(draw_x)} Y{fmt_coord(draw_y)} F{feed_mm_min:g}")
+                current_position_mm = (draw_x, draw_y)
             lines.append("M5")
             if dwell_ms > 0:
                 lines.append(f"G4 P{dwell_ms}")
@@ -295,6 +307,128 @@ def text_to_gcode(
     lines.append("")
     lines.append("M5")
     return lines
+
+
+GCODE_X_RE = re.compile(r"(?:^|\s)X([-+]?\d+(?:\.\d*)?)")
+GCODE_Y_RE = re.compile(r"(?:^|\s)Y([-+]?\d+(?:\.\d*)?)")
+
+
+def gcode_bounds(lines: list[str]) -> tuple[float, float, float, float] | None:
+    min_x: float | None = None
+    max_x: float | None = None
+    min_y: float | None = None
+    max_y: float | None = None
+    for line in lines:
+        if not (line.startswith("G0 ") or line.startswith("G1 ")):
+            continue
+        x_match = GCODE_X_RE.search(line)
+        y_match = GCODE_Y_RE.search(line)
+        if x_match is None or y_match is None:
+            continue
+        x_value = float(x_match.group(1))
+        y_value = float(y_match.group(1))
+        min_x = x_value if min_x is None else min(min_x, x_value)
+        max_x = x_value if max_x is None else max(max_x, x_value)
+        min_y = y_value if min_y is None else min(min_y, y_value)
+        max_y = y_value if max_y is None else max(max_y, y_value)
+    if min_x is None or max_x is None or min_y is None or max_y is None:
+        return None
+    return min_x, max_x, min_y, max_y
+
+
+def bounds_fit(
+    bounds: tuple[float, float, float, float] | None,
+    max_x_mm: float | None,
+    max_y_mm: float | None,
+) -> bool:
+    if bounds is None:
+        return True
+    _, max_x, _, max_y = bounds
+    if max_x_mm is not None and max_x > max_x_mm:
+        return False
+    if max_y_mm is not None and max_y > max_y_mm:
+        return False
+    return True
+
+
+def bounds_error(
+    bounds: tuple[float, float, float, float] | None,
+    max_x_mm: float | None,
+    max_y_mm: float | None,
+) -> str:
+    if bounds is None:
+        return "no drawable coordinates were generated"
+    min_x, max_x, min_y, max_y = bounds
+    details = [f"bounds X=[{min_x:.3f},{max_x:.3f}] Y=[{min_y:.3f},{max_y:.3f}]"]
+    if max_x_mm is not None:
+        details.append(f"max_x={max_x_mm:.3f}")
+    if max_y_mm is not None:
+        details.append(f"max_y={max_y_mm:.3f}")
+    return " ".join(details)
+
+
+def generate_lines(
+    glyphs: dict[int, Glyph],
+    text: str,
+    args: argparse.Namespace,
+    size_mm: float,
+) -> list[str]:
+    return text_to_gcode(
+        glyphs=glyphs,
+        text=text,
+        start_x_mm=args.x,
+        start_y_mm=args.y,
+        size_mm=size_mm,
+        char_spacing_mm=args.char_spacing,
+        line_spacing_mm=args.line_spacing,
+        feed_mm_min=args.feed,
+        rapid_feed_mm_min=args.rapid_feed,
+        dwell_ms=args.dwell_ms,
+        flip_y=args.flip_y,
+        missing_glyph=args.missing_glyph,
+    )
+
+
+def generate_fitting_lines(
+    glyphs: dict[int, Glyph],
+    text: str,
+    args: argparse.Namespace,
+) -> tuple[list[str], float]:
+    lines = generate_lines(glyphs, text, args, args.size)
+    bounds = gcode_bounds(lines)
+    if bounds_fit(bounds, args.max_x, args.max_y):
+        return lines, args.size
+    if not args.auto_scale_to_fit:
+        raise ValueError(
+            "generated G-code exceeds configured bounds: "
+            f"{bounds_error(bounds, args.max_x, args.max_y)}. "
+            "Use --auto-scale-to-fit or reduce --size/--char-spacing."
+        )
+
+    low = 0.1
+    high = args.size
+    best_lines: list[str] | None = None
+    best_size = low
+    for _ in range(28):
+        midpoint = (low + high) / 2.0
+        candidate = generate_lines(glyphs, text, args, midpoint)
+        if bounds_fit(gcode_bounds(candidate), args.max_x, args.max_y):
+            best_lines = candidate
+            best_size = midpoint
+            low = midpoint
+        else:
+            high = midpoint
+
+    if best_lines is None:
+        raise ValueError(
+            "could not fit generated G-code into configured bounds: "
+            f"{bounds_error(bounds, args.max_x, args.max_y)}"
+        )
+    print(
+        f"info: auto-scaled --size {args.size:.3f} -> {best_size:.3f} mm",
+        file=sys.stderr,
+    )
+    return best_lines, best_size
 
 
 def read_input_text(args: argparse.Namespace) -> str:
@@ -320,6 +454,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rapid-feed", type=float, default=8000.0, help="Pen-up feed in mm/min")
     parser.add_argument("--dwell-ms", type=int, default=80, help="Dwell after pen up/down in ms")
     parser.add_argument("--flip-y", action="store_true", help="Flip glyph Y axis")
+    parser.add_argument("--max-x", type=float, help="Reject or auto-scale output above this X mm")
+    parser.add_argument("--max-y", type=float, help="Reject or auto-scale output above this Y mm")
+    parser.add_argument(
+        "--auto-scale-to-fit",
+        action="store_true",
+        help="Reduce --size until generated coordinates fit --max-x/--max-y",
+    )
     parser.add_argument(
         "--missing-glyph",
         choices=("box", "skip"),
@@ -350,20 +491,15 @@ def main() -> int:
         return 2
 
     text = read_input_text(args)
-    lines = text_to_gcode(
-        glyphs=glyphs,
-        text=text,
-        start_x_mm=args.x,
-        start_y_mm=args.y,
-        size_mm=args.size,
-        char_spacing_mm=args.char_spacing,
-        line_spacing_mm=args.line_spacing,
-        feed_mm_min=args.feed,
-        rapid_feed_mm_min=args.rapid_feed,
-        dwell_ms=args.dwell_ms,
-        flip_y=args.flip_y,
-        missing_glyph=args.missing_glyph,
-    )
+    if args.auto_scale_to_fit and args.max_x is None and args.max_y is None:
+        print("error: --auto-scale-to-fit requires --max-x and/or --max-y", file=sys.stderr)
+        return 2
+
+    try:
+        lines, _ = generate_fitting_lines(glyphs, text, args)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

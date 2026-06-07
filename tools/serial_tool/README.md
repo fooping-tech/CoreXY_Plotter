@@ -188,7 +188,8 @@ Python側でCoreXYのA/B変換、soft limit判定、planner相当の補間を重
 - `;`で始まるコメント行
 - `%`だけの行
 
-インラインコメントはファームウェア側のG-code parserが`;`以降を無視するため、そのまま送ります。`--gcode`では`expect`列がないため、必要な事前確認やhomingは先にCSVで実行するか、`G28`をG-codeへ入れて`--queue-mode`で送信してください。
+インラインコメントはファームウェア側のG-code parserが`;`以降を無視するため、そのまま送ります。`--gcode`では、コマンド種別に応じて既定の確認ログを待ちます。`G0/G1`は`ACK_XY target=`、`M3/M5`は`PEN DOWN`/`PEN UP`、`G4`は`DWELL P=`を待ちます。
+`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`を受信した場合は、その行で失敗扱いにして停止します。
 
 描画前の標準準備には`tools/serial_tool/examples/gcode_preamble.csv`を使います。このCSVは`HELP`、`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、homing完了と`HOMED=YES`を確認します。
 
