@@ -12,6 +12,18 @@ TrapezoidPlanner trapezoid_planner;
 SegmentGenerator segment_generator;
 SegmentQueue segment_queue;
 
+const char* timedSegmentResultName(StepperBackend::TimedSegmentResult result) {
+  switch (result) {
+    case StepperBackend::TimedSegmentResult::QUEUED:
+      return "QUEUED";
+    case StepperBackend::TimedSegmentResult::RETRY:
+      return "RETRY";
+    case StepperBackend::TimedSegmentResult::ERROR:
+      return "ERROR";
+  }
+  return "UNKNOWN";
+}
+
 StatusMessage currentStatus() {
   return StatusMessage{machine_state, safety_manager.xLimitActive(),
                        safety_manager.yLimitActive(),
@@ -170,6 +182,91 @@ void handleXY(const CommandMessage& command) {
   machine_state.feed_mm_min = feed_mm_min;
 }
 
+void handleABTimed(const CommandMessage& command) {
+  logMessage("AB_TIMED command a_steps=%ld b_steps=%ld duration_us=%lu",
+             command.a_steps, command.b_steps, command.duration_us);
+  if (stopForAbort("AB_TIMED rejected before queue")) {
+    logMessage("NACK_AB_TIMED reason=abort");
+    return;
+  }
+  if (safety_manager.isAlarmed()) {
+    logMessage("NACK_AB_TIMED reason=alarm");
+    return;
+  }
+  if (!stepper_backend.isReady()) {
+    logMessage("NACK_AB_TIMED reason=backend_not_ready");
+    return;
+  }
+  if (command.a_steps == 0 && command.b_steps == 0) {
+    logMessage("NACK_AB_TIMED reason=no_steps");
+    return;
+  }
+  if (command.duration_us < AB_TIMED_MIN_DURATION_US) {
+    logMessage("NACK_AB_TIMED reason=duration_too_short min_us=%lu",
+               AB_TIMED_MIN_DURATION_US);
+    return;
+  }
+  if (command.a_steps < INT16_MIN || command.a_steps > INT16_MAX ||
+      command.b_steps < INT16_MIN || command.b_steps > INT16_MAX) {
+    logMessage("NACK_AB_TIMED reason=steps_out_of_range int16_required=YES");
+    return;
+  }
+
+  MotionSegment segment{};
+  segment.a_steps = command.a_steps;
+  segment.b_steps = command.b_steps;
+  segment.duration_us = command.duration_us;
+  const uint32_t micros_before_queue = micros();
+  logMessage("AB_TIMED before_queue micros=%lu queueEntries A=%u B=%u running A=%u B=%u",
+             micros_before_queue, stepper_backend.motorAQueueEntries(),
+             stepper_backend.motorBQueueEntries(),
+             stepper_backend.isMotorARunning(),
+             stepper_backend.isMotorBRunning());
+  const StepperBackend::TimedSegmentResult queue_result =
+      stepper_backend.queueTimedSegment(segment, false);
+  const uint32_t micros_after_queue = micros();
+  logMessage("AB_TIMED after_queue micros=%lu result=%s queueEntries A=%u B=%u running A=%u B=%u",
+             micros_after_queue, timedSegmentResultName(queue_result),
+             stepper_backend.motorAQueueEntries(),
+             stepper_backend.motorBQueueEntries(),
+             stepper_backend.isMotorARunning(),
+             stepper_backend.isMotorBRunning());
+  if (queue_result != StepperBackend::TimedSegmentResult::QUEUED) {
+    logMessage("NACK_AB_TIMED reason=queue_%s",
+               timedSegmentResultName(queue_result));
+    return;
+  }
+  const bool started = stepper_backend.startTimedSegments();
+  logMessage("AB_TIMED start result=%s queueEntries A=%u B=%u running A=%u B=%u",
+             started ? "OK" : "ERROR",
+             stepper_backend.motorAQueueEntries(),
+             stepper_backend.motorBQueueEntries(),
+             stepper_backend.isMotorARunning(),
+             stepper_backend.isMotorBRunning());
+  if (!started) {
+    logMessage("NACK_AB_TIMED reason=start_error");
+    return;
+  }
+  if (!waitForMotionOrLimit()) {
+    logMessage("AB_TIMED result=STOPPED queueEntries A=%u B=%u running A=%u B=%u",
+               stepper_backend.motorAQueueEntries(),
+               stepper_backend.motorBQueueEntries(),
+               stepper_backend.isMotorARunning(),
+               stepper_backend.isMotorBRunning());
+    logMessage("NACK_AB_TIMED reason=stopped");
+    return;
+  }
+  machine_state.a_steps += command.a_steps;
+  machine_state.b_steps += command.b_steps;
+  logMessage("AB_TIMED result=OK queueEntries A=%u B=%u running A=%u B=%u",
+             stepper_backend.motorAQueueEntries(),
+             stepper_backend.motorBQueueEntries(),
+             stepper_backend.isMotorARunning(),
+             stepper_backend.isMotorBRunning());
+  logMessage("ACK_AB_TIMED a_steps=%ld b_steps=%ld duration_us=%lu",
+             command.a_steps, command.b_steps, command.duration_us);
+}
+
 void handleSingleMotor(bool motor_a, int32_t steps) {
   invalidateHomed("independent motor test");
 #if SIMULATION_MODE
@@ -217,6 +314,9 @@ void motionTask(void*) {
         break;
       case CommandType::TEST_B:
         handleSingleMotor(false, command.steps);
+        break;
+      case CommandType::AB_TIMED:
+        handleABTimed(command);
         break;
       case CommandType::XY:
         handleXY(command);

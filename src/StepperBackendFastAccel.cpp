@@ -228,6 +228,38 @@ int32_t StepperBackendFastAccel::currentBSteps() const {
 #endif
 }
 
+bool StepperBackendFastAccel::isMotorARunning() const {
+#if SIMULATION_MODE
+  return false;
+#else
+  return motor_a_ != nullptr && motor_a_->isRunning();
+#endif
+}
+
+bool StepperBackendFastAccel::isMotorBRunning() const {
+#if SIMULATION_MODE
+  return false;
+#else
+  return motor_b_ != nullptr && motor_b_->isRunning();
+#endif
+}
+
+uint16_t StepperBackendFastAccel::motorAQueueEntries() const {
+#if SIMULATION_MODE
+  return 0;
+#else
+  return motor_a_ == nullptr ? 0 : motor_a_->queueEntries();
+#endif
+}
+
+uint16_t StepperBackendFastAccel::motorBQueueEntries() const {
+#if SIMULATION_MODE
+  return 0;
+#else
+  return motor_b_ == nullptr ? 0 : motor_b_->queueEntries();
+#endif
+}
+
 StepperBackend::TimedSegmentResult StepperBackendFastAccel::mapMoveTimedResult(
     int8_t result) const {
   if (result == static_cast<int8_t>(MOVE_TIMED_OK) ||

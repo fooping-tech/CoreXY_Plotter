@@ -1,5 +1,6 @@
 #include "CommandDispatcher.h"
 #include "PlotterConfig.h"
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -119,6 +120,27 @@ CommandMessage CommandDispatcher::parse(const char* line) {
     }
     command.type = CommandType::LED_PARAM;
     command.led.type = LedCommandType::SET_PARAMETER;
+  }
+  else if (strcmp(name, "AB_TIMED") == 0) {
+    long a_steps = 0;
+    long b_steps = 0;
+    long duration_us = 0;
+    if (sscanf(line, "%*s %ld %ld %ld", &a_steps, &b_steps,
+               &duration_us) != 3) {
+      snprintf(command.error, sizeof(command.error),
+               "AB_TIMED requires <a_steps> <b_steps> <duration_us>");
+      return command;
+    }
+    if (a_steps < INT32_MIN || a_steps > INT32_MAX ||
+        b_steps < INT32_MIN || b_steps > INT32_MAX ||
+        duration_us > UINT32_MAX) {
+      snprintf(command.error, sizeof(command.error), "AB_TIMED argument out of range");
+      return command;
+    }
+    command.a_steps = static_cast<int32_t>(a_steps);
+    command.b_steps = static_cast<int32_t>(b_steps);
+    command.duration_us = duration_us < 0 ? 0 : static_cast<uint32_t>(duration_us);
+    command.type = CommandType::AB_TIMED;
   }
   else if (strcmp(name, "TEST_A") == 0 || strcmp(name, "TEST_B") == 0) {
     if (sscanf(line, "%*s %ld", &command.steps) != 1) {

@@ -428,6 +428,7 @@ Core 0へ表示するときはStatusQueueを通す。
 | `ZERO` | 論理原点リセット。homingではない |
 | `TEST_A <steps>` | Aモータ単独テスト |
 | `TEST_B <steps>` | Bモータ単独テスト |
+| `AB_TIMED <a_steps> <b_steps> <duration_us>` | 診断専用。XY/planner/segment生成をバイパスしA/B timed segmentを直接実行 |
 | `XY <x_mm> <y_mm> <feed_mm_min>` | XY移動またはsimulation |
 | `PENUP` | ペン上げ |
 | `PENDOWN` | ペン下げ |
@@ -452,6 +453,9 @@ Core 0へ表示するときはStatusQueueを通す。
 - `ABORT`はcommandTaskで即時停止要求flagを立てる。CommandQueueへ投入できない場合も`ACK ABORT requested`を返し、motion/homing側のpollで停止を試みる。
 - parse失敗またはキュー満杯の場合は`ERROR: ...`を返し、`ACK QUEUED`は返さない。
 - motion側で安全確認または実行投入に失敗した場合は`REJECT: ...`または`ERROR: ...`に加えて、XYでは`NACK_XY ...`を返す。
+- `AB_TIMED`は診断専用であり、`XY`、`CoreXYKinematics`、`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`をバイパスする。`a_steps`、`b_steps`、`duration_us`を直接`StepperBackendFastAccel`のtimed segment経路へ渡す。
+- `AB_TIMED`は片側stepが0でも許可するが、A/B両方0、`duration_us < AB_TIMED_MIN_DURATION_US`、alarm中、backend未初期化、backend投入失敗の場合は`NACK_AB_TIMED reason=...`を返す。
+- `AB_TIMED`成功時は、queue前後の`micros()`、queue結果、A/B running状態、A/B queue entriesをログし、完了後に`ACK_AB_TIMED`を返す。
 
 脱調や手動停止により論理座標が信用できない状態から再homingする場合は、`ALARM_CLEAR`の前に`ZERO`を実行して現在の論理座標とhomed状態を破棄する。
 HOMEを扱うserial check CSVでは、原則として`ZERO -> ALARM_CLEAR -> HOME`の順にする。
@@ -731,3 +735,4 @@ F値はmm/minとして扱う。
 - 台形加減速profileとtimed segmentによるA/B同期XY移動が実行できる
 - `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
 - 動き出し・動き終わりの歪み調査用に、同一中心へ5個の正方形を重ねて描く反時計回り版`concentric_squares_check.csv`と時計回り版`concentric_squares_clockwise_check.csv`をSerial Toolから実行できる
+- `diagnostic_ab_timed_square_draw.csv`で、PENDOWNした四角描画を`AB_TIMED`直接実行経路で行い、通常XY描画CSVと比較できる

@@ -54,6 +54,10 @@ constexpr float DEFAULT_ACCEL_MM_S2 = DEFAULT_MOTOR_ACCEL_STEPS_S2 / STEPS_PER_M
 // 現状はDEFAULT_ACCEL_MM_S2と同じ値。
 constexpr float MAX_ACCEL_MM_S2 = DEFAULT_MOTOR_ACCEL_STEPS_S2 / STEPS_PER_MM;
 
+// AB_TIMED診断コマンドで許可する最小duration [us]。
+// 短すぎるtimed moveはFastAccelStepper queueや機械側の切り分けに向かないため拒否する。
+constexpr uint32_t AB_TIMED_MIN_DURATION_US = 1000;
+
 // soft limit [mm]。homing後の通常XY移動をこの範囲に制限する。
 // 決め方: 実際にペン先が安全に動ける作業範囲から少し余裕を引いた値。
 constexpr float X_MIN_MM = 0.0f;

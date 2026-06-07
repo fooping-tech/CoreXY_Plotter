@@ -8,6 +8,7 @@ enum class CommandType {
   ZERO,
   TEST_A,
   TEST_B,
+  AB_TIMED,
   XY,
   PEN_UP,
   PEN_DOWN,

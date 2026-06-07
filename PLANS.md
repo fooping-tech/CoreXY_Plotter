@@ -1055,6 +1055,32 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 - [ ] 実機で実行し、各正方形の閉じ位置、角の丸まり、終点オーバーシュートを確認する
 - [ ] 歪みが再現する辺、描画方向、サイズ依存性を記録し、速度/加速度/ペン圧/ベルト張り/ガタのどれを優先調整するか決める
 
+### 9.1.5 AB_TIMED診断 / backend直接timed実行切り分け
+
+目的:
+
+`AB_TIMED`を診断専用コマンドとして追加し、通常の`XY`描画経路と、A/Bモータを直接`moveTimed()`系へ渡す経路を比較する。
+これにより、角ズレ、歪み、閉じズレの原因が`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`側か、`StepperBackendFastAccel`/FastAccelStepper側かを切り分ける。
+
+ベースCSV:
+
+- `tools/serial_tool/examples/concentric_squares_clockwise_check.csv`
+- `tools/serial_tool/examples/concentric_squares_check.csv`
+
+チェック:
+
+- [x] `AB_TIMED <a_steps> <b_steps> <duration_us>`を追加する
+- [x] `AB_TIMED`は`XY`、`CoreXYKinematics`、`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`をバイパスする
+- [x] `a_steps=0`または`b_steps=0`の片側timed moveを許可する
+- [x] `duration_us`が短すぎる場合は`NACK_AB_TIMED reason=duration_too_short`を返す
+- [x] alarm中は`NACK_AB_TIMED reason=alarm`で実行しない
+- [x] queue前後の`micros()`、queue結果、A/B running状態、A/B queue entriesをログする
+- [x] `tools/serial_tool/examples/diagnostic_ab_timed_square_draw.csv`を追加する
+- [x] CSVは`PENDOWN`して実際に線を描く
+- [x] 小さい四角、大きい四角、同じサイズ2回連続、時計回り/反時計回りを含める
+- [ ] 実機で通常XY版CSVとAB_TIMED版CSVを同じ紙面条件で比較する
+- [ ] AB_TIMEDの閉じズレ、方向依存、サイズ依存を記録する
+
 ---
 
 # Phase 10: look-ahead / junction deviation
@@ -1350,6 +1376,42 @@ python tools/serial_tool/serial_send.py \
 - [ ] サイズ違いで歪みの出方に差があるか確認する
 - [ ] 最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
 
+## 12.7.2 AB_TIMED四角描画 / backend直接timed実行確認
+
+目的:
+
+通常XY描画CSVと`AB_TIMED`描画CSVを比較し、歪み原因がplanner/segment生成側か、backend/FastAccelStepper側かを切り分ける。
+
+通常XY比較対象:
+
+- `tools/serial_tool/examples/concentric_squares_clockwise_check.csv`
+- `tools/serial_tool/examples/concentric_squares_check.csv`
+
+AB_TIMED診断CSV:
+
+- `tools/serial_tool/examples/diagnostic_ab_timed_square_draw.csv`
+
+実行:
+
+```text
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --csv tools/serial_tool/examples/diagnostic_ab_timed_square_draw.csv \
+  --startup-delay 4 \
+  --startup-drain 1 \
+  --timeout 8 \
+  --echo
+```
+
+判定基準:
+
+- [ ] 通常XY描画では歪むが、AB_TIMED描画では四角が閉じる場合、`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`、またはXYコマンド処理側を疑う
+- [ ] AB_TIMED描画でも歪む場合、`StepperBackendFastAccel`、FastAccelStepper `moveTimed()`使用方法、A/B同期開始、`duration_us`指定を疑う
+- [ ] AB_TIMEDで小さい四角だけ悪化する場合、短距離`moveTimed()`、`duration_us`最小値、step数丸め、A/B step配分を疑う
+- [ ] AB_TIMEDで大きい四角は正常、小さい四角はズレる場合、台形加速以前に短時間timed moveの扱いを疑う
+- [ ] 時計回りと反時計回りでズレ方向が変わる場合、A/B符号、方向反転、または片側モータの開始/停止タイミング差を疑う
+- [ ] 通常XYもAB_TIMEDも同じように歪む場合、backend以下の問題が濃厚。ソフト観点では`StepperBackendFastAccel`とFastAccelStepper設定を重点確認する
+
 ## 12.8 Serial Tool待ち時間仕様
 
 チェック:
@@ -1593,6 +1655,7 @@ Phase 6.9を実装してください。
 | R18 | [ ] | 原点外でX limitが継続ACTIVEになる現象があり、脱調による座標ずれかlimit入力ノイズか未確定 | 低速・低加速度で再現性を確認し、limit配線、pull-up、機械干渉を切り分ける |
 | R19 | [ ] | `HARD_LIMIT_UNEXPECTED_ALARM_MS=500`は実機暫定値であり、安全停止遅延とノイズ耐性のバランスが未確定 | 実機でlimitを意図的に押して停止距離を確認し、必要なら値を短くする |
 | R20 | [ ] | 動き出し・動き終わりの歪み原因が、加減速設定、ペン圧、ベルト張り、機械ガタ、ステップ抜けのどれか未確定 | 反時計回り/時計回りの同心正方形CSVで方向、サイズ、始点/終点依存性を切り分ける |
+| R21 | [ ] | AB_TIMEDでも歪む場合、`StepperBackendFastAccel`の`moveTimed()`投入、A/B同期開始、duration指定、queue容量見積もりのどれが支配的か未確定 | `diagnostic_ab_timed_square_draw.csv`で小/大/連続/方向違いの結果を比較し、backendログと照合する |
 
 ---
 
@@ -1624,6 +1687,7 @@ Phase 6.9を実装してください。
 | 2026-06-07 | Homingを短い固定距離move反復から長距離moveのlimit停止方式へ変更し、fast seek速度設定が実効速度へ反映されやすい構造に更新 | Codex |
 | 2026-06-07 | 動き出し・動き終わりの歪み調査用に、同じ中心へ5個の正方形を重ねて描くSerial Tool CSVと手順書を追加 | Codex |
 | 2026-06-07 | 同心正方形の時計回り版CSVを追加し、反時計回り版との方向依存比較を手順書へ反映 | Codex |
+| 2026-06-07 | 診断専用`AB_TIMED`コマンドと、PENDOWNして四角を描く`diagnostic_ab_timed_square_draw.csv`を追加 | Codex |
 
 ---
 
