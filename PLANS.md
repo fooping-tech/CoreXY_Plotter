@@ -1749,6 +1749,10 @@ Phase 6.9を実装してください。
 | 2026-06-07 | Phase 10 look-ahead / junction deviationを実装。JunctionPlanner、連続XYバッチ、CONFIG表示、lookahead check CSV/手順書を追加 | Codex |
 | 2026-06-07 | Phase 10実装後に`pio run`、`pio run --target upload`、Serial Toolの`CONFIG`/`POS`/`SELFTEST`/`TMC_INIT`/`TMC_STATUS`確認が成功 | Codex |
 | 2026-06-07 | Serial ToolへCSV各行の`TIMING START`/`TIMING END`ログを追加し、最初のコマンド開始を0とした相対時刻と行内経過時間を表示 | Codex |
+| 2026-06-07 | ホスト側`tools/qr_tool`を追加し、QR文字列/URLから`PENUP`/`PENDOWN`/`XY` CSVとハッチングSVGを生成できるようにした | Codex |
+| 2026-06-07 | Serial Toolの`--queue-mode`で`HOME`/`HOME_X`/`HOME_Y`の完了ログ待ちを既定30秒にし、QR CSVのhoming timeoutを防止 | Codex |
+| 2026-06-07 | QR Toolの描画方式を、横run矩形の外周描画と45度斜線ハッチングに変更 | Codex |
+| 2026-06-07 | QR Toolの内部ハッチングを、線ごとのペン上下から連続ジグザグ塗りつぶしに変更 | Codex |
 
 ---
 

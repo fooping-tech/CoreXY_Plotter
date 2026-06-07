@@ -33,6 +33,11 @@ SYNC_COMPLETION_BY_COMMAND = {
     "HOME_X": "HOME_X set zero",
     "HOME_Y": "HOME_Y set zero",
 }
+SYNC_COMPLETION_TIMEOUT_S_BY_COMMAND = {
+    "HOME": 30.0,
+    "HOME_X": 30.0,
+    "HOME_Y": 30.0,
+}
 
 
 @dataclass(frozen=True)
@@ -393,6 +398,14 @@ def queue_completion_pattern(row: CommandRow) -> str:
     return SYNC_COMPLETION_BY_COMMAND.get(command_name(row.command), "")
 
 
+def queue_completion_timeout_s(row: CommandRow, args: argparse.Namespace) -> float:
+    return max(
+        args.timeout,
+        row.delay_ms / 1000.0,
+        SYNC_COMPLETION_TIMEOUT_S_BY_COMMAND.get(command_name(row.command), 0.0),
+    )
+
+
 def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: CommandRow) -> int:
     retry_deadline = time.monotonic() + args.queue_retry_timeout
     stop_on = QUEUE_ACK_PATTERNS + (QUEUE_FULL_PATTERN, ERROR_PATTERN)
@@ -450,7 +463,7 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
         completion_response = read_response_text(
             serial_port,
             min_duration_s=delay_s,
-            max_duration_s=max(args.timeout, delay_s),
+            max_duration_s=queue_completion_timeout_s(row, args),
             stop_on=completion,
         )
         print_response(completion_response)

@@ -124,6 +124,7 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 `--queue-mode`では、各行は`ACK QUEUED`を受信してから次の行へ進みます。
 `ERROR: CommandQueue full`を受信した場合は、同じ行を`--queue-retry-delay-ms`ごとに再送します。
 `HOME`、`HOME_X`、`HOME_Y`は後続motionを先に積まないよう、queue投入後も完了ログまで待ちます。
+これらのhomingコマンドはCSVの`delay_ms=0`でも既定で最大30秒まで完了ログを待ちます。
 このモードではCSVの`delay_ms=0`と空の`expect`を使って、固定待ちなしでCommandQueueへ詰められます。
 
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。

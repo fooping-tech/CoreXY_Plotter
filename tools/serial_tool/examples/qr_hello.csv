@@ -1,0 +1,2373 @@
+command,delay_ms,expect,comment
+CONFIG,0,,Show firmware configuration before high-speed square distortion check
+SELFTEST,0,,Validate CoreXY conversion before high-speed drawing
+TMC_INIT,0,,Initialize TMC2209 UART manager
+TMC_STATUS,0,,Show TMC2209 status before high-speed drawing
+PENUP,0,,Start with pen up
+ZERO,0,,Forget any stale logical position before clearing alarm
+ALARM_CLEAR,0,,Clear any previous alarm before homing
+LIMIT_STATUS,0,,Record limit state before homing
+HOME,0,,Home before drawing high-speed concentric squares
+POS,0,,Confirm machine is homed
+PENUP,250,PENUP,ensure pen is raised before QR travel
+XY 14 14 1800,0,ACK_XY target=,travel to QR outline 1
+PENDOWN,120,PENDOWN,start QR outline 1
+XY 21 14 600,0,ACK_XY target=,draw QR outline 1.1
+XY 21 15 600,0,ACK_XY target=,draw QR outline 1.2
+XY 14 15 600,0,ACK_XY target=,draw QR outline 1.3
+XY 14 14 600,0,ACK_XY target=,draw QR outline 1.4
+PENUP,120,PENUP,finish QR outline 1
+XY 20.505 14 1800,0,ACK_XY target=,travel to QR zigzag hatch 2
+PENDOWN,120,PENDOWN,start QR zigzag hatch 2
+XY 21 14.495 600,0,ACK_XY target=,draw QR zigzag hatch 2.1
+XY 21 14.99 600,0,ACK_XY target=,draw QR zigzag hatch 2.2
+XY 20.01 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.3
+XY 19.515 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.4
+XY 20.515 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.5
+XY 20.02 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.6
+XY 19.02 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.7
+XY 18.525 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.8
+XY 19.525 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.9
+XY 19.03 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.10
+XY 18.03 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.11
+XY 17.535 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.12
+XY 18.535 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.13
+XY 18.04 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.14
+XY 17.04 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.15
+XY 16.545 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.16
+XY 17.545 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.17
+XY 17.05 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.18
+XY 16.05 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.19
+XY 15.555 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.20
+XY 16.555 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.21
+XY 16.06 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.22
+XY 15.06 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.23
+XY 14.565 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.24
+XY 15.565 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.25
+XY 15.07 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.26
+XY 14.07 14 600,0,ACK_XY target=,draw QR zigzag hatch 2.27
+XY 14 14.425 600,0,ACK_XY target=,draw QR zigzag hatch 2.28
+XY 14.575 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.29
+XY 14.08 15 600,0,ACK_XY target=,draw QR zigzag hatch 2.30
+XY 14 14.92 600,0,ACK_XY target=,draw QR zigzag hatch 2.31
+PENUP,120,PENUP,finish QR zigzag hatch 2
+XY 28 14 1800,0,ACK_XY target=,travel to QR outline 3
+PENDOWN,120,PENDOWN,start QR outline 3
+XY 35 14 600,0,ACK_XY target=,draw QR outline 3.1
+XY 35 15 600,0,ACK_XY target=,draw QR outline 3.2
+XY 28 15 600,0,ACK_XY target=,draw QR outline 3.3
+XY 28 14 600,0,ACK_XY target=,draw QR outline 3.4
+PENUP,120,PENUP,finish QR outline 3
+XY 34.505 14 1800,0,ACK_XY target=,travel to QR zigzag hatch 4
+PENDOWN,120,PENDOWN,start QR zigzag hatch 4
+XY 35 14.495 600,0,ACK_XY target=,draw QR zigzag hatch 4.1
+XY 35 14.99 600,0,ACK_XY target=,draw QR zigzag hatch 4.2
+XY 34.01 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.3
+XY 33.515 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.4
+XY 34.515 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.5
+XY 34.02 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.6
+XY 33.02 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.7
+XY 32.525 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.8
+XY 33.525 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.9
+XY 33.03 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.10
+XY 32.03 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.11
+XY 31.535 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.12
+XY 32.535 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.13
+XY 32.04 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.14
+XY 31.04 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.15
+XY 30.545 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.16
+XY 31.545 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.17
+XY 31.05 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.18
+XY 30.05 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.19
+XY 29.555 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.20
+XY 30.555 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.21
+XY 30.06 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.22
+XY 29.06 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.23
+XY 28.565 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.24
+XY 29.565 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.25
+XY 29.07 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.26
+XY 28.07 14 600,0,ACK_XY target=,draw QR zigzag hatch 4.27
+XY 28 14.425 600,0,ACK_XY target=,draw QR zigzag hatch 4.28
+XY 28.575 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.29
+XY 28.08 15 600,0,ACK_XY target=,draw QR zigzag hatch 4.30
+XY 28 14.92 600,0,ACK_XY target=,draw QR zigzag hatch 4.31
+PENUP,120,PENUP,finish QR zigzag hatch 4
+XY 14 15 1800,0,ACK_XY target=,travel to QR outline 5
+PENDOWN,120,PENDOWN,start QR outline 5
+XY 15 15 600,0,ACK_XY target=,draw QR outline 5.1
+XY 15 16 600,0,ACK_XY target=,draw QR outline 5.2
+XY 14 16 600,0,ACK_XY target=,draw QR outline 5.3
+XY 14 15 600,0,ACK_XY target=,draw QR outline 5.4
+PENUP,120,PENUP,finish QR outline 5
+XY 14.505 15 1800,0,ACK_XY target=,travel to QR zigzag hatch 6
+PENDOWN,120,PENDOWN,start QR zigzag hatch 6
+XY 15 15.495 600,0,ACK_XY target=,draw QR zigzag hatch 6.1
+XY 15 15.99 600,0,ACK_XY target=,draw QR zigzag hatch 6.2
+XY 14.01 15 600,0,ACK_XY target=,draw QR zigzag hatch 6.3
+XY 14 15.485 600,0,ACK_XY target=,draw QR zigzag hatch 6.4
+XY 14.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 6.5
+XY 14.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 6.6
+XY 14 15.98 600,0,ACK_XY target=,draw QR zigzag hatch 6.7
+PENUP,120,PENUP,finish QR zigzag hatch 6
+XY 20 15 1800,0,ACK_XY target=,travel to QR outline 7
+PENDOWN,120,PENDOWN,start QR outline 7
+XY 21 15 600,0,ACK_XY target=,draw QR outline 7.1
+XY 21 16 600,0,ACK_XY target=,draw QR outline 7.2
+XY 20 16 600,0,ACK_XY target=,draw QR outline 7.3
+XY 20 15 600,0,ACK_XY target=,draw QR outline 7.4
+PENUP,120,PENUP,finish QR outline 7
+XY 20.505 15 1800,0,ACK_XY target=,travel to QR zigzag hatch 8
+PENDOWN,120,PENDOWN,start QR zigzag hatch 8
+XY 21 15.495 600,0,ACK_XY target=,draw QR zigzag hatch 8.1
+XY 21 15.99 600,0,ACK_XY target=,draw QR zigzag hatch 8.2
+XY 20.01 15 600,0,ACK_XY target=,draw QR zigzag hatch 8.3
+XY 20 15.485 600,0,ACK_XY target=,draw QR zigzag hatch 8.4
+XY 20.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 8.5
+XY 20.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 8.6
+XY 20 15.98 600,0,ACK_XY target=,draw QR zigzag hatch 8.7
+PENUP,120,PENUP,finish QR zigzag hatch 8
+XY 25 15 1800,0,ACK_XY target=,travel to QR outline 9
+PENDOWN,120,PENDOWN,start QR outline 9
+XY 27 15 600,0,ACK_XY target=,draw QR outline 9.1
+XY 27 16 600,0,ACK_XY target=,draw QR outline 9.2
+XY 25 16 600,0,ACK_XY target=,draw QR outline 9.3
+XY 25 15 600,0,ACK_XY target=,draw QR outline 9.4
+PENUP,120,PENUP,finish QR outline 9
+XY 26.505 15 1800,0,ACK_XY target=,travel to QR zigzag hatch 10
+PENDOWN,120,PENDOWN,start QR zigzag hatch 10
+XY 27 15.495 600,0,ACK_XY target=,draw QR zigzag hatch 10.1
+XY 27 15.99 600,0,ACK_XY target=,draw QR zigzag hatch 10.2
+XY 26.01 15 600,0,ACK_XY target=,draw QR zigzag hatch 10.3
+XY 25.515 15 600,0,ACK_XY target=,draw QR zigzag hatch 10.4
+XY 26.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 10.5
+XY 26.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 10.6
+XY 25.02 15 600,0,ACK_XY target=,draw QR zigzag hatch 10.7
+XY 25 15.475 600,0,ACK_XY target=,draw QR zigzag hatch 10.8
+XY 25.525 16 600,0,ACK_XY target=,draw QR zigzag hatch 10.9
+XY 25.03 16 600,0,ACK_XY target=,draw QR zigzag hatch 10.10
+XY 25 15.97 600,0,ACK_XY target=,draw QR zigzag hatch 10.11
+PENUP,120,PENUP,finish QR zigzag hatch 10
+XY 28 15 1800,0,ACK_XY target=,travel to QR outline 11
+PENDOWN,120,PENDOWN,start QR outline 11
+XY 29 15 600,0,ACK_XY target=,draw QR outline 11.1
+XY 29 16 600,0,ACK_XY target=,draw QR outline 11.2
+XY 28 16 600,0,ACK_XY target=,draw QR outline 11.3
+XY 28 15 600,0,ACK_XY target=,draw QR outline 11.4
+PENUP,120,PENUP,finish QR outline 11
+XY 28.505 15 1800,0,ACK_XY target=,travel to QR zigzag hatch 12
+PENDOWN,120,PENDOWN,start QR zigzag hatch 12
+XY 29 15.495 600,0,ACK_XY target=,draw QR zigzag hatch 12.1
+XY 29 15.99 600,0,ACK_XY target=,draw QR zigzag hatch 12.2
+XY 28.01 15 600,0,ACK_XY target=,draw QR zigzag hatch 12.3
+XY 28 15.485 600,0,ACK_XY target=,draw QR zigzag hatch 12.4
+XY 28.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 12.5
+XY 28.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 12.6
+XY 28 15.98 600,0,ACK_XY target=,draw QR zigzag hatch 12.7
+PENUP,120,PENUP,finish QR zigzag hatch 12
+XY 34 15 1800,0,ACK_XY target=,travel to QR outline 13
+PENDOWN,120,PENDOWN,start QR outline 13
+XY 35 15 600,0,ACK_XY target=,draw QR outline 13.1
+XY 35 16 600,0,ACK_XY target=,draw QR outline 13.2
+XY 34 16 600,0,ACK_XY target=,draw QR outline 13.3
+XY 34 15 600,0,ACK_XY target=,draw QR outline 13.4
+PENUP,120,PENUP,finish QR outline 13
+XY 34.505 15 1800,0,ACK_XY target=,travel to QR zigzag hatch 14
+PENDOWN,120,PENDOWN,start QR zigzag hatch 14
+XY 35 15.495 600,0,ACK_XY target=,draw QR zigzag hatch 14.1
+XY 35 15.99 600,0,ACK_XY target=,draw QR zigzag hatch 14.2
+XY 34.01 15 600,0,ACK_XY target=,draw QR zigzag hatch 14.3
+XY 34 15.485 600,0,ACK_XY target=,draw QR zigzag hatch 14.4
+XY 34.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 14.5
+XY 34.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 14.6
+XY 34 15.98 600,0,ACK_XY target=,draw QR zigzag hatch 14.7
+PENUP,120,PENUP,finish QR zigzag hatch 14
+XY 14 16 1800,0,ACK_XY target=,travel to QR outline 15
+PENDOWN,120,PENDOWN,start QR outline 15
+XY 15 16 600,0,ACK_XY target=,draw QR outline 15.1
+XY 15 17 600,0,ACK_XY target=,draw QR outline 15.2
+XY 14 17 600,0,ACK_XY target=,draw QR outline 15.3
+XY 14 16 600,0,ACK_XY target=,draw QR outline 15.4
+PENUP,120,PENUP,finish QR outline 15
+XY 14.505 16 1800,0,ACK_XY target=,travel to QR zigzag hatch 16
+PENDOWN,120,PENDOWN,start QR zigzag hatch 16
+XY 15 16.495 600,0,ACK_XY target=,draw QR zigzag hatch 16.1
+XY 15 16.99 600,0,ACK_XY target=,draw QR zigzag hatch 16.2
+XY 14.01 16 600,0,ACK_XY target=,draw QR zigzag hatch 16.3
+XY 14 16.485 600,0,ACK_XY target=,draw QR zigzag hatch 16.4
+XY 14.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 16.5
+XY 14.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 16.6
+XY 14 16.98 600,0,ACK_XY target=,draw QR zigzag hatch 16.7
+PENUP,120,PENUP,finish QR zigzag hatch 16
+XY 16 16 1800,0,ACK_XY target=,travel to QR outline 17
+PENDOWN,120,PENDOWN,start QR outline 17
+XY 19 16 600,0,ACK_XY target=,draw QR outline 17.1
+XY 19 17 600,0,ACK_XY target=,draw QR outline 17.2
+XY 16 17 600,0,ACK_XY target=,draw QR outline 17.3
+XY 16 16 600,0,ACK_XY target=,draw QR outline 17.4
+PENUP,120,PENUP,finish QR outline 17
+XY 18.505 16 1800,0,ACK_XY target=,travel to QR zigzag hatch 18
+PENDOWN,120,PENDOWN,start QR zigzag hatch 18
+XY 19 16.495 600,0,ACK_XY target=,draw QR zigzag hatch 18.1
+XY 19 16.99 600,0,ACK_XY target=,draw QR zigzag hatch 18.2
+XY 18.01 16 600,0,ACK_XY target=,draw QR zigzag hatch 18.3
+XY 17.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 18.4
+XY 18.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 18.5
+XY 18.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 18.6
+XY 17.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 18.7
+XY 16.525 16 600,0,ACK_XY target=,draw QR zigzag hatch 18.8
+XY 17.525 17 600,0,ACK_XY target=,draw QR zigzag hatch 18.9
+XY 17.03 17 600,0,ACK_XY target=,draw QR zigzag hatch 18.10
+XY 16.03 16 600,0,ACK_XY target=,draw QR zigzag hatch 18.11
+XY 16 16.465 600,0,ACK_XY target=,draw QR zigzag hatch 18.12
+XY 16.535 17 600,0,ACK_XY target=,draw QR zigzag hatch 18.13
+XY 16.04 17 600,0,ACK_XY target=,draw QR zigzag hatch 18.14
+XY 16 16.96 600,0,ACK_XY target=,draw QR zigzag hatch 18.15
+PENUP,120,PENUP,finish QR zigzag hatch 18
+XY 20 16 1800,0,ACK_XY target=,travel to QR outline 19
+PENDOWN,120,PENDOWN,start QR outline 19
+XY 21 16 600,0,ACK_XY target=,draw QR outline 19.1
+XY 21 17 600,0,ACK_XY target=,draw QR outline 19.2
+XY 20 17 600,0,ACK_XY target=,draw QR outline 19.3
+XY 20 16 600,0,ACK_XY target=,draw QR outline 19.4
+PENUP,120,PENUP,finish QR outline 19
+XY 20.505 16 1800,0,ACK_XY target=,travel to QR zigzag hatch 20
+PENDOWN,120,PENDOWN,start QR zigzag hatch 20
+XY 21 16.495 600,0,ACK_XY target=,draw QR zigzag hatch 20.1
+XY 21 16.99 600,0,ACK_XY target=,draw QR zigzag hatch 20.2
+XY 20.01 16 600,0,ACK_XY target=,draw QR zigzag hatch 20.3
+XY 20 16.485 600,0,ACK_XY target=,draw QR zigzag hatch 20.4
+XY 20.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 20.5
+XY 20.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 20.6
+XY 20 16.98 600,0,ACK_XY target=,draw QR zigzag hatch 20.7
+PENUP,120,PENUP,finish QR zigzag hatch 20
+XY 22 16 1800,0,ACK_XY target=,travel to QR outline 21
+PENDOWN,120,PENDOWN,start QR outline 21
+XY 24 16 600,0,ACK_XY target=,draw QR outline 21.1
+XY 24 17 600,0,ACK_XY target=,draw QR outline 21.2
+XY 22 17 600,0,ACK_XY target=,draw QR outline 21.3
+XY 22 16 600,0,ACK_XY target=,draw QR outline 21.4
+PENUP,120,PENUP,finish QR outline 21
+XY 23.505 16 1800,0,ACK_XY target=,travel to QR zigzag hatch 22
+PENDOWN,120,PENDOWN,start QR zigzag hatch 22
+XY 24 16.495 600,0,ACK_XY target=,draw QR zigzag hatch 22.1
+XY 24 16.99 600,0,ACK_XY target=,draw QR zigzag hatch 22.2
+XY 23.01 16 600,0,ACK_XY target=,draw QR zigzag hatch 22.3
+XY 22.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 22.4
+XY 23.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 22.5
+XY 23.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 22.6
+XY 22.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 22.7
+XY 22 16.475 600,0,ACK_XY target=,draw QR zigzag hatch 22.8
+XY 22.525 17 600,0,ACK_XY target=,draw QR zigzag hatch 22.9
+XY 22.03 17 600,0,ACK_XY target=,draw QR zigzag hatch 22.10
+XY 22 16.97 600,0,ACK_XY target=,draw QR zigzag hatch 22.11
+PENUP,120,PENUP,finish QR zigzag hatch 22
+XY 28 16 1800,0,ACK_XY target=,travel to QR outline 23
+PENDOWN,120,PENDOWN,start QR outline 23
+XY 29 16 600,0,ACK_XY target=,draw QR outline 23.1
+XY 29 17 600,0,ACK_XY target=,draw QR outline 23.2
+XY 28 17 600,0,ACK_XY target=,draw QR outline 23.3
+XY 28 16 600,0,ACK_XY target=,draw QR outline 23.4
+PENUP,120,PENUP,finish QR outline 23
+XY 28.505 16 1800,0,ACK_XY target=,travel to QR zigzag hatch 24
+PENDOWN,120,PENDOWN,start QR zigzag hatch 24
+XY 29 16.495 600,0,ACK_XY target=,draw QR zigzag hatch 24.1
+XY 29 16.99 600,0,ACK_XY target=,draw QR zigzag hatch 24.2
+XY 28.01 16 600,0,ACK_XY target=,draw QR zigzag hatch 24.3
+XY 28 16.485 600,0,ACK_XY target=,draw QR zigzag hatch 24.4
+XY 28.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 24.5
+XY 28.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 24.6
+XY 28 16.98 600,0,ACK_XY target=,draw QR zigzag hatch 24.7
+PENUP,120,PENUP,finish QR zigzag hatch 24
+XY 30 16 1800,0,ACK_XY target=,travel to QR outline 25
+PENDOWN,120,PENDOWN,start QR outline 25
+XY 33 16 600,0,ACK_XY target=,draw QR outline 25.1
+XY 33 17 600,0,ACK_XY target=,draw QR outline 25.2
+XY 30 17 600,0,ACK_XY target=,draw QR outline 25.3
+XY 30 16 600,0,ACK_XY target=,draw QR outline 25.4
+PENUP,120,PENUP,finish QR outline 25
+XY 32.505 16 1800,0,ACK_XY target=,travel to QR zigzag hatch 26
+PENDOWN,120,PENDOWN,start QR zigzag hatch 26
+XY 33 16.495 600,0,ACK_XY target=,draw QR zigzag hatch 26.1
+XY 33 16.99 600,0,ACK_XY target=,draw QR zigzag hatch 26.2
+XY 32.01 16 600,0,ACK_XY target=,draw QR zigzag hatch 26.3
+XY 31.515 16 600,0,ACK_XY target=,draw QR zigzag hatch 26.4
+XY 32.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 26.5
+XY 32.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 26.6
+XY 31.02 16 600,0,ACK_XY target=,draw QR zigzag hatch 26.7
+XY 30.525 16 600,0,ACK_XY target=,draw QR zigzag hatch 26.8
+XY 31.525 17 600,0,ACK_XY target=,draw QR zigzag hatch 26.9
+XY 31.03 17 600,0,ACK_XY target=,draw QR zigzag hatch 26.10
+XY 30.03 16 600,0,ACK_XY target=,draw QR zigzag hatch 26.11
+XY 30 16.465 600,0,ACK_XY target=,draw QR zigzag hatch 26.12
+XY 30.535 17 600,0,ACK_XY target=,draw QR zigzag hatch 26.13
+XY 30.04 17 600,0,ACK_XY target=,draw QR zigzag hatch 26.14
+XY 30 16.96 600,0,ACK_XY target=,draw QR zigzag hatch 26.15
+PENUP,120,PENUP,finish QR zigzag hatch 26
+XY 34 16 1800,0,ACK_XY target=,travel to QR outline 27
+PENDOWN,120,PENDOWN,start QR outline 27
+XY 35 16 600,0,ACK_XY target=,draw QR outline 27.1
+XY 35 17 600,0,ACK_XY target=,draw QR outline 27.2
+XY 34 17 600,0,ACK_XY target=,draw QR outline 27.3
+XY 34 16 600,0,ACK_XY target=,draw QR outline 27.4
+PENUP,120,PENUP,finish QR outline 27
+XY 34.505 16 1800,0,ACK_XY target=,travel to QR zigzag hatch 28
+PENDOWN,120,PENDOWN,start QR zigzag hatch 28
+XY 35 16.495 600,0,ACK_XY target=,draw QR zigzag hatch 28.1
+XY 35 16.99 600,0,ACK_XY target=,draw QR zigzag hatch 28.2
+XY 34.01 16 600,0,ACK_XY target=,draw QR zigzag hatch 28.3
+XY 34 16.485 600,0,ACK_XY target=,draw QR zigzag hatch 28.4
+XY 34.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 28.5
+XY 34.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 28.6
+XY 34 16.98 600,0,ACK_XY target=,draw QR zigzag hatch 28.7
+PENUP,120,PENUP,finish QR zigzag hatch 28
+XY 14 17 1800,0,ACK_XY target=,travel to QR outline 29
+PENDOWN,120,PENDOWN,start QR outline 29
+XY 15 17 600,0,ACK_XY target=,draw QR outline 29.1
+XY 15 18 600,0,ACK_XY target=,draw QR outline 29.2
+XY 14 18 600,0,ACK_XY target=,draw QR outline 29.3
+XY 14 17 600,0,ACK_XY target=,draw QR outline 29.4
+PENUP,120,PENUP,finish QR outline 29
+XY 14.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 30
+PENDOWN,120,PENDOWN,start QR zigzag hatch 30
+XY 15 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 30.1
+XY 15 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 30.2
+XY 14.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 30.3
+XY 14 17.485 600,0,ACK_XY target=,draw QR zigzag hatch 30.4
+XY 14.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 30.5
+XY 14.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 30.6
+XY 14 17.98 600,0,ACK_XY target=,draw QR zigzag hatch 30.7
+PENUP,120,PENUP,finish QR zigzag hatch 30
+XY 16 17 1800,0,ACK_XY target=,travel to QR outline 31
+PENDOWN,120,PENDOWN,start QR outline 31
+XY 19 17 600,0,ACK_XY target=,draw QR outline 31.1
+XY 19 18 600,0,ACK_XY target=,draw QR outline 31.2
+XY 16 18 600,0,ACK_XY target=,draw QR outline 31.3
+XY 16 17 600,0,ACK_XY target=,draw QR outline 31.4
+PENUP,120,PENUP,finish QR outline 31
+XY 18.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 32
+PENDOWN,120,PENDOWN,start QR zigzag hatch 32
+XY 19 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 32.1
+XY 19 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 32.2
+XY 18.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 32.3
+XY 17.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 32.4
+XY 18.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 32.5
+XY 18.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 32.6
+XY 17.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 32.7
+XY 16.525 17 600,0,ACK_XY target=,draw QR zigzag hatch 32.8
+XY 17.525 18 600,0,ACK_XY target=,draw QR zigzag hatch 32.9
+XY 17.03 18 600,0,ACK_XY target=,draw QR zigzag hatch 32.10
+XY 16.03 17 600,0,ACK_XY target=,draw QR zigzag hatch 32.11
+XY 16 17.465 600,0,ACK_XY target=,draw QR zigzag hatch 32.12
+XY 16.535 18 600,0,ACK_XY target=,draw QR zigzag hatch 32.13
+XY 16.04 18 600,0,ACK_XY target=,draw QR zigzag hatch 32.14
+XY 16 17.96 600,0,ACK_XY target=,draw QR zigzag hatch 32.15
+PENUP,120,PENUP,finish QR zigzag hatch 32
+XY 20 17 1800,0,ACK_XY target=,travel to QR outline 33
+PENDOWN,120,PENDOWN,start QR outline 33
+XY 21 17 600,0,ACK_XY target=,draw QR outline 33.1
+XY 21 18 600,0,ACK_XY target=,draw QR outline 33.2
+XY 20 18 600,0,ACK_XY target=,draw QR outline 33.3
+XY 20 17 600,0,ACK_XY target=,draw QR outline 33.4
+PENUP,120,PENUP,finish QR outline 33
+XY 20.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 34
+PENDOWN,120,PENDOWN,start QR zigzag hatch 34
+XY 21 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 34.1
+XY 21 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 34.2
+XY 20.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 34.3
+XY 20 17.485 600,0,ACK_XY target=,draw QR zigzag hatch 34.4
+XY 20.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 34.5
+XY 20.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 34.6
+XY 20 17.98 600,0,ACK_XY target=,draw QR zigzag hatch 34.7
+PENUP,120,PENUP,finish QR zigzag hatch 34
+XY 22 17 1800,0,ACK_XY target=,travel to QR outline 35
+PENDOWN,120,PENDOWN,start QR outline 35
+XY 23 17 600,0,ACK_XY target=,draw QR outline 35.1
+XY 23 18 600,0,ACK_XY target=,draw QR outline 35.2
+XY 22 18 600,0,ACK_XY target=,draw QR outline 35.3
+XY 22 17 600,0,ACK_XY target=,draw QR outline 35.4
+PENUP,120,PENUP,finish QR outline 35
+XY 22.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 36
+PENDOWN,120,PENDOWN,start QR zigzag hatch 36
+XY 23 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 36.1
+XY 23 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 36.2
+XY 22.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 36.3
+XY 22 17.485 600,0,ACK_XY target=,draw QR zigzag hatch 36.4
+XY 22.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 36.5
+XY 22.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 36.6
+XY 22 17.98 600,0,ACK_XY target=,draw QR zigzag hatch 36.7
+PENUP,120,PENUP,finish QR zigzag hatch 36
+XY 24 17 1800,0,ACK_XY target=,travel to QR outline 37
+PENDOWN,120,PENDOWN,start QR outline 37
+XY 25 17 600,0,ACK_XY target=,draw QR outline 37.1
+XY 25 18 600,0,ACK_XY target=,draw QR outline 37.2
+XY 24 18 600,0,ACK_XY target=,draw QR outline 37.3
+XY 24 17 600,0,ACK_XY target=,draw QR outline 37.4
+PENUP,120,PENUP,finish QR outline 37
+XY 24.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 38
+PENDOWN,120,PENDOWN,start QR zigzag hatch 38
+XY 25 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 38.1
+XY 25 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 38.2
+XY 24.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 38.3
+XY 24 17.485 600,0,ACK_XY target=,draw QR zigzag hatch 38.4
+XY 24.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 38.5
+XY 24.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 38.6
+XY 24 17.98 600,0,ACK_XY target=,draw QR zigzag hatch 38.7
+PENUP,120,PENUP,finish QR zigzag hatch 38
+XY 26 17 1800,0,ACK_XY target=,travel to QR outline 39
+PENDOWN,120,PENDOWN,start QR outline 39
+XY 27 17 600,0,ACK_XY target=,draw QR outline 39.1
+XY 27 18 600,0,ACK_XY target=,draw QR outline 39.2
+XY 26 18 600,0,ACK_XY target=,draw QR outline 39.3
+XY 26 17 600,0,ACK_XY target=,draw QR outline 39.4
+PENUP,120,PENUP,finish QR outline 39
+XY 26.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 40
+PENDOWN,120,PENDOWN,start QR zigzag hatch 40
+XY 27 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 40.1
+XY 27 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 40.2
+XY 26.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 40.3
+XY 26 17.485 600,0,ACK_XY target=,draw QR zigzag hatch 40.4
+XY 26.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 40.5
+XY 26.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 40.6
+XY 26 17.98 600,0,ACK_XY target=,draw QR zigzag hatch 40.7
+PENUP,120,PENUP,finish QR zigzag hatch 40
+XY 28 17 1800,0,ACK_XY target=,travel to QR outline 41
+PENDOWN,120,PENDOWN,start QR outline 41
+XY 29 17 600,0,ACK_XY target=,draw QR outline 41.1
+XY 29 18 600,0,ACK_XY target=,draw QR outline 41.2
+XY 28 18 600,0,ACK_XY target=,draw QR outline 41.3
+XY 28 17 600,0,ACK_XY target=,draw QR outline 41.4
+PENUP,120,PENUP,finish QR outline 41
+XY 28.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 42
+PENDOWN,120,PENDOWN,start QR zigzag hatch 42
+XY 29 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 42.1
+XY 29 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 42.2
+XY 28.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 42.3
+XY 28 17.485 600,0,ACK_XY target=,draw QR zigzag hatch 42.4
+XY 28.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 42.5
+XY 28.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 42.6
+XY 28 17.98 600,0,ACK_XY target=,draw QR zigzag hatch 42.7
+PENUP,120,PENUP,finish QR zigzag hatch 42
+XY 30 17 1800,0,ACK_XY target=,travel to QR outline 43
+PENDOWN,120,PENDOWN,start QR outline 43
+XY 33 17 600,0,ACK_XY target=,draw QR outline 43.1
+XY 33 18 600,0,ACK_XY target=,draw QR outline 43.2
+XY 30 18 600,0,ACK_XY target=,draw QR outline 43.3
+XY 30 17 600,0,ACK_XY target=,draw QR outline 43.4
+PENUP,120,PENUP,finish QR outline 43
+XY 32.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 44
+PENDOWN,120,PENDOWN,start QR zigzag hatch 44
+XY 33 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 44.1
+XY 33 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 44.2
+XY 32.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 44.3
+XY 31.515 17 600,0,ACK_XY target=,draw QR zigzag hatch 44.4
+XY 32.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 44.5
+XY 32.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 44.6
+XY 31.02 17 600,0,ACK_XY target=,draw QR zigzag hatch 44.7
+XY 30.525 17 600,0,ACK_XY target=,draw QR zigzag hatch 44.8
+XY 31.525 18 600,0,ACK_XY target=,draw QR zigzag hatch 44.9
+XY 31.03 18 600,0,ACK_XY target=,draw QR zigzag hatch 44.10
+XY 30.03 17 600,0,ACK_XY target=,draw QR zigzag hatch 44.11
+XY 30 17.465 600,0,ACK_XY target=,draw QR zigzag hatch 44.12
+XY 30.535 18 600,0,ACK_XY target=,draw QR zigzag hatch 44.13
+XY 30.04 18 600,0,ACK_XY target=,draw QR zigzag hatch 44.14
+XY 30 17.96 600,0,ACK_XY target=,draw QR zigzag hatch 44.15
+PENUP,120,PENUP,finish QR zigzag hatch 44
+XY 34 17 1800,0,ACK_XY target=,travel to QR outline 45
+PENDOWN,120,PENDOWN,start QR outline 45
+XY 35 17 600,0,ACK_XY target=,draw QR outline 45.1
+XY 35 18 600,0,ACK_XY target=,draw QR outline 45.2
+XY 34 18 600,0,ACK_XY target=,draw QR outline 45.3
+XY 34 17 600,0,ACK_XY target=,draw QR outline 45.4
+PENUP,120,PENUP,finish QR outline 45
+XY 34.505 17 1800,0,ACK_XY target=,travel to QR zigzag hatch 46
+PENDOWN,120,PENDOWN,start QR zigzag hatch 46
+XY 35 17.495 600,0,ACK_XY target=,draw QR zigzag hatch 46.1
+XY 35 17.99 600,0,ACK_XY target=,draw QR zigzag hatch 46.2
+XY 34.01 17 600,0,ACK_XY target=,draw QR zigzag hatch 46.3
+XY 34 17.485 600,0,ACK_XY target=,draw QR zigzag hatch 46.4
+XY 34.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 46.5
+XY 34.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 46.6
+XY 34 17.98 600,0,ACK_XY target=,draw QR zigzag hatch 46.7
+PENUP,120,PENUP,finish QR zigzag hatch 46
+XY 14 18 1800,0,ACK_XY target=,travel to QR outline 47
+PENDOWN,120,PENDOWN,start QR outline 47
+XY 15 18 600,0,ACK_XY target=,draw QR outline 47.1
+XY 15 19 600,0,ACK_XY target=,draw QR outline 47.2
+XY 14 19 600,0,ACK_XY target=,draw QR outline 47.3
+XY 14 18 600,0,ACK_XY target=,draw QR outline 47.4
+PENUP,120,PENUP,finish QR outline 47
+XY 14.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 48
+PENDOWN,120,PENDOWN,start QR zigzag hatch 48
+XY 15 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 48.1
+XY 15 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 48.2
+XY 14.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 48.3
+XY 14 18.485 600,0,ACK_XY target=,draw QR zigzag hatch 48.4
+XY 14.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 48.5
+XY 14.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 48.6
+XY 14 18.98 600,0,ACK_XY target=,draw QR zigzag hatch 48.7
+PENUP,120,PENUP,finish QR zigzag hatch 48
+XY 16 18 1800,0,ACK_XY target=,travel to QR outline 49
+PENDOWN,120,PENDOWN,start QR outline 49
+XY 19 18 600,0,ACK_XY target=,draw QR outline 49.1
+XY 19 19 600,0,ACK_XY target=,draw QR outline 49.2
+XY 16 19 600,0,ACK_XY target=,draw QR outline 49.3
+XY 16 18 600,0,ACK_XY target=,draw QR outline 49.4
+PENUP,120,PENUP,finish QR outline 49
+XY 18.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 50
+PENDOWN,120,PENDOWN,start QR zigzag hatch 50
+XY 19 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 50.1
+XY 19 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 50.2
+XY 18.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 50.3
+XY 17.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 50.4
+XY 18.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 50.5
+XY 18.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 50.6
+XY 17.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 50.7
+XY 16.525 18 600,0,ACK_XY target=,draw QR zigzag hatch 50.8
+XY 17.525 19 600,0,ACK_XY target=,draw QR zigzag hatch 50.9
+XY 17.03 19 600,0,ACK_XY target=,draw QR zigzag hatch 50.10
+XY 16.03 18 600,0,ACK_XY target=,draw QR zigzag hatch 50.11
+XY 16 18.465 600,0,ACK_XY target=,draw QR zigzag hatch 50.12
+XY 16.535 19 600,0,ACK_XY target=,draw QR zigzag hatch 50.13
+XY 16.04 19 600,0,ACK_XY target=,draw QR zigzag hatch 50.14
+XY 16 18.96 600,0,ACK_XY target=,draw QR zigzag hatch 50.15
+PENUP,120,PENUP,finish QR zigzag hatch 50
+XY 20 18 1800,0,ACK_XY target=,travel to QR outline 51
+PENDOWN,120,PENDOWN,start QR outline 51
+XY 21 18 600,0,ACK_XY target=,draw QR outline 51.1
+XY 21 19 600,0,ACK_XY target=,draw QR outline 51.2
+XY 20 19 600,0,ACK_XY target=,draw QR outline 51.3
+XY 20 18 600,0,ACK_XY target=,draw QR outline 51.4
+PENUP,120,PENUP,finish QR outline 51
+XY 20.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 52
+PENDOWN,120,PENDOWN,start QR zigzag hatch 52
+XY 21 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 52.1
+XY 21 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 52.2
+XY 20.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 52.3
+XY 20 18.485 600,0,ACK_XY target=,draw QR zigzag hatch 52.4
+XY 20.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 52.5
+XY 20.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 52.6
+XY 20 18.98 600,0,ACK_XY target=,draw QR zigzag hatch 52.7
+PENUP,120,PENUP,finish QR zigzag hatch 52
+XY 22 18 1800,0,ACK_XY target=,travel to QR outline 53
+PENDOWN,120,PENDOWN,start QR outline 53
+XY 24 18 600,0,ACK_XY target=,draw QR outline 53.1
+XY 24 19 600,0,ACK_XY target=,draw QR outline 53.2
+XY 22 19 600,0,ACK_XY target=,draw QR outline 53.3
+XY 22 18 600,0,ACK_XY target=,draw QR outline 53.4
+PENUP,120,PENUP,finish QR outline 53
+XY 23.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 54
+PENDOWN,120,PENDOWN,start QR zigzag hatch 54
+XY 24 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 54.1
+XY 24 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 54.2
+XY 23.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 54.3
+XY 22.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 54.4
+XY 23.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 54.5
+XY 23.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 54.6
+XY 22.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 54.7
+XY 22 18.475 600,0,ACK_XY target=,draw QR zigzag hatch 54.8
+XY 22.525 19 600,0,ACK_XY target=,draw QR zigzag hatch 54.9
+XY 22.03 19 600,0,ACK_XY target=,draw QR zigzag hatch 54.10
+XY 22 18.97 600,0,ACK_XY target=,draw QR zigzag hatch 54.11
+PENUP,120,PENUP,finish QR zigzag hatch 54
+XY 26 18 1800,0,ACK_XY target=,travel to QR outline 55
+PENDOWN,120,PENDOWN,start QR outline 55
+XY 27 18 600,0,ACK_XY target=,draw QR outline 55.1
+XY 27 19 600,0,ACK_XY target=,draw QR outline 55.2
+XY 26 19 600,0,ACK_XY target=,draw QR outline 55.3
+XY 26 18 600,0,ACK_XY target=,draw QR outline 55.4
+PENUP,120,PENUP,finish QR outline 55
+XY 26.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 56
+PENDOWN,120,PENDOWN,start QR zigzag hatch 56
+XY 27 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 56.1
+XY 27 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 56.2
+XY 26.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 56.3
+XY 26 18.485 600,0,ACK_XY target=,draw QR zigzag hatch 56.4
+XY 26.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 56.5
+XY 26.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 56.6
+XY 26 18.98 600,0,ACK_XY target=,draw QR zigzag hatch 56.7
+PENUP,120,PENUP,finish QR zigzag hatch 56
+XY 28 18 1800,0,ACK_XY target=,travel to QR outline 57
+PENDOWN,120,PENDOWN,start QR outline 57
+XY 29 18 600,0,ACK_XY target=,draw QR outline 57.1
+XY 29 19 600,0,ACK_XY target=,draw QR outline 57.2
+XY 28 19 600,0,ACK_XY target=,draw QR outline 57.3
+XY 28 18 600,0,ACK_XY target=,draw QR outline 57.4
+PENUP,120,PENUP,finish QR outline 57
+XY 28.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 58
+PENDOWN,120,PENDOWN,start QR zigzag hatch 58
+XY 29 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 58.1
+XY 29 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 58.2
+XY 28.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 58.3
+XY 28 18.485 600,0,ACK_XY target=,draw QR zigzag hatch 58.4
+XY 28.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 58.5
+XY 28.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 58.6
+XY 28 18.98 600,0,ACK_XY target=,draw QR zigzag hatch 58.7
+PENUP,120,PENUP,finish QR zigzag hatch 58
+XY 30 18 1800,0,ACK_XY target=,travel to QR outline 59
+PENDOWN,120,PENDOWN,start QR outline 59
+XY 33 18 600,0,ACK_XY target=,draw QR outline 59.1
+XY 33 19 600,0,ACK_XY target=,draw QR outline 59.2
+XY 30 19 600,0,ACK_XY target=,draw QR outline 59.3
+XY 30 18 600,0,ACK_XY target=,draw QR outline 59.4
+PENUP,120,PENUP,finish QR outline 59
+XY 32.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 60
+PENDOWN,120,PENDOWN,start QR zigzag hatch 60
+XY 33 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 60.1
+XY 33 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 60.2
+XY 32.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 60.3
+XY 31.515 18 600,0,ACK_XY target=,draw QR zigzag hatch 60.4
+XY 32.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 60.5
+XY 32.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 60.6
+XY 31.02 18 600,0,ACK_XY target=,draw QR zigzag hatch 60.7
+XY 30.525 18 600,0,ACK_XY target=,draw QR zigzag hatch 60.8
+XY 31.525 19 600,0,ACK_XY target=,draw QR zigzag hatch 60.9
+XY 31.03 19 600,0,ACK_XY target=,draw QR zigzag hatch 60.10
+XY 30.03 18 600,0,ACK_XY target=,draw QR zigzag hatch 60.11
+XY 30 18.465 600,0,ACK_XY target=,draw QR zigzag hatch 60.12
+XY 30.535 19 600,0,ACK_XY target=,draw QR zigzag hatch 60.13
+XY 30.04 19 600,0,ACK_XY target=,draw QR zigzag hatch 60.14
+XY 30 18.96 600,0,ACK_XY target=,draw QR zigzag hatch 60.15
+PENUP,120,PENUP,finish QR zigzag hatch 60
+XY 34 18 1800,0,ACK_XY target=,travel to QR outline 61
+PENDOWN,120,PENDOWN,start QR outline 61
+XY 35 18 600,0,ACK_XY target=,draw QR outline 61.1
+XY 35 19 600,0,ACK_XY target=,draw QR outline 61.2
+XY 34 19 600,0,ACK_XY target=,draw QR outline 61.3
+XY 34 18 600,0,ACK_XY target=,draw QR outline 61.4
+PENUP,120,PENUP,finish QR outline 61
+XY 34.505 18 1800,0,ACK_XY target=,travel to QR zigzag hatch 62
+PENDOWN,120,PENDOWN,start QR zigzag hatch 62
+XY 35 18.495 600,0,ACK_XY target=,draw QR zigzag hatch 62.1
+XY 35 18.99 600,0,ACK_XY target=,draw QR zigzag hatch 62.2
+XY 34.01 18 600,0,ACK_XY target=,draw QR zigzag hatch 62.3
+XY 34 18.485 600,0,ACK_XY target=,draw QR zigzag hatch 62.4
+XY 34.515 19 600,0,ACK_XY target=,draw QR zigzag hatch 62.5
+XY 34.02 19 600,0,ACK_XY target=,draw QR zigzag hatch 62.6
+XY 34 18.98 600,0,ACK_XY target=,draw QR zigzag hatch 62.7
+PENUP,120,PENUP,finish QR zigzag hatch 62
+XY 14 19 1800,0,ACK_XY target=,travel to QR outline 63
+PENDOWN,120,PENDOWN,start QR outline 63
+XY 15 19 600,0,ACK_XY target=,draw QR outline 63.1
+XY 15 20 600,0,ACK_XY target=,draw QR outline 63.2
+XY 14 20 600,0,ACK_XY target=,draw QR outline 63.3
+XY 14 19 600,0,ACK_XY target=,draw QR outline 63.4
+PENUP,120,PENUP,finish QR outline 63
+XY 14.505 19 1800,0,ACK_XY target=,travel to QR zigzag hatch 64
+PENDOWN,120,PENDOWN,start QR zigzag hatch 64
+XY 15 19.495 600,0,ACK_XY target=,draw QR zigzag hatch 64.1
+XY 15 19.99 600,0,ACK_XY target=,draw QR zigzag hatch 64.2
+XY 14.01 19 600,0,ACK_XY target=,draw QR zigzag hatch 64.3
+XY 14 19.485 600,0,ACK_XY target=,draw QR zigzag hatch 64.4
+XY 14.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 64.5
+XY 14.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 64.6
+XY 14 19.98 600,0,ACK_XY target=,draw QR zigzag hatch 64.7
+PENUP,120,PENUP,finish QR zigzag hatch 64
+XY 20 19 1800,0,ACK_XY target=,travel to QR outline 65
+PENDOWN,120,PENDOWN,start QR outline 65
+XY 21 19 600,0,ACK_XY target=,draw QR outline 65.1
+XY 21 20 600,0,ACK_XY target=,draw QR outline 65.2
+XY 20 20 600,0,ACK_XY target=,draw QR outline 65.3
+XY 20 19 600,0,ACK_XY target=,draw QR outline 65.4
+PENUP,120,PENUP,finish QR outline 65
+XY 20.505 19 1800,0,ACK_XY target=,travel to QR zigzag hatch 66
+PENDOWN,120,PENDOWN,start QR zigzag hatch 66
+XY 21 19.495 600,0,ACK_XY target=,draw QR zigzag hatch 66.1
+XY 21 19.99 600,0,ACK_XY target=,draw QR zigzag hatch 66.2
+XY 20.01 19 600,0,ACK_XY target=,draw QR zigzag hatch 66.3
+XY 20 19.485 600,0,ACK_XY target=,draw QR zigzag hatch 66.4
+XY 20.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 66.5
+XY 20.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 66.6
+XY 20 19.98 600,0,ACK_XY target=,draw QR zigzag hatch 66.7
+PENUP,120,PENUP,finish QR zigzag hatch 66
+XY 22 19 1800,0,ACK_XY target=,travel to QR outline 67
+PENDOWN,120,PENDOWN,start QR outline 67
+XY 23 19 600,0,ACK_XY target=,draw QR outline 67.1
+XY 23 20 600,0,ACK_XY target=,draw QR outline 67.2
+XY 22 20 600,0,ACK_XY target=,draw QR outline 67.3
+XY 22 19 600,0,ACK_XY target=,draw QR outline 67.4
+PENUP,120,PENUP,finish QR outline 67
+XY 22.505 19 1800,0,ACK_XY target=,travel to QR zigzag hatch 68
+PENDOWN,120,PENDOWN,start QR zigzag hatch 68
+XY 23 19.495 600,0,ACK_XY target=,draw QR zigzag hatch 68.1
+XY 23 19.99 600,0,ACK_XY target=,draw QR zigzag hatch 68.2
+XY 22.01 19 600,0,ACK_XY target=,draw QR zigzag hatch 68.3
+XY 22 19.485 600,0,ACK_XY target=,draw QR zigzag hatch 68.4
+XY 22.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 68.5
+XY 22.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 68.6
+XY 22 19.98 600,0,ACK_XY target=,draw QR zigzag hatch 68.7
+PENUP,120,PENUP,finish QR zigzag hatch 68
+XY 25 19 1800,0,ACK_XY target=,travel to QR outline 69
+PENDOWN,120,PENDOWN,start QR outline 69
+XY 26 19 600,0,ACK_XY target=,draw QR outline 69.1
+XY 26 20 600,0,ACK_XY target=,draw QR outline 69.2
+XY 25 20 600,0,ACK_XY target=,draw QR outline 69.3
+XY 25 19 600,0,ACK_XY target=,draw QR outline 69.4
+PENUP,120,PENUP,finish QR outline 69
+XY 25.505 19 1800,0,ACK_XY target=,travel to QR zigzag hatch 70
+PENDOWN,120,PENDOWN,start QR zigzag hatch 70
+XY 26 19.495 600,0,ACK_XY target=,draw QR zigzag hatch 70.1
+XY 26 19.99 600,0,ACK_XY target=,draw QR zigzag hatch 70.2
+XY 25.01 19 600,0,ACK_XY target=,draw QR zigzag hatch 70.3
+XY 25 19.485 600,0,ACK_XY target=,draw QR zigzag hatch 70.4
+XY 25.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 70.5
+XY 25.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 70.6
+XY 25 19.98 600,0,ACK_XY target=,draw QR zigzag hatch 70.7
+PENUP,120,PENUP,finish QR zigzag hatch 70
+XY 28 19 1800,0,ACK_XY target=,travel to QR outline 71
+PENDOWN,120,PENDOWN,start QR outline 71
+XY 29 19 600,0,ACK_XY target=,draw QR outline 71.1
+XY 29 20 600,0,ACK_XY target=,draw QR outline 71.2
+XY 28 20 600,0,ACK_XY target=,draw QR outline 71.3
+XY 28 19 600,0,ACK_XY target=,draw QR outline 71.4
+PENUP,120,PENUP,finish QR outline 71
+XY 28.505 19 1800,0,ACK_XY target=,travel to QR zigzag hatch 72
+PENDOWN,120,PENDOWN,start QR zigzag hatch 72
+XY 29 19.495 600,0,ACK_XY target=,draw QR zigzag hatch 72.1
+XY 29 19.99 600,0,ACK_XY target=,draw QR zigzag hatch 72.2
+XY 28.01 19 600,0,ACK_XY target=,draw QR zigzag hatch 72.3
+XY 28 19.485 600,0,ACK_XY target=,draw QR zigzag hatch 72.4
+XY 28.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 72.5
+XY 28.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 72.6
+XY 28 19.98 600,0,ACK_XY target=,draw QR zigzag hatch 72.7
+PENUP,120,PENUP,finish QR zigzag hatch 72
+XY 34 19 1800,0,ACK_XY target=,travel to QR outline 73
+PENDOWN,120,PENDOWN,start QR outline 73
+XY 35 19 600,0,ACK_XY target=,draw QR outline 73.1
+XY 35 20 600,0,ACK_XY target=,draw QR outline 73.2
+XY 34 20 600,0,ACK_XY target=,draw QR outline 73.3
+XY 34 19 600,0,ACK_XY target=,draw QR outline 73.4
+PENUP,120,PENUP,finish QR outline 73
+XY 34.505 19 1800,0,ACK_XY target=,travel to QR zigzag hatch 74
+PENDOWN,120,PENDOWN,start QR zigzag hatch 74
+XY 35 19.495 600,0,ACK_XY target=,draw QR zigzag hatch 74.1
+XY 35 19.99 600,0,ACK_XY target=,draw QR zigzag hatch 74.2
+XY 34.01 19 600,0,ACK_XY target=,draw QR zigzag hatch 74.3
+XY 34 19.485 600,0,ACK_XY target=,draw QR zigzag hatch 74.4
+XY 34.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 74.5
+XY 34.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 74.6
+XY 34 19.98 600,0,ACK_XY target=,draw QR zigzag hatch 74.7
+PENUP,120,PENUP,finish QR zigzag hatch 74
+XY 14 20 1800,0,ACK_XY target=,travel to QR outline 75
+PENDOWN,120,PENDOWN,start QR outline 75
+XY 21 20 600,0,ACK_XY target=,draw QR outline 75.1
+XY 21 21 600,0,ACK_XY target=,draw QR outline 75.2
+XY 14 21 600,0,ACK_XY target=,draw QR outline 75.3
+XY 14 20 600,0,ACK_XY target=,draw QR outline 75.4
+PENUP,120,PENUP,finish QR outline 75
+XY 20.505 20 1800,0,ACK_XY target=,travel to QR zigzag hatch 76
+PENDOWN,120,PENDOWN,start QR zigzag hatch 76
+XY 21 20.495 600,0,ACK_XY target=,draw QR zigzag hatch 76.1
+XY 21 20.99 600,0,ACK_XY target=,draw QR zigzag hatch 76.2
+XY 20.01 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.3
+XY 19.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.4
+XY 20.515 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.5
+XY 20.02 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.6
+XY 19.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.7
+XY 18.525 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.8
+XY 19.525 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.9
+XY 19.03 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.10
+XY 18.03 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.11
+XY 17.535 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.12
+XY 18.535 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.13
+XY 18.04 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.14
+XY 17.04 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.15
+XY 16.545 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.16
+XY 17.545 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.17
+XY 17.05 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.18
+XY 16.05 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.19
+XY 15.555 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.20
+XY 16.555 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.21
+XY 16.06 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.22
+XY 15.06 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.23
+XY 14.565 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.24
+XY 15.565 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.25
+XY 15.07 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.26
+XY 14.07 20 600,0,ACK_XY target=,draw QR zigzag hatch 76.27
+XY 14 20.425 600,0,ACK_XY target=,draw QR zigzag hatch 76.28
+XY 14.575 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.29
+XY 14.08 21 600,0,ACK_XY target=,draw QR zigzag hatch 76.30
+XY 14 20.92 600,0,ACK_XY target=,draw QR zigzag hatch 76.31
+PENUP,120,PENUP,finish QR zigzag hatch 76
+XY 22 20 1800,0,ACK_XY target=,travel to QR outline 77
+PENDOWN,120,PENDOWN,start QR outline 77
+XY 23 20 600,0,ACK_XY target=,draw QR outline 77.1
+XY 23 21 600,0,ACK_XY target=,draw QR outline 77.2
+XY 22 21 600,0,ACK_XY target=,draw QR outline 77.3
+XY 22 20 600,0,ACK_XY target=,draw QR outline 77.4
+PENUP,120,PENUP,finish QR outline 77
+XY 22.505 20 1800,0,ACK_XY target=,travel to QR zigzag hatch 78
+PENDOWN,120,PENDOWN,start QR zigzag hatch 78
+XY 23 20.495 600,0,ACK_XY target=,draw QR zigzag hatch 78.1
+XY 23 20.99 600,0,ACK_XY target=,draw QR zigzag hatch 78.2
+XY 22.01 20 600,0,ACK_XY target=,draw QR zigzag hatch 78.3
+XY 22 20.485 600,0,ACK_XY target=,draw QR zigzag hatch 78.4
+XY 22.515 21 600,0,ACK_XY target=,draw QR zigzag hatch 78.5
+XY 22.02 21 600,0,ACK_XY target=,draw QR zigzag hatch 78.6
+XY 22 20.98 600,0,ACK_XY target=,draw QR zigzag hatch 78.7
+PENUP,120,PENUP,finish QR zigzag hatch 78
+XY 24 20 1800,0,ACK_XY target=,travel to QR outline 79
+PENDOWN,120,PENDOWN,start QR outline 79
+XY 25 20 600,0,ACK_XY target=,draw QR outline 79.1
+XY 25 21 600,0,ACK_XY target=,draw QR outline 79.2
+XY 24 21 600,0,ACK_XY target=,draw QR outline 79.3
+XY 24 20 600,0,ACK_XY target=,draw QR outline 79.4
+PENUP,120,PENUP,finish QR outline 79
+XY 24.505 20 1800,0,ACK_XY target=,travel to QR zigzag hatch 80
+PENDOWN,120,PENDOWN,start QR zigzag hatch 80
+XY 25 20.495 600,0,ACK_XY target=,draw QR zigzag hatch 80.1
+XY 25 20.99 600,0,ACK_XY target=,draw QR zigzag hatch 80.2
+XY 24.01 20 600,0,ACK_XY target=,draw QR zigzag hatch 80.3
+XY 24 20.485 600,0,ACK_XY target=,draw QR zigzag hatch 80.4
+XY 24.515 21 600,0,ACK_XY target=,draw QR zigzag hatch 80.5
+XY 24.02 21 600,0,ACK_XY target=,draw QR zigzag hatch 80.6
+XY 24 20.98 600,0,ACK_XY target=,draw QR zigzag hatch 80.7
+PENUP,120,PENUP,finish QR zigzag hatch 80
+XY 26 20 1800,0,ACK_XY target=,travel to QR outline 81
+PENDOWN,120,PENDOWN,start QR outline 81
+XY 27 20 600,0,ACK_XY target=,draw QR outline 81.1
+XY 27 21 600,0,ACK_XY target=,draw QR outline 81.2
+XY 26 21 600,0,ACK_XY target=,draw QR outline 81.3
+XY 26 20 600,0,ACK_XY target=,draw QR outline 81.4
+PENUP,120,PENUP,finish QR outline 81
+XY 26.505 20 1800,0,ACK_XY target=,travel to QR zigzag hatch 82
+PENDOWN,120,PENDOWN,start QR zigzag hatch 82
+XY 27 20.495 600,0,ACK_XY target=,draw QR zigzag hatch 82.1
+XY 27 20.99 600,0,ACK_XY target=,draw QR zigzag hatch 82.2
+XY 26.01 20 600,0,ACK_XY target=,draw QR zigzag hatch 82.3
+XY 26 20.485 600,0,ACK_XY target=,draw QR zigzag hatch 82.4
+XY 26.515 21 600,0,ACK_XY target=,draw QR zigzag hatch 82.5
+XY 26.02 21 600,0,ACK_XY target=,draw QR zigzag hatch 82.6
+XY 26 20.98 600,0,ACK_XY target=,draw QR zigzag hatch 82.7
+PENUP,120,PENUP,finish QR zigzag hatch 82
+XY 28 20 1800,0,ACK_XY target=,travel to QR outline 83
+PENDOWN,120,PENDOWN,start QR outline 83
+XY 35 20 600,0,ACK_XY target=,draw QR outline 83.1
+XY 35 21 600,0,ACK_XY target=,draw QR outline 83.2
+XY 28 21 600,0,ACK_XY target=,draw QR outline 83.3
+XY 28 20 600,0,ACK_XY target=,draw QR outline 83.4
+PENUP,120,PENUP,finish QR outline 83
+XY 34.505 20 1800,0,ACK_XY target=,travel to QR zigzag hatch 84
+PENDOWN,120,PENDOWN,start QR zigzag hatch 84
+XY 35 20.495 600,0,ACK_XY target=,draw QR zigzag hatch 84.1
+XY 35 20.99 600,0,ACK_XY target=,draw QR zigzag hatch 84.2
+XY 34.01 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.3
+XY 33.515 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.4
+XY 34.515 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.5
+XY 34.02 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.6
+XY 33.02 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.7
+XY 32.525 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.8
+XY 33.525 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.9
+XY 33.03 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.10
+XY 32.03 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.11
+XY 31.535 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.12
+XY 32.535 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.13
+XY 32.04 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.14
+XY 31.04 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.15
+XY 30.545 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.16
+XY 31.545 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.17
+XY 31.05 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.18
+XY 30.05 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.19
+XY 29.555 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.20
+XY 30.555 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.21
+XY 30.06 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.22
+XY 29.06 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.23
+XY 28.565 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.24
+XY 29.565 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.25
+XY 29.07 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.26
+XY 28.07 20 600,0,ACK_XY target=,draw QR zigzag hatch 84.27
+XY 28 20.425 600,0,ACK_XY target=,draw QR zigzag hatch 84.28
+XY 28.575 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.29
+XY 28.08 21 600,0,ACK_XY target=,draw QR zigzag hatch 84.30
+XY 28 20.92 600,0,ACK_XY target=,draw QR zigzag hatch 84.31
+PENUP,120,PENUP,finish QR zigzag hatch 84
+XY 22 21 1800,0,ACK_XY target=,travel to QR outline 85
+PENDOWN,120,PENDOWN,start QR outline 85
+XY 23 21 600,0,ACK_XY target=,draw QR outline 85.1
+XY 23 22 600,0,ACK_XY target=,draw QR outline 85.2
+XY 22 22 600,0,ACK_XY target=,draw QR outline 85.3
+XY 22 21 600,0,ACK_XY target=,draw QR outline 85.4
+PENUP,120,PENUP,finish QR outline 85
+XY 22.505 21 1800,0,ACK_XY target=,travel to QR zigzag hatch 86
+PENDOWN,120,PENDOWN,start QR zigzag hatch 86
+XY 23 21.495 600,0,ACK_XY target=,draw QR zigzag hatch 86.1
+XY 23 21.99 600,0,ACK_XY target=,draw QR zigzag hatch 86.2
+XY 22.01 21 600,0,ACK_XY target=,draw QR zigzag hatch 86.3
+XY 22 21.485 600,0,ACK_XY target=,draw QR zigzag hatch 86.4
+XY 22.515 22 600,0,ACK_XY target=,draw QR zigzag hatch 86.5
+XY 22.02 22 600,0,ACK_XY target=,draw QR zigzag hatch 86.6
+XY 22 21.98 600,0,ACK_XY target=,draw QR zigzag hatch 86.7
+PENUP,120,PENUP,finish QR zigzag hatch 86
+XY 24 21 1800,0,ACK_XY target=,travel to QR outline 87
+PENDOWN,120,PENDOWN,start QR outline 87
+XY 25 21 600,0,ACK_XY target=,draw QR outline 87.1
+XY 25 22 600,0,ACK_XY target=,draw QR outline 87.2
+XY 24 22 600,0,ACK_XY target=,draw QR outline 87.3
+XY 24 21 600,0,ACK_XY target=,draw QR outline 87.4
+PENUP,120,PENUP,finish QR outline 87
+XY 24.505 21 1800,0,ACK_XY target=,travel to QR zigzag hatch 88
+PENDOWN,120,PENDOWN,start QR zigzag hatch 88
+XY 25 21.495 600,0,ACK_XY target=,draw QR zigzag hatch 88.1
+XY 25 21.99 600,0,ACK_XY target=,draw QR zigzag hatch 88.2
+XY 24.01 21 600,0,ACK_XY target=,draw QR zigzag hatch 88.3
+XY 24 21.485 600,0,ACK_XY target=,draw QR zigzag hatch 88.4
+XY 24.515 22 600,0,ACK_XY target=,draw QR zigzag hatch 88.5
+XY 24.02 22 600,0,ACK_XY target=,draw QR zigzag hatch 88.6
+XY 24 21.98 600,0,ACK_XY target=,draw QR zigzag hatch 88.7
+PENUP,120,PENUP,finish QR zigzag hatch 88
+XY 14 22 1800,0,ACK_XY target=,travel to QR outline 89
+PENDOWN,120,PENDOWN,start QR outline 89
+XY 15 22 600,0,ACK_XY target=,draw QR outline 89.1
+XY 15 23 600,0,ACK_XY target=,draw QR outline 89.2
+XY 14 23 600,0,ACK_XY target=,draw QR outline 89.3
+XY 14 22 600,0,ACK_XY target=,draw QR outline 89.4
+PENUP,120,PENUP,finish QR outline 89
+XY 14.505 22 1800,0,ACK_XY target=,travel to QR zigzag hatch 90
+PENDOWN,120,PENDOWN,start QR zigzag hatch 90
+XY 15 22.495 600,0,ACK_XY target=,draw QR zigzag hatch 90.1
+XY 15 22.99 600,0,ACK_XY target=,draw QR zigzag hatch 90.2
+XY 14.01 22 600,0,ACK_XY target=,draw QR zigzag hatch 90.3
+XY 14 22.485 600,0,ACK_XY target=,draw QR zigzag hatch 90.4
+XY 14.515 23 600,0,ACK_XY target=,draw QR zigzag hatch 90.5
+XY 14.02 23 600,0,ACK_XY target=,draw QR zigzag hatch 90.6
+XY 14 22.98 600,0,ACK_XY target=,draw QR zigzag hatch 90.7
+PENUP,120,PENUP,finish QR zigzag hatch 90
+XY 16 22 1800,0,ACK_XY target=,travel to QR outline 91
+PENDOWN,120,PENDOWN,start QR outline 91
+XY 21 22 600,0,ACK_XY target=,draw QR outline 91.1
+XY 21 23 600,0,ACK_XY target=,draw QR outline 91.2
+XY 16 23 600,0,ACK_XY target=,draw QR outline 91.3
+XY 16 22 600,0,ACK_XY target=,draw QR outline 91.4
+PENUP,120,PENUP,finish QR outline 91
+XY 20.505 22 1800,0,ACK_XY target=,travel to QR zigzag hatch 92
+PENDOWN,120,PENDOWN,start QR zigzag hatch 92
+XY 21 22.495 600,0,ACK_XY target=,draw QR zigzag hatch 92.1
+XY 21 22.99 600,0,ACK_XY target=,draw QR zigzag hatch 92.2
+XY 20.01 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.3
+XY 19.515 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.4
+XY 20.515 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.5
+XY 20.02 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.6
+XY 19.02 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.7
+XY 18.525 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.8
+XY 19.525 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.9
+XY 19.03 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.10
+XY 18.03 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.11
+XY 17.535 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.12
+XY 18.535 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.13
+XY 18.04 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.14
+XY 17.04 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.15
+XY 16.545 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.16
+XY 17.545 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.17
+XY 17.05 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.18
+XY 16.05 22 600,0,ACK_XY target=,draw QR zigzag hatch 92.19
+XY 16 22.445 600,0,ACK_XY target=,draw QR zigzag hatch 92.20
+XY 16.555 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.21
+XY 16.06 23 600,0,ACK_XY target=,draw QR zigzag hatch 92.22
+XY 16 22.94 600,0,ACK_XY target=,draw QR zigzag hatch 92.23
+PENUP,120,PENUP,finish QR zigzag hatch 92
+XY 23 22 1800,0,ACK_XY target=,travel to QR outline 93
+PENDOWN,120,PENDOWN,start QR outline 93
+XY 24 22 600,0,ACK_XY target=,draw QR outline 93.1
+XY 24 23 600,0,ACK_XY target=,draw QR outline 93.2
+XY 23 23 600,0,ACK_XY target=,draw QR outline 93.3
+XY 23 22 600,0,ACK_XY target=,draw QR outline 93.4
+PENUP,120,PENUP,finish QR outline 93
+XY 23.505 22 1800,0,ACK_XY target=,travel to QR zigzag hatch 94
+PENDOWN,120,PENDOWN,start QR zigzag hatch 94
+XY 24 22.495 600,0,ACK_XY target=,draw QR zigzag hatch 94.1
+XY 24 22.99 600,0,ACK_XY target=,draw QR zigzag hatch 94.2
+XY 23.01 22 600,0,ACK_XY target=,draw QR zigzag hatch 94.3
+XY 23 22.485 600,0,ACK_XY target=,draw QR zigzag hatch 94.4
+XY 23.515 23 600,0,ACK_XY target=,draw QR zigzag hatch 94.5
+XY 23.02 23 600,0,ACK_XY target=,draw QR zigzag hatch 94.6
+XY 23 22.98 600,0,ACK_XY target=,draw QR zigzag hatch 94.7
+PENUP,120,PENUP,finish QR zigzag hatch 94
+XY 25 22 1800,0,ACK_XY target=,travel to QR outline 95
+PENDOWN,120,PENDOWN,start QR outline 95
+XY 26 22 600,0,ACK_XY target=,draw QR outline 95.1
+XY 26 23 600,0,ACK_XY target=,draw QR outline 95.2
+XY 25 23 600,0,ACK_XY target=,draw QR outline 95.3
+XY 25 22 600,0,ACK_XY target=,draw QR outline 95.4
+PENUP,120,PENUP,finish QR outline 95
+XY 25.505 22 1800,0,ACK_XY target=,travel to QR zigzag hatch 96
+PENDOWN,120,PENDOWN,start QR zigzag hatch 96
+XY 26 22.495 600,0,ACK_XY target=,draw QR zigzag hatch 96.1
+XY 26 22.99 600,0,ACK_XY target=,draw QR zigzag hatch 96.2
+XY 25.01 22 600,0,ACK_XY target=,draw QR zigzag hatch 96.3
+XY 25 22.485 600,0,ACK_XY target=,draw QR zigzag hatch 96.4
+XY 25.515 23 600,0,ACK_XY target=,draw QR zigzag hatch 96.5
+XY 25.02 23 600,0,ACK_XY target=,draw QR zigzag hatch 96.6
+XY 25 22.98 600,0,ACK_XY target=,draw QR zigzag hatch 96.7
+PENUP,120,PENUP,finish QR zigzag hatch 96
+XY 28 22 1800,0,ACK_XY target=,travel to QR outline 97
+PENDOWN,120,PENDOWN,start QR outline 97
+XY 33 22 600,0,ACK_XY target=,draw QR outline 97.1
+XY 33 23 600,0,ACK_XY target=,draw QR outline 97.2
+XY 28 23 600,0,ACK_XY target=,draw QR outline 97.3
+XY 28 22 600,0,ACK_XY target=,draw QR outline 97.4
+PENUP,120,PENUP,finish QR outline 97
+XY 32.505 22 1800,0,ACK_XY target=,travel to QR zigzag hatch 98
+PENDOWN,120,PENDOWN,start QR zigzag hatch 98
+XY 33 22.495 600,0,ACK_XY target=,draw QR zigzag hatch 98.1
+XY 33 22.99 600,0,ACK_XY target=,draw QR zigzag hatch 98.2
+XY 32.01 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.3
+XY 31.515 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.4
+XY 32.515 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.5
+XY 32.02 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.6
+XY 31.02 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.7
+XY 30.525 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.8
+XY 31.525 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.9
+XY 31.03 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.10
+XY 30.03 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.11
+XY 29.535 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.12
+XY 30.535 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.13
+XY 30.04 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.14
+XY 29.04 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.15
+XY 28.545 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.16
+XY 29.545 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.17
+XY 29.05 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.18
+XY 28.05 22 600,0,ACK_XY target=,draw QR zigzag hatch 98.19
+XY 28 22.445 600,0,ACK_XY target=,draw QR zigzag hatch 98.20
+XY 28.555 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.21
+XY 28.06 23 600,0,ACK_XY target=,draw QR zigzag hatch 98.22
+XY 28 22.94 600,0,ACK_XY target=,draw QR zigzag hatch 98.23
+PENUP,120,PENUP,finish QR zigzag hatch 98
+XY 15 23 1800,0,ACK_XY target=,travel to QR outline 99
+PENDOWN,120,PENDOWN,start QR outline 99
+XY 16 23 600,0,ACK_XY target=,draw QR outline 99.1
+XY 16 24 600,0,ACK_XY target=,draw QR outline 99.2
+XY 15 24 600,0,ACK_XY target=,draw QR outline 99.3
+XY 15 23 600,0,ACK_XY target=,draw QR outline 99.4
+PENUP,120,PENUP,finish QR outline 99
+XY 15.505 23 1800,0,ACK_XY target=,travel to QR zigzag hatch 100
+PENDOWN,120,PENDOWN,start QR zigzag hatch 100
+XY 16 23.495 600,0,ACK_XY target=,draw QR zigzag hatch 100.1
+XY 16 23.99 600,0,ACK_XY target=,draw QR zigzag hatch 100.2
+XY 15.01 23 600,0,ACK_XY target=,draw QR zigzag hatch 100.3
+XY 15 23.485 600,0,ACK_XY target=,draw QR zigzag hatch 100.4
+XY 15.515 24 600,0,ACK_XY target=,draw QR zigzag hatch 100.5
+XY 15.02 24 600,0,ACK_XY target=,draw QR zigzag hatch 100.6
+XY 15 23.98 600,0,ACK_XY target=,draw QR zigzag hatch 100.7
+PENUP,120,PENUP,finish QR zigzag hatch 100
+XY 21 23 1800,0,ACK_XY target=,travel to QR outline 101
+PENDOWN,120,PENDOWN,start QR outline 101
+XY 22 23 600,0,ACK_XY target=,draw QR outline 101.1
+XY 22 24 600,0,ACK_XY target=,draw QR outline 101.2
+XY 21 24 600,0,ACK_XY target=,draw QR outline 101.3
+XY 21 23 600,0,ACK_XY target=,draw QR outline 101.4
+PENUP,120,PENUP,finish QR outline 101
+XY 21.505 23 1800,0,ACK_XY target=,travel to QR zigzag hatch 102
+PENDOWN,120,PENDOWN,start QR zigzag hatch 102
+XY 22 23.495 600,0,ACK_XY target=,draw QR zigzag hatch 102.1
+XY 22 23.99 600,0,ACK_XY target=,draw QR zigzag hatch 102.2
+XY 21.01 23 600,0,ACK_XY target=,draw QR zigzag hatch 102.3
+XY 21 23.485 600,0,ACK_XY target=,draw QR zigzag hatch 102.4
+XY 21.515 24 600,0,ACK_XY target=,draw QR zigzag hatch 102.5
+XY 21.02 24 600,0,ACK_XY target=,draw QR zigzag hatch 102.6
+XY 21 23.98 600,0,ACK_XY target=,draw QR zigzag hatch 102.7
+PENUP,120,PENUP,finish QR zigzag hatch 102
+XY 24 23 1800,0,ACK_XY target=,travel to QR outline 103
+PENDOWN,120,PENDOWN,start QR outline 103
+XY 29 23 600,0,ACK_XY target=,draw QR outline 103.1
+XY 29 24 600,0,ACK_XY target=,draw QR outline 103.2
+XY 24 24 600,0,ACK_XY target=,draw QR outline 103.3
+XY 24 23 600,0,ACK_XY target=,draw QR outline 103.4
+PENUP,120,PENUP,finish QR outline 103
+XY 28.505 23 1800,0,ACK_XY target=,travel to QR zigzag hatch 104
+PENDOWN,120,PENDOWN,start QR zigzag hatch 104
+XY 29 23.495 600,0,ACK_XY target=,draw QR zigzag hatch 104.1
+XY 29 23.99 600,0,ACK_XY target=,draw QR zigzag hatch 104.2
+XY 28.01 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.3
+XY 27.515 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.4
+XY 28.515 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.5
+XY 28.02 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.6
+XY 27.02 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.7
+XY 26.525 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.8
+XY 27.525 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.9
+XY 27.03 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.10
+XY 26.03 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.11
+XY 25.535 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.12
+XY 26.535 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.13
+XY 26.04 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.14
+XY 25.04 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.15
+XY 24.545 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.16
+XY 25.545 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.17
+XY 25.05 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.18
+XY 24.05 23 600,0,ACK_XY target=,draw QR zigzag hatch 104.19
+XY 24 23.445 600,0,ACK_XY target=,draw QR zigzag hatch 104.20
+XY 24.555 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.21
+XY 24.06 24 600,0,ACK_XY target=,draw QR zigzag hatch 104.22
+XY 24 23.94 600,0,ACK_XY target=,draw QR zigzag hatch 104.23
+PENUP,120,PENUP,finish QR zigzag hatch 104
+XY 30 23 1800,0,ACK_XY target=,travel to QR outline 105
+PENDOWN,120,PENDOWN,start QR outline 105
+XY 35 23 600,0,ACK_XY target=,draw QR outline 105.1
+XY 35 24 600,0,ACK_XY target=,draw QR outline 105.2
+XY 30 24 600,0,ACK_XY target=,draw QR outline 105.3
+XY 30 23 600,0,ACK_XY target=,draw QR outline 105.4
+PENUP,120,PENUP,finish QR outline 105
+XY 34.505 23 1800,0,ACK_XY target=,travel to QR zigzag hatch 106
+PENDOWN,120,PENDOWN,start QR zigzag hatch 106
+XY 35 23.495 600,0,ACK_XY target=,draw QR zigzag hatch 106.1
+XY 35 23.99 600,0,ACK_XY target=,draw QR zigzag hatch 106.2
+XY 34.01 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.3
+XY 33.515 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.4
+XY 34.515 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.5
+XY 34.02 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.6
+XY 33.02 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.7
+XY 32.525 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.8
+XY 33.525 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.9
+XY 33.03 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.10
+XY 32.03 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.11
+XY 31.535 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.12
+XY 32.535 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.13
+XY 32.04 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.14
+XY 31.04 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.15
+XY 30.545 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.16
+XY 31.545 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.17
+XY 31.05 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.18
+XY 30.05 23 600,0,ACK_XY target=,draw QR zigzag hatch 106.19
+XY 30 23.445 600,0,ACK_XY target=,draw QR zigzag hatch 106.20
+XY 30.555 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.21
+XY 30.06 24 600,0,ACK_XY target=,draw QR zigzag hatch 106.22
+XY 30 23.94 600,0,ACK_XY target=,draw QR zigzag hatch 106.23
+PENUP,120,PENUP,finish QR zigzag hatch 106
+XY 14 24 1800,0,ACK_XY target=,travel to QR outline 107
+PENDOWN,120,PENDOWN,start QR outline 107
+XY 15 24 600,0,ACK_XY target=,draw QR outline 107.1
+XY 15 25 600,0,ACK_XY target=,draw QR outline 107.2
+XY 14 25 600,0,ACK_XY target=,draw QR outline 107.3
+XY 14 24 600,0,ACK_XY target=,draw QR outline 107.4
+PENUP,120,PENUP,finish QR outline 107
+XY 14.505 24 1800,0,ACK_XY target=,travel to QR zigzag hatch 108
+PENDOWN,120,PENDOWN,start QR zigzag hatch 108
+XY 15 24.495 600,0,ACK_XY target=,draw QR zigzag hatch 108.1
+XY 15 24.99 600,0,ACK_XY target=,draw QR zigzag hatch 108.2
+XY 14.01 24 600,0,ACK_XY target=,draw QR zigzag hatch 108.3
+XY 14 24.485 600,0,ACK_XY target=,draw QR zigzag hatch 108.4
+XY 14.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 108.5
+XY 14.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 108.6
+XY 14 24.98 600,0,ACK_XY target=,draw QR zigzag hatch 108.7
+PENUP,120,PENUP,finish QR zigzag hatch 108
+XY 16 24 1800,0,ACK_XY target=,travel to QR outline 109
+PENDOWN,120,PENDOWN,start QR outline 109
+XY 21 24 600,0,ACK_XY target=,draw QR outline 109.1
+XY 21 25 600,0,ACK_XY target=,draw QR outline 109.2
+XY 16 25 600,0,ACK_XY target=,draw QR outline 109.3
+XY 16 24 600,0,ACK_XY target=,draw QR outline 109.4
+PENUP,120,PENUP,finish QR outline 109
+XY 20.505 24 1800,0,ACK_XY target=,travel to QR zigzag hatch 110
+PENDOWN,120,PENDOWN,start QR zigzag hatch 110
+XY 21 24.495 600,0,ACK_XY target=,draw QR zigzag hatch 110.1
+XY 21 24.99 600,0,ACK_XY target=,draw QR zigzag hatch 110.2
+XY 20.01 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.3
+XY 19.515 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.4
+XY 20.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.5
+XY 20.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.6
+XY 19.02 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.7
+XY 18.525 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.8
+XY 19.525 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.9
+XY 19.03 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.10
+XY 18.03 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.11
+XY 17.535 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.12
+XY 18.535 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.13
+XY 18.04 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.14
+XY 17.04 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.15
+XY 16.545 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.16
+XY 17.545 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.17
+XY 17.05 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.18
+XY 16.05 24 600,0,ACK_XY target=,draw QR zigzag hatch 110.19
+XY 16 24.445 600,0,ACK_XY target=,draw QR zigzag hatch 110.20
+XY 16.555 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.21
+XY 16.06 25 600,0,ACK_XY target=,draw QR zigzag hatch 110.22
+XY 16 24.94 600,0,ACK_XY target=,draw QR zigzag hatch 110.23
+PENUP,120,PENUP,finish QR zigzag hatch 110
+XY 22 24 1800,0,ACK_XY target=,travel to QR outline 111
+PENDOWN,120,PENDOWN,start QR outline 111
+XY 23 24 600,0,ACK_XY target=,draw QR outline 111.1
+XY 23 25 600,0,ACK_XY target=,draw QR outline 111.2
+XY 22 25 600,0,ACK_XY target=,draw QR outline 111.3
+XY 22 24 600,0,ACK_XY target=,draw QR outline 111.4
+PENUP,120,PENUP,finish QR outline 111
+XY 22.505 24 1800,0,ACK_XY target=,travel to QR zigzag hatch 112
+PENDOWN,120,PENDOWN,start QR zigzag hatch 112
+XY 23 24.495 600,0,ACK_XY target=,draw QR zigzag hatch 112.1
+XY 23 24.99 600,0,ACK_XY target=,draw QR zigzag hatch 112.2
+XY 22.01 24 600,0,ACK_XY target=,draw QR zigzag hatch 112.3
+XY 22 24.485 600,0,ACK_XY target=,draw QR zigzag hatch 112.4
+XY 22.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 112.5
+XY 22.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 112.6
+XY 22 24.98 600,0,ACK_XY target=,draw QR zigzag hatch 112.7
+PENUP,120,PENUP,finish QR zigzag hatch 112
+XY 26 24 1800,0,ACK_XY target=,travel to QR outline 113
+PENDOWN,120,PENDOWN,start QR outline 113
+XY 28 24 600,0,ACK_XY target=,draw QR outline 113.1
+XY 28 25 600,0,ACK_XY target=,draw QR outline 113.2
+XY 26 25 600,0,ACK_XY target=,draw QR outline 113.3
+XY 26 24 600,0,ACK_XY target=,draw QR outline 113.4
+PENUP,120,PENUP,finish QR outline 113
+XY 27.505 24 1800,0,ACK_XY target=,travel to QR zigzag hatch 114
+PENDOWN,120,PENDOWN,start QR zigzag hatch 114
+XY 28 24.495 600,0,ACK_XY target=,draw QR zigzag hatch 114.1
+XY 28 24.99 600,0,ACK_XY target=,draw QR zigzag hatch 114.2
+XY 27.01 24 600,0,ACK_XY target=,draw QR zigzag hatch 114.3
+XY 26.515 24 600,0,ACK_XY target=,draw QR zigzag hatch 114.4
+XY 27.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 114.5
+XY 27.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 114.6
+XY 26.02 24 600,0,ACK_XY target=,draw QR zigzag hatch 114.7
+XY 26 24.475 600,0,ACK_XY target=,draw QR zigzag hatch 114.8
+XY 26.525 25 600,0,ACK_XY target=,draw QR zigzag hatch 114.9
+XY 26.03 25 600,0,ACK_XY target=,draw QR zigzag hatch 114.10
+XY 26 24.97 600,0,ACK_XY target=,draw QR zigzag hatch 114.11
+PENUP,120,PENUP,finish QR zigzag hatch 114
+XY 29 24 1800,0,ACK_XY target=,travel to QR outline 115
+PENDOWN,120,PENDOWN,start QR outline 115
+XY 32 24 600,0,ACK_XY target=,draw QR outline 115.1
+XY 32 25 600,0,ACK_XY target=,draw QR outline 115.2
+XY 29 25 600,0,ACK_XY target=,draw QR outline 115.3
+XY 29 24 600,0,ACK_XY target=,draw QR outline 115.4
+PENUP,120,PENUP,finish QR outline 115
+XY 31.505 24 1800,0,ACK_XY target=,travel to QR zigzag hatch 116
+PENDOWN,120,PENDOWN,start QR zigzag hatch 116
+XY 32 24.495 600,0,ACK_XY target=,draw QR zigzag hatch 116.1
+XY 32 24.99 600,0,ACK_XY target=,draw QR zigzag hatch 116.2
+XY 31.01 24 600,0,ACK_XY target=,draw QR zigzag hatch 116.3
+XY 30.515 24 600,0,ACK_XY target=,draw QR zigzag hatch 116.4
+XY 31.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 116.5
+XY 31.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 116.6
+XY 30.02 24 600,0,ACK_XY target=,draw QR zigzag hatch 116.7
+XY 29.525 24 600,0,ACK_XY target=,draw QR zigzag hatch 116.8
+XY 30.525 25 600,0,ACK_XY target=,draw QR zigzag hatch 116.9
+XY 30.03 25 600,0,ACK_XY target=,draw QR zigzag hatch 116.10
+XY 29.03 24 600,0,ACK_XY target=,draw QR zigzag hatch 116.11
+XY 29 24.465 600,0,ACK_XY target=,draw QR zigzag hatch 116.12
+XY 29.535 25 600,0,ACK_XY target=,draw QR zigzag hatch 116.13
+XY 29.04 25 600,0,ACK_XY target=,draw QR zigzag hatch 116.14
+XY 29 24.96 600,0,ACK_XY target=,draw QR zigzag hatch 116.15
+PENUP,120,PENUP,finish QR zigzag hatch 116
+XY 34 24 1800,0,ACK_XY target=,travel to QR outline 117
+PENDOWN,120,PENDOWN,start QR outline 117
+XY 35 24 600,0,ACK_XY target=,draw QR outline 117.1
+XY 35 25 600,0,ACK_XY target=,draw QR outline 117.2
+XY 34 25 600,0,ACK_XY target=,draw QR outline 117.3
+XY 34 24 600,0,ACK_XY target=,draw QR outline 117.4
+PENUP,120,PENUP,finish QR outline 117
+XY 34.505 24 1800,0,ACK_XY target=,travel to QR zigzag hatch 118
+PENDOWN,120,PENDOWN,start QR zigzag hatch 118
+XY 35 24.495 600,0,ACK_XY target=,draw QR zigzag hatch 118.1
+XY 35 24.99 600,0,ACK_XY target=,draw QR zigzag hatch 118.2
+XY 34.01 24 600,0,ACK_XY target=,draw QR zigzag hatch 118.3
+XY 34 24.485 600,0,ACK_XY target=,draw QR zigzag hatch 118.4
+XY 34.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 118.5
+XY 34.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 118.6
+XY 34 24.98 600,0,ACK_XY target=,draw QR zigzag hatch 118.7
+PENUP,120,PENUP,finish QR zigzag hatch 118
+XY 15 25 1800,0,ACK_XY target=,travel to QR outline 119
+PENDOWN,120,PENDOWN,start QR outline 119
+XY 16 25 600,0,ACK_XY target=,draw QR outline 119.1
+XY 16 26 600,0,ACK_XY target=,draw QR outline 119.2
+XY 15 26 600,0,ACK_XY target=,draw QR outline 119.3
+XY 15 25 600,0,ACK_XY target=,draw QR outline 119.4
+PENUP,120,PENUP,finish QR outline 119
+XY 15.505 25 1800,0,ACK_XY target=,travel to QR zigzag hatch 120
+PENDOWN,120,PENDOWN,start QR zigzag hatch 120
+XY 16 25.495 600,0,ACK_XY target=,draw QR zigzag hatch 120.1
+XY 16 25.99 600,0,ACK_XY target=,draw QR zigzag hatch 120.2
+XY 15.01 25 600,0,ACK_XY target=,draw QR zigzag hatch 120.3
+XY 15 25.485 600,0,ACK_XY target=,draw QR zigzag hatch 120.4
+XY 15.515 26 600,0,ACK_XY target=,draw QR zigzag hatch 120.5
+XY 15.02 26 600,0,ACK_XY target=,draw QR zigzag hatch 120.6
+XY 15 25.98 600,0,ACK_XY target=,draw QR zigzag hatch 120.7
+PENUP,120,PENUP,finish QR zigzag hatch 120
+XY 17 25 1800,0,ACK_XY target=,travel to QR outline 121
+PENDOWN,120,PENDOWN,start QR outline 121
+XY 20 25 600,0,ACK_XY target=,draw QR outline 121.1
+XY 20 26 600,0,ACK_XY target=,draw QR outline 121.2
+XY 17 26 600,0,ACK_XY target=,draw QR outline 121.3
+XY 17 25 600,0,ACK_XY target=,draw QR outline 121.4
+PENUP,120,PENUP,finish QR outline 121
+XY 19.505 25 1800,0,ACK_XY target=,travel to QR zigzag hatch 122
+PENDOWN,120,PENDOWN,start QR zigzag hatch 122
+XY 20 25.495 600,0,ACK_XY target=,draw QR zigzag hatch 122.1
+XY 20 25.99 600,0,ACK_XY target=,draw QR zigzag hatch 122.2
+XY 19.01 25 600,0,ACK_XY target=,draw QR zigzag hatch 122.3
+XY 18.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 122.4
+XY 19.515 26 600,0,ACK_XY target=,draw QR zigzag hatch 122.5
+XY 19.02 26 600,0,ACK_XY target=,draw QR zigzag hatch 122.6
+XY 18.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 122.7
+XY 17.525 25 600,0,ACK_XY target=,draw QR zigzag hatch 122.8
+XY 18.525 26 600,0,ACK_XY target=,draw QR zigzag hatch 122.9
+XY 18.03 26 600,0,ACK_XY target=,draw QR zigzag hatch 122.10
+XY 17.03 25 600,0,ACK_XY target=,draw QR zigzag hatch 122.11
+XY 17 25.465 600,0,ACK_XY target=,draw QR zigzag hatch 122.12
+XY 17.535 26 600,0,ACK_XY target=,draw QR zigzag hatch 122.13
+XY 17.04 26 600,0,ACK_XY target=,draw QR zigzag hatch 122.14
+XY 17 25.96 600,0,ACK_XY target=,draw QR zigzag hatch 122.15
+PENUP,120,PENUP,finish QR zigzag hatch 122
+XY 22 25 1800,0,ACK_XY target=,travel to QR outline 123
+PENDOWN,120,PENDOWN,start QR outline 123
+XY 23 25 600,0,ACK_XY target=,draw QR outline 123.1
+XY 23 26 600,0,ACK_XY target=,draw QR outline 123.2
+XY 22 26 600,0,ACK_XY target=,draw QR outline 123.3
+XY 22 25 600,0,ACK_XY target=,draw QR outline 123.4
+PENUP,120,PENUP,finish QR outline 123
+XY 22.505 25 1800,0,ACK_XY target=,travel to QR zigzag hatch 124
+PENDOWN,120,PENDOWN,start QR zigzag hatch 124
+XY 23 25.495 600,0,ACK_XY target=,draw QR zigzag hatch 124.1
+XY 23 25.99 600,0,ACK_XY target=,draw QR zigzag hatch 124.2
+XY 22.01 25 600,0,ACK_XY target=,draw QR zigzag hatch 124.3
+XY 22 25.485 600,0,ACK_XY target=,draw QR zigzag hatch 124.4
+XY 22.515 26 600,0,ACK_XY target=,draw QR zigzag hatch 124.5
+XY 22.02 26 600,0,ACK_XY target=,draw QR zigzag hatch 124.6
+XY 22 25.98 600,0,ACK_XY target=,draw QR zigzag hatch 124.7
+PENUP,120,PENUP,finish QR zigzag hatch 124
+XY 25 25 1800,0,ACK_XY target=,travel to QR outline 125
+PENDOWN,120,PENDOWN,start QR outline 125
+XY 29 25 600,0,ACK_XY target=,draw QR outline 125.1
+XY 29 26 600,0,ACK_XY target=,draw QR outline 125.2
+XY 25 26 600,0,ACK_XY target=,draw QR outline 125.3
+XY 25 25 600,0,ACK_XY target=,draw QR outline 125.4
+PENUP,120,PENUP,finish QR outline 125
+XY 28.505 25 1800,0,ACK_XY target=,travel to QR zigzag hatch 126
+PENDOWN,120,PENDOWN,start QR zigzag hatch 126
+XY 29 25.495 600,0,ACK_XY target=,draw QR zigzag hatch 126.1
+XY 29 25.99 600,0,ACK_XY target=,draw QR zigzag hatch 126.2
+XY 28.01 25 600,0,ACK_XY target=,draw QR zigzag hatch 126.3
+XY 27.515 25 600,0,ACK_XY target=,draw QR zigzag hatch 126.4
+XY 28.515 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.5
+XY 28.02 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.6
+XY 27.02 25 600,0,ACK_XY target=,draw QR zigzag hatch 126.7
+XY 26.525 25 600,0,ACK_XY target=,draw QR zigzag hatch 126.8
+XY 27.525 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.9
+XY 27.03 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.10
+XY 26.03 25 600,0,ACK_XY target=,draw QR zigzag hatch 126.11
+XY 25.535 25 600,0,ACK_XY target=,draw QR zigzag hatch 126.12
+XY 26.535 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.13
+XY 26.04 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.14
+XY 25.04 25 600,0,ACK_XY target=,draw QR zigzag hatch 126.15
+XY 25 25.455 600,0,ACK_XY target=,draw QR zigzag hatch 126.16
+XY 25.545 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.17
+XY 25.05 26 600,0,ACK_XY target=,draw QR zigzag hatch 126.18
+XY 25 25.95 600,0,ACK_XY target=,draw QR zigzag hatch 126.19
+PENUP,120,PENUP,finish QR zigzag hatch 126
+XY 15 26 1800,0,ACK_XY target=,travel to QR outline 127
+PENDOWN,120,PENDOWN,start QR outline 127
+XY 17 26 600,0,ACK_XY target=,draw QR outline 127.1
+XY 17 27 600,0,ACK_XY target=,draw QR outline 127.2
+XY 15 27 600,0,ACK_XY target=,draw QR outline 127.3
+XY 15 26 600,0,ACK_XY target=,draw QR outline 127.4
+PENUP,120,PENUP,finish QR outline 127
+XY 16.505 26 1800,0,ACK_XY target=,travel to QR zigzag hatch 128
+PENDOWN,120,PENDOWN,start QR zigzag hatch 128
+XY 17 26.495 600,0,ACK_XY target=,draw QR zigzag hatch 128.1
+XY 17 26.99 600,0,ACK_XY target=,draw QR zigzag hatch 128.2
+XY 16.01 26 600,0,ACK_XY target=,draw QR zigzag hatch 128.3
+XY 15.515 26 600,0,ACK_XY target=,draw QR zigzag hatch 128.4
+XY 16.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 128.5
+XY 16.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 128.6
+XY 15.02 26 600,0,ACK_XY target=,draw QR zigzag hatch 128.7
+XY 15 26.475 600,0,ACK_XY target=,draw QR zigzag hatch 128.8
+XY 15.525 27 600,0,ACK_XY target=,draw QR zigzag hatch 128.9
+XY 15.03 27 600,0,ACK_XY target=,draw QR zigzag hatch 128.10
+XY 15 26.97 600,0,ACK_XY target=,draw QR zigzag hatch 128.11
+PENUP,120,PENUP,finish QR zigzag hatch 128
+XY 20 26 1800,0,ACK_XY target=,travel to QR outline 129
+PENDOWN,120,PENDOWN,start QR outline 129
+XY 22 26 600,0,ACK_XY target=,draw QR outline 129.1
+XY 22 27 600,0,ACK_XY target=,draw QR outline 129.2
+XY 20 27 600,0,ACK_XY target=,draw QR outline 129.3
+XY 20 26 600,0,ACK_XY target=,draw QR outline 129.4
+PENUP,120,PENUP,finish QR outline 129
+XY 21.505 26 1800,0,ACK_XY target=,travel to QR zigzag hatch 130
+PENDOWN,120,PENDOWN,start QR zigzag hatch 130
+XY 22 26.495 600,0,ACK_XY target=,draw QR zigzag hatch 130.1
+XY 22 26.99 600,0,ACK_XY target=,draw QR zigzag hatch 130.2
+XY 21.01 26 600,0,ACK_XY target=,draw QR zigzag hatch 130.3
+XY 20.515 26 600,0,ACK_XY target=,draw QR zigzag hatch 130.4
+XY 21.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 130.5
+XY 21.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 130.6
+XY 20.02 26 600,0,ACK_XY target=,draw QR zigzag hatch 130.7
+XY 20 26.475 600,0,ACK_XY target=,draw QR zigzag hatch 130.8
+XY 20.525 27 600,0,ACK_XY target=,draw QR zigzag hatch 130.9
+XY 20.03 27 600,0,ACK_XY target=,draw QR zigzag hatch 130.10
+XY 20 26.97 600,0,ACK_XY target=,draw QR zigzag hatch 130.11
+PENUP,120,PENUP,finish QR zigzag hatch 130
+XY 24 26 1800,0,ACK_XY target=,travel to QR outline 131
+PENDOWN,120,PENDOWN,start QR outline 131
+XY 25 26 600,0,ACK_XY target=,draw QR outline 131.1
+XY 25 27 600,0,ACK_XY target=,draw QR outline 131.2
+XY 24 27 600,0,ACK_XY target=,draw QR outline 131.3
+XY 24 26 600,0,ACK_XY target=,draw QR outline 131.4
+PENUP,120,PENUP,finish QR outline 131
+XY 24.505 26 1800,0,ACK_XY target=,travel to QR zigzag hatch 132
+PENDOWN,120,PENDOWN,start QR zigzag hatch 132
+XY 25 26.495 600,0,ACK_XY target=,draw QR zigzag hatch 132.1
+XY 25 26.99 600,0,ACK_XY target=,draw QR zigzag hatch 132.2
+XY 24.01 26 600,0,ACK_XY target=,draw QR zigzag hatch 132.3
+XY 24 26.485 600,0,ACK_XY target=,draw QR zigzag hatch 132.4
+XY 24.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 132.5
+XY 24.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 132.6
+XY 24 26.98 600,0,ACK_XY target=,draw QR zigzag hatch 132.7
+PENUP,120,PENUP,finish QR zigzag hatch 132
+XY 26 26 1800,0,ACK_XY target=,travel to QR outline 133
+PENDOWN,120,PENDOWN,start QR outline 133
+XY 27 26 600,0,ACK_XY target=,draw QR outline 133.1
+XY 27 27 600,0,ACK_XY target=,draw QR outline 133.2
+XY 26 27 600,0,ACK_XY target=,draw QR outline 133.3
+XY 26 26 600,0,ACK_XY target=,draw QR outline 133.4
+PENUP,120,PENUP,finish QR outline 133
+XY 26.505 26 1800,0,ACK_XY target=,travel to QR zigzag hatch 134
+PENDOWN,120,PENDOWN,start QR zigzag hatch 134
+XY 27 26.495 600,0,ACK_XY target=,draw QR zigzag hatch 134.1
+XY 27 26.99 600,0,ACK_XY target=,draw QR zigzag hatch 134.2
+XY 26.01 26 600,0,ACK_XY target=,draw QR zigzag hatch 134.3
+XY 26 26.485 600,0,ACK_XY target=,draw QR zigzag hatch 134.4
+XY 26.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 134.5
+XY 26.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 134.6
+XY 26 26.98 600,0,ACK_XY target=,draw QR zigzag hatch 134.7
+PENUP,120,PENUP,finish QR zigzag hatch 134
+XY 28 26 1800,0,ACK_XY target=,travel to QR outline 135
+PENDOWN,120,PENDOWN,start QR outline 135
+XY 29 26 600,0,ACK_XY target=,draw QR outline 135.1
+XY 29 27 600,0,ACK_XY target=,draw QR outline 135.2
+XY 28 27 600,0,ACK_XY target=,draw QR outline 135.3
+XY 28 26 600,0,ACK_XY target=,draw QR outline 135.4
+PENUP,120,PENUP,finish QR outline 135
+XY 28.505 26 1800,0,ACK_XY target=,travel to QR zigzag hatch 136
+PENDOWN,120,PENDOWN,start QR zigzag hatch 136
+XY 29 26.495 600,0,ACK_XY target=,draw QR zigzag hatch 136.1
+XY 29 26.99 600,0,ACK_XY target=,draw QR zigzag hatch 136.2
+XY 28.01 26 600,0,ACK_XY target=,draw QR zigzag hatch 136.3
+XY 28 26.485 600,0,ACK_XY target=,draw QR zigzag hatch 136.4
+XY 28.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 136.5
+XY 28.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 136.6
+XY 28 26.98 600,0,ACK_XY target=,draw QR zigzag hatch 136.7
+PENUP,120,PENUP,finish QR zigzag hatch 136
+XY 30 26 1800,0,ACK_XY target=,travel to QR outline 137
+PENDOWN,120,PENDOWN,start QR outline 137
+XY 31 26 600,0,ACK_XY target=,draw QR outline 137.1
+XY 31 27 600,0,ACK_XY target=,draw QR outline 137.2
+XY 30 27 600,0,ACK_XY target=,draw QR outline 137.3
+XY 30 26 600,0,ACK_XY target=,draw QR outline 137.4
+PENUP,120,PENUP,finish QR outline 137
+XY 30.505 26 1800,0,ACK_XY target=,travel to QR zigzag hatch 138
+PENDOWN,120,PENDOWN,start QR zigzag hatch 138
+XY 31 26.495 600,0,ACK_XY target=,draw QR zigzag hatch 138.1
+XY 31 26.99 600,0,ACK_XY target=,draw QR zigzag hatch 138.2
+XY 30.01 26 600,0,ACK_XY target=,draw QR zigzag hatch 138.3
+XY 30 26.485 600,0,ACK_XY target=,draw QR zigzag hatch 138.4
+XY 30.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 138.5
+XY 30.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 138.6
+XY 30 26.98 600,0,ACK_XY target=,draw QR zigzag hatch 138.7
+PENUP,120,PENUP,finish QR zigzag hatch 138
+XY 32 26 1800,0,ACK_XY target=,travel to QR outline 139
+PENDOWN,120,PENDOWN,start QR outline 139
+XY 33 26 600,0,ACK_XY target=,draw QR outline 139.1
+XY 33 27 600,0,ACK_XY target=,draw QR outline 139.2
+XY 32 27 600,0,ACK_XY target=,draw QR outline 139.3
+XY 32 26 600,0,ACK_XY target=,draw QR outline 139.4
+PENUP,120,PENUP,finish QR outline 139
+XY 32.505 26 1800,0,ACK_XY target=,travel to QR zigzag hatch 140
+PENDOWN,120,PENDOWN,start QR zigzag hatch 140
+XY 33 26.495 600,0,ACK_XY target=,draw QR zigzag hatch 140.1
+XY 33 26.99 600,0,ACK_XY target=,draw QR zigzag hatch 140.2
+XY 32.01 26 600,0,ACK_XY target=,draw QR zigzag hatch 140.3
+XY 32 26.485 600,0,ACK_XY target=,draw QR zigzag hatch 140.4
+XY 32.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 140.5
+XY 32.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 140.6
+XY 32 26.98 600,0,ACK_XY target=,draw QR zigzag hatch 140.7
+PENUP,120,PENUP,finish QR zigzag hatch 140
+XY 22 27 1800,0,ACK_XY target=,travel to QR outline 141
+PENDOWN,120,PENDOWN,start QR outline 141
+XY 24 27 600,0,ACK_XY target=,draw QR outline 141.1
+XY 24 28 600,0,ACK_XY target=,draw QR outline 141.2
+XY 22 28 600,0,ACK_XY target=,draw QR outline 141.3
+XY 22 27 600,0,ACK_XY target=,draw QR outline 141.4
+PENUP,120,PENUP,finish QR outline 141
+XY 23.505 27 1800,0,ACK_XY target=,travel to QR zigzag hatch 142
+PENDOWN,120,PENDOWN,start QR zigzag hatch 142
+XY 24 27.495 600,0,ACK_XY target=,draw QR zigzag hatch 142.1
+XY 24 27.99 600,0,ACK_XY target=,draw QR zigzag hatch 142.2
+XY 23.01 27 600,0,ACK_XY target=,draw QR zigzag hatch 142.3
+XY 22.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 142.4
+XY 23.515 28 600,0,ACK_XY target=,draw QR zigzag hatch 142.5
+XY 23.02 28 600,0,ACK_XY target=,draw QR zigzag hatch 142.6
+XY 22.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 142.7
+XY 22 27.475 600,0,ACK_XY target=,draw QR zigzag hatch 142.8
+XY 22.525 28 600,0,ACK_XY target=,draw QR zigzag hatch 142.9
+XY 22.03 28 600,0,ACK_XY target=,draw QR zigzag hatch 142.10
+XY 22 27.97 600,0,ACK_XY target=,draw QR zigzag hatch 142.11
+PENUP,120,PENUP,finish QR zigzag hatch 142
+XY 26 27 1800,0,ACK_XY target=,travel to QR outline 143
+PENDOWN,120,PENDOWN,start QR outline 143
+XY 27 27 600,0,ACK_XY target=,draw QR outline 143.1
+XY 27 28 600,0,ACK_XY target=,draw QR outline 143.2
+XY 26 28 600,0,ACK_XY target=,draw QR outline 143.3
+XY 26 27 600,0,ACK_XY target=,draw QR outline 143.4
+PENUP,120,PENUP,finish QR outline 143
+XY 26.505 27 1800,0,ACK_XY target=,travel to QR zigzag hatch 144
+PENDOWN,120,PENDOWN,start QR zigzag hatch 144
+XY 27 27.495 600,0,ACK_XY target=,draw QR zigzag hatch 144.1
+XY 27 27.99 600,0,ACK_XY target=,draw QR zigzag hatch 144.2
+XY 26.01 27 600,0,ACK_XY target=,draw QR zigzag hatch 144.3
+XY 26 27.485 600,0,ACK_XY target=,draw QR zigzag hatch 144.4
+XY 26.515 28 600,0,ACK_XY target=,draw QR zigzag hatch 144.5
+XY 26.02 28 600,0,ACK_XY target=,draw QR zigzag hatch 144.6
+XY 26 27.98 600,0,ACK_XY target=,draw QR zigzag hatch 144.7
+PENUP,120,PENUP,finish QR zigzag hatch 144
+XY 29 27 1800,0,ACK_XY target=,travel to QR outline 145
+PENDOWN,120,PENDOWN,start QR outline 145
+XY 30 27 600,0,ACK_XY target=,draw QR outline 145.1
+XY 30 28 600,0,ACK_XY target=,draw QR outline 145.2
+XY 29 28 600,0,ACK_XY target=,draw QR outline 145.3
+XY 29 27 600,0,ACK_XY target=,draw QR outline 145.4
+PENUP,120,PENUP,finish QR outline 145
+XY 29.505 27 1800,0,ACK_XY target=,travel to QR zigzag hatch 146
+PENDOWN,120,PENDOWN,start QR zigzag hatch 146
+XY 30 27.495 600,0,ACK_XY target=,draw QR zigzag hatch 146.1
+XY 30 27.99 600,0,ACK_XY target=,draw QR zigzag hatch 146.2
+XY 29.01 27 600,0,ACK_XY target=,draw QR zigzag hatch 146.3
+XY 29 27.485 600,0,ACK_XY target=,draw QR zigzag hatch 146.4
+XY 29.515 28 600,0,ACK_XY target=,draw QR zigzag hatch 146.5
+XY 29.02 28 600,0,ACK_XY target=,draw QR zigzag hatch 146.6
+XY 29 27.98 600,0,ACK_XY target=,draw QR zigzag hatch 146.7
+PENUP,120,PENUP,finish QR zigzag hatch 146
+XY 31 27 1800,0,ACK_XY target=,travel to QR outline 147
+PENDOWN,120,PENDOWN,start QR outline 147
+XY 32 27 600,0,ACK_XY target=,draw QR outline 147.1
+XY 32 28 600,0,ACK_XY target=,draw QR outline 147.2
+XY 31 28 600,0,ACK_XY target=,draw QR outline 147.3
+XY 31 27 600,0,ACK_XY target=,draw QR outline 147.4
+PENUP,120,PENUP,finish QR outline 147
+XY 31.505 27 1800,0,ACK_XY target=,travel to QR zigzag hatch 148
+PENDOWN,120,PENDOWN,start QR zigzag hatch 148
+XY 32 27.495 600,0,ACK_XY target=,draw QR zigzag hatch 148.1
+XY 32 27.99 600,0,ACK_XY target=,draw QR zigzag hatch 148.2
+XY 31.01 27 600,0,ACK_XY target=,draw QR zigzag hatch 148.3
+XY 31 27.485 600,0,ACK_XY target=,draw QR zigzag hatch 148.4
+XY 31.515 28 600,0,ACK_XY target=,draw QR zigzag hatch 148.5
+XY 31.02 28 600,0,ACK_XY target=,draw QR zigzag hatch 148.6
+XY 31 27.98 600,0,ACK_XY target=,draw QR zigzag hatch 148.7
+PENUP,120,PENUP,finish QR zigzag hatch 148
+XY 33 27 1800,0,ACK_XY target=,travel to QR outline 149
+PENDOWN,120,PENDOWN,start QR outline 149
+XY 35 27 600,0,ACK_XY target=,draw QR outline 149.1
+XY 35 28 600,0,ACK_XY target=,draw QR outline 149.2
+XY 33 28 600,0,ACK_XY target=,draw QR outline 149.3
+XY 33 27 600,0,ACK_XY target=,draw QR outline 149.4
+PENUP,120,PENUP,finish QR outline 149
+XY 34.505 27 1800,0,ACK_XY target=,travel to QR zigzag hatch 150
+PENDOWN,120,PENDOWN,start QR zigzag hatch 150
+XY 35 27.495 600,0,ACK_XY target=,draw QR zigzag hatch 150.1
+XY 35 27.99 600,0,ACK_XY target=,draw QR zigzag hatch 150.2
+XY 34.01 27 600,0,ACK_XY target=,draw QR zigzag hatch 150.3
+XY 33.515 27 600,0,ACK_XY target=,draw QR zigzag hatch 150.4
+XY 34.515 28 600,0,ACK_XY target=,draw QR zigzag hatch 150.5
+XY 34.02 28 600,0,ACK_XY target=,draw QR zigzag hatch 150.6
+XY 33.02 27 600,0,ACK_XY target=,draw QR zigzag hatch 150.7
+XY 33 27.475 600,0,ACK_XY target=,draw QR zigzag hatch 150.8
+XY 33.525 28 600,0,ACK_XY target=,draw QR zigzag hatch 150.9
+XY 33.03 28 600,0,ACK_XY target=,draw QR zigzag hatch 150.10
+XY 33 27.97 600,0,ACK_XY target=,draw QR zigzag hatch 150.11
+PENUP,120,PENUP,finish QR zigzag hatch 150
+XY 14 28 1800,0,ACK_XY target=,travel to QR outline 151
+PENDOWN,120,PENDOWN,start QR outline 151
+XY 21 28 600,0,ACK_XY target=,draw QR outline 151.1
+XY 21 29 600,0,ACK_XY target=,draw QR outline 151.2
+XY 14 29 600,0,ACK_XY target=,draw QR outline 151.3
+XY 14 28 600,0,ACK_XY target=,draw QR outline 151.4
+PENUP,120,PENUP,finish QR outline 151
+XY 20.505 28 1800,0,ACK_XY target=,travel to QR zigzag hatch 152
+PENDOWN,120,PENDOWN,start QR zigzag hatch 152
+XY 21 28.495 600,0,ACK_XY target=,draw QR zigzag hatch 152.1
+XY 21 28.99 600,0,ACK_XY target=,draw QR zigzag hatch 152.2
+XY 20.01 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.3
+XY 19.515 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.4
+XY 20.515 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.5
+XY 20.02 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.6
+XY 19.02 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.7
+XY 18.525 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.8
+XY 19.525 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.9
+XY 19.03 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.10
+XY 18.03 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.11
+XY 17.535 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.12
+XY 18.535 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.13
+XY 18.04 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.14
+XY 17.04 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.15
+XY 16.545 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.16
+XY 17.545 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.17
+XY 17.05 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.18
+XY 16.05 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.19
+XY 15.555 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.20
+XY 16.555 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.21
+XY 16.06 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.22
+XY 15.06 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.23
+XY 14.565 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.24
+XY 15.565 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.25
+XY 15.07 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.26
+XY 14.07 28 600,0,ACK_XY target=,draw QR zigzag hatch 152.27
+XY 14 28.425 600,0,ACK_XY target=,draw QR zigzag hatch 152.28
+XY 14.575 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.29
+XY 14.08 29 600,0,ACK_XY target=,draw QR zigzag hatch 152.30
+XY 14 28.92 600,0,ACK_XY target=,draw QR zigzag hatch 152.31
+PENUP,120,PENUP,finish QR zigzag hatch 152
+XY 23 28 1800,0,ACK_XY target=,travel to QR outline 153
+PENDOWN,120,PENDOWN,start QR outline 153
+XY 24 28 600,0,ACK_XY target=,draw QR outline 153.1
+XY 24 29 600,0,ACK_XY target=,draw QR outline 153.2
+XY 23 29 600,0,ACK_XY target=,draw QR outline 153.3
+XY 23 28 600,0,ACK_XY target=,draw QR outline 153.4
+PENUP,120,PENUP,finish QR outline 153
+XY 23.505 28 1800,0,ACK_XY target=,travel to QR zigzag hatch 154
+PENDOWN,120,PENDOWN,start QR zigzag hatch 154
+XY 24 28.495 600,0,ACK_XY target=,draw QR zigzag hatch 154.1
+XY 24 28.99 600,0,ACK_XY target=,draw QR zigzag hatch 154.2
+XY 23.01 28 600,0,ACK_XY target=,draw QR zigzag hatch 154.3
+XY 23 28.485 600,0,ACK_XY target=,draw QR zigzag hatch 154.4
+XY 23.515 29 600,0,ACK_XY target=,draw QR zigzag hatch 154.5
+XY 23.02 29 600,0,ACK_XY target=,draw QR zigzag hatch 154.6
+XY 23 28.98 600,0,ACK_XY target=,draw QR zigzag hatch 154.7
+PENUP,120,PENUP,finish QR zigzag hatch 154
+XY 25 28 1800,0,ACK_XY target=,travel to QR outline 155
+PENDOWN,120,PENDOWN,start QR outline 155
+XY 26 28 600,0,ACK_XY target=,draw QR outline 155.1
+XY 26 29 600,0,ACK_XY target=,draw QR outline 155.2
+XY 25 29 600,0,ACK_XY target=,draw QR outline 155.3
+XY 25 28 600,0,ACK_XY target=,draw QR outline 155.4
+PENUP,120,PENUP,finish QR outline 155
+XY 25.505 28 1800,0,ACK_XY target=,travel to QR zigzag hatch 156
+PENDOWN,120,PENDOWN,start QR zigzag hatch 156
+XY 26 28.495 600,0,ACK_XY target=,draw QR zigzag hatch 156.1
+XY 26 28.99 600,0,ACK_XY target=,draw QR zigzag hatch 156.2
+XY 25.01 28 600,0,ACK_XY target=,draw QR zigzag hatch 156.3
+XY 25 28.485 600,0,ACK_XY target=,draw QR zigzag hatch 156.4
+XY 25.515 29 600,0,ACK_XY target=,draw QR zigzag hatch 156.5
+XY 25.02 29 600,0,ACK_XY target=,draw QR zigzag hatch 156.6
+XY 25 28.98 600,0,ACK_XY target=,draw QR zigzag hatch 156.7
+PENUP,120,PENUP,finish QR zigzag hatch 156
+XY 30 28 1800,0,ACK_XY target=,travel to QR outline 157
+PENDOWN,120,PENDOWN,start QR outline 157
+XY 33 28 600,0,ACK_XY target=,draw QR outline 157.1
+XY 33 29 600,0,ACK_XY target=,draw QR outline 157.2
+XY 30 29 600,0,ACK_XY target=,draw QR outline 157.3
+XY 30 28 600,0,ACK_XY target=,draw QR outline 157.4
+PENUP,120,PENUP,finish QR outline 157
+XY 32.505 28 1800,0,ACK_XY target=,travel to QR zigzag hatch 158
+PENDOWN,120,PENDOWN,start QR zigzag hatch 158
+XY 33 28.495 600,0,ACK_XY target=,draw QR zigzag hatch 158.1
+XY 33 28.99 600,0,ACK_XY target=,draw QR zigzag hatch 158.2
+XY 32.01 28 600,0,ACK_XY target=,draw QR zigzag hatch 158.3
+XY 31.515 28 600,0,ACK_XY target=,draw QR zigzag hatch 158.4
+XY 32.515 29 600,0,ACK_XY target=,draw QR zigzag hatch 158.5
+XY 32.02 29 600,0,ACK_XY target=,draw QR zigzag hatch 158.6
+XY 31.02 28 600,0,ACK_XY target=,draw QR zigzag hatch 158.7
+XY 30.525 28 600,0,ACK_XY target=,draw QR zigzag hatch 158.8
+XY 31.525 29 600,0,ACK_XY target=,draw QR zigzag hatch 158.9
+XY 31.03 29 600,0,ACK_XY target=,draw QR zigzag hatch 158.10
+XY 30.03 28 600,0,ACK_XY target=,draw QR zigzag hatch 158.11
+XY 30 28.465 600,0,ACK_XY target=,draw QR zigzag hatch 158.12
+XY 30.535 29 600,0,ACK_XY target=,draw QR zigzag hatch 158.13
+XY 30.04 29 600,0,ACK_XY target=,draw QR zigzag hatch 158.14
+XY 30 28.96 600,0,ACK_XY target=,draw QR zigzag hatch 158.15
+PENUP,120,PENUP,finish QR zigzag hatch 158
+XY 14 29 1800,0,ACK_XY target=,travel to QR outline 159
+PENDOWN,120,PENDOWN,start QR outline 159
+XY 15 29 600,0,ACK_XY target=,draw QR outline 159.1
+XY 15 30 600,0,ACK_XY target=,draw QR outline 159.2
+XY 14 30 600,0,ACK_XY target=,draw QR outline 159.3
+XY 14 29 600,0,ACK_XY target=,draw QR outline 159.4
+PENUP,120,PENUP,finish QR outline 159
+XY 14.505 29 1800,0,ACK_XY target=,travel to QR zigzag hatch 160
+PENDOWN,120,PENDOWN,start QR zigzag hatch 160
+XY 15 29.495 600,0,ACK_XY target=,draw QR zigzag hatch 160.1
+XY 15 29.99 600,0,ACK_XY target=,draw QR zigzag hatch 160.2
+XY 14.01 29 600,0,ACK_XY target=,draw QR zigzag hatch 160.3
+XY 14 29.485 600,0,ACK_XY target=,draw QR zigzag hatch 160.4
+XY 14.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 160.5
+XY 14.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 160.6
+XY 14 29.98 600,0,ACK_XY target=,draw QR zigzag hatch 160.7
+PENUP,120,PENUP,finish QR zigzag hatch 160
+XY 20 29 1800,0,ACK_XY target=,travel to QR outline 161
+PENDOWN,120,PENDOWN,start QR outline 161
+XY 21 29 600,0,ACK_XY target=,draw QR outline 161.1
+XY 21 30 600,0,ACK_XY target=,draw QR outline 161.2
+XY 20 30 600,0,ACK_XY target=,draw QR outline 161.3
+XY 20 29 600,0,ACK_XY target=,draw QR outline 161.4
+PENUP,120,PENUP,finish QR outline 161
+XY 20.505 29 1800,0,ACK_XY target=,travel to QR zigzag hatch 162
+PENDOWN,120,PENDOWN,start QR zigzag hatch 162
+XY 21 29.495 600,0,ACK_XY target=,draw QR zigzag hatch 162.1
+XY 21 29.99 600,0,ACK_XY target=,draw QR zigzag hatch 162.2
+XY 20.01 29 600,0,ACK_XY target=,draw QR zigzag hatch 162.3
+XY 20 29.485 600,0,ACK_XY target=,draw QR zigzag hatch 162.4
+XY 20.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 162.5
+XY 20.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 162.6
+XY 20 29.98 600,0,ACK_XY target=,draw QR zigzag hatch 162.7
+PENUP,120,PENUP,finish QR zigzag hatch 162
+XY 22 29 1800,0,ACK_XY target=,travel to QR outline 163
+PENDOWN,120,PENDOWN,start QR outline 163
+XY 24 29 600,0,ACK_XY target=,draw QR outline 163.1
+XY 24 30 600,0,ACK_XY target=,draw QR outline 163.2
+XY 22 30 600,0,ACK_XY target=,draw QR outline 163.3
+XY 22 29 600,0,ACK_XY target=,draw QR outline 163.4
+PENUP,120,PENUP,finish QR outline 163
+XY 23.505 29 1800,0,ACK_XY target=,travel to QR zigzag hatch 164
+PENDOWN,120,PENDOWN,start QR zigzag hatch 164
+XY 24 29.495 600,0,ACK_XY target=,draw QR zigzag hatch 164.1
+XY 24 29.99 600,0,ACK_XY target=,draw QR zigzag hatch 164.2
+XY 23.01 29 600,0,ACK_XY target=,draw QR zigzag hatch 164.3
+XY 22.515 29 600,0,ACK_XY target=,draw QR zigzag hatch 164.4
+XY 23.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 164.5
+XY 23.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 164.6
+XY 22.02 29 600,0,ACK_XY target=,draw QR zigzag hatch 164.7
+XY 22 29.475 600,0,ACK_XY target=,draw QR zigzag hatch 164.8
+XY 22.525 30 600,0,ACK_XY target=,draw QR zigzag hatch 164.9
+XY 22.03 30 600,0,ACK_XY target=,draw QR zigzag hatch 164.10
+XY 22 29.97 600,0,ACK_XY target=,draw QR zigzag hatch 164.11
+PENUP,120,PENUP,finish QR zigzag hatch 164
+XY 29 29 1800,0,ACK_XY target=,travel to QR outline 165
+PENDOWN,120,PENDOWN,start QR outline 165
+XY 30 29 600,0,ACK_XY target=,draw QR outline 165.1
+XY 30 30 600,0,ACK_XY target=,draw QR outline 165.2
+XY 29 30 600,0,ACK_XY target=,draw QR outline 165.3
+XY 29 29 600,0,ACK_XY target=,draw QR outline 165.4
+PENUP,120,PENUP,finish QR outline 165
+XY 29.505 29 1800,0,ACK_XY target=,travel to QR zigzag hatch 166
+PENDOWN,120,PENDOWN,start QR zigzag hatch 166
+XY 30 29.495 600,0,ACK_XY target=,draw QR zigzag hatch 166.1
+XY 30 29.99 600,0,ACK_XY target=,draw QR zigzag hatch 166.2
+XY 29.01 29 600,0,ACK_XY target=,draw QR zigzag hatch 166.3
+XY 29 29.485 600,0,ACK_XY target=,draw QR zigzag hatch 166.4
+XY 29.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 166.5
+XY 29.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 166.6
+XY 29 29.98 600,0,ACK_XY target=,draw QR zigzag hatch 166.7
+PENUP,120,PENUP,finish QR zigzag hatch 166
+XY 32 29 1800,0,ACK_XY target=,travel to QR outline 167
+PENDOWN,120,PENDOWN,start QR outline 167
+XY 33 29 600,0,ACK_XY target=,draw QR outline 167.1
+XY 33 30 600,0,ACK_XY target=,draw QR outline 167.2
+XY 32 30 600,0,ACK_XY target=,draw QR outline 167.3
+XY 32 29 600,0,ACK_XY target=,draw QR outline 167.4
+PENUP,120,PENUP,finish QR outline 167
+XY 32.505 29 1800,0,ACK_XY target=,travel to QR zigzag hatch 168
+PENDOWN,120,PENDOWN,start QR zigzag hatch 168
+XY 33 29.495 600,0,ACK_XY target=,draw QR zigzag hatch 168.1
+XY 33 29.99 600,0,ACK_XY target=,draw QR zigzag hatch 168.2
+XY 32.01 29 600,0,ACK_XY target=,draw QR zigzag hatch 168.3
+XY 32 29.485 600,0,ACK_XY target=,draw QR zigzag hatch 168.4
+XY 32.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 168.5
+XY 32.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 168.6
+XY 32 29.98 600,0,ACK_XY target=,draw QR zigzag hatch 168.7
+PENUP,120,PENUP,finish QR zigzag hatch 168
+XY 34 29 1800,0,ACK_XY target=,travel to QR outline 169
+PENDOWN,120,PENDOWN,start QR outline 169
+XY 35 29 600,0,ACK_XY target=,draw QR outline 169.1
+XY 35 30 600,0,ACK_XY target=,draw QR outline 169.2
+XY 34 30 600,0,ACK_XY target=,draw QR outline 169.3
+XY 34 29 600,0,ACK_XY target=,draw QR outline 169.4
+PENUP,120,PENUP,finish QR outline 169
+XY 34.505 29 1800,0,ACK_XY target=,travel to QR zigzag hatch 170
+PENDOWN,120,PENDOWN,start QR zigzag hatch 170
+XY 35 29.495 600,0,ACK_XY target=,draw QR zigzag hatch 170.1
+XY 35 29.99 600,0,ACK_XY target=,draw QR zigzag hatch 170.2
+XY 34.01 29 600,0,ACK_XY target=,draw QR zigzag hatch 170.3
+XY 34 29.485 600,0,ACK_XY target=,draw QR zigzag hatch 170.4
+XY 34.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 170.5
+XY 34.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 170.6
+XY 34 29.98 600,0,ACK_XY target=,draw QR zigzag hatch 170.7
+PENUP,120,PENUP,finish QR zigzag hatch 170
+XY 14 30 1800,0,ACK_XY target=,travel to QR outline 171
+PENDOWN,120,PENDOWN,start QR outline 171
+XY 15 30 600,0,ACK_XY target=,draw QR outline 171.1
+XY 15 31 600,0,ACK_XY target=,draw QR outline 171.2
+XY 14 31 600,0,ACK_XY target=,draw QR outline 171.3
+XY 14 30 600,0,ACK_XY target=,draw QR outline 171.4
+PENUP,120,PENUP,finish QR outline 171
+XY 14.505 30 1800,0,ACK_XY target=,travel to QR zigzag hatch 172
+PENDOWN,120,PENDOWN,start QR zigzag hatch 172
+XY 15 30.495 600,0,ACK_XY target=,draw QR zigzag hatch 172.1
+XY 15 30.99 600,0,ACK_XY target=,draw QR zigzag hatch 172.2
+XY 14.01 30 600,0,ACK_XY target=,draw QR zigzag hatch 172.3
+XY 14 30.485 600,0,ACK_XY target=,draw QR zigzag hatch 172.4
+XY 14.515 31 600,0,ACK_XY target=,draw QR zigzag hatch 172.5
+XY 14.02 31 600,0,ACK_XY target=,draw QR zigzag hatch 172.6
+XY 14 30.98 600,0,ACK_XY target=,draw QR zigzag hatch 172.7
+PENUP,120,PENUP,finish QR zigzag hatch 172
+XY 16 30 1800,0,ACK_XY target=,travel to QR outline 173
+PENDOWN,120,PENDOWN,start QR outline 173
+XY 19 30 600,0,ACK_XY target=,draw QR outline 173.1
+XY 19 31 600,0,ACK_XY target=,draw QR outline 173.2
+XY 16 31 600,0,ACK_XY target=,draw QR outline 173.3
+XY 16 30 600,0,ACK_XY target=,draw QR outline 173.4
+PENUP,120,PENUP,finish QR outline 173
+XY 18.505 30 1800,0,ACK_XY target=,travel to QR zigzag hatch 174
+PENDOWN,120,PENDOWN,start QR zigzag hatch 174
+XY 19 30.495 600,0,ACK_XY target=,draw QR zigzag hatch 174.1
+XY 19 30.99 600,0,ACK_XY target=,draw QR zigzag hatch 174.2
+XY 18.01 30 600,0,ACK_XY target=,draw QR zigzag hatch 174.3
+XY 17.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 174.4
+XY 18.515 31 600,0,ACK_XY target=,draw QR zigzag hatch 174.5
+XY 18.02 31 600,0,ACK_XY target=,draw QR zigzag hatch 174.6
+XY 17.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 174.7
+XY 16.525 30 600,0,ACK_XY target=,draw QR zigzag hatch 174.8
+XY 17.525 31 600,0,ACK_XY target=,draw QR zigzag hatch 174.9
+XY 17.03 31 600,0,ACK_XY target=,draw QR zigzag hatch 174.10
+XY 16.03 30 600,0,ACK_XY target=,draw QR zigzag hatch 174.11
+XY 16 30.465 600,0,ACK_XY target=,draw QR zigzag hatch 174.12
+XY 16.535 31 600,0,ACK_XY target=,draw QR zigzag hatch 174.13
+XY 16.04 31 600,0,ACK_XY target=,draw QR zigzag hatch 174.14
+XY 16 30.96 600,0,ACK_XY target=,draw QR zigzag hatch 174.15
+PENUP,120,PENUP,finish QR zigzag hatch 174
+XY 20 30 1800,0,ACK_XY target=,travel to QR outline 175
+PENDOWN,120,PENDOWN,start QR outline 175
+XY 21 30 600,0,ACK_XY target=,draw QR outline 175.1
+XY 21 31 600,0,ACK_XY target=,draw QR outline 175.2
+XY 20 31 600,0,ACK_XY target=,draw QR outline 175.3
+XY 20 30 600,0,ACK_XY target=,draw QR outline 175.4
+PENUP,120,PENUP,finish QR outline 175
+XY 20.505 30 1800,0,ACK_XY target=,travel to QR zigzag hatch 176
+PENDOWN,120,PENDOWN,start QR zigzag hatch 176
+XY 21 30.495 600,0,ACK_XY target=,draw QR zigzag hatch 176.1
+XY 21 30.99 600,0,ACK_XY target=,draw QR zigzag hatch 176.2
+XY 20.01 30 600,0,ACK_XY target=,draw QR zigzag hatch 176.3
+XY 20 30.485 600,0,ACK_XY target=,draw QR zigzag hatch 176.4
+XY 20.515 31 600,0,ACK_XY target=,draw QR zigzag hatch 176.5
+XY 20.02 31 600,0,ACK_XY target=,draw QR zigzag hatch 176.6
+XY 20 30.98 600,0,ACK_XY target=,draw QR zigzag hatch 176.7
+PENUP,120,PENUP,finish QR zigzag hatch 176
+XY 22 30 1800,0,ACK_XY target=,travel to QR outline 177
+PENDOWN,120,PENDOWN,start QR outline 177
+XY 26 30 600,0,ACK_XY target=,draw QR outline 177.1
+XY 26 31 600,0,ACK_XY target=,draw QR outline 177.2
+XY 22 31 600,0,ACK_XY target=,draw QR outline 177.3
+XY 22 30 600,0,ACK_XY target=,draw QR outline 177.4
+PENUP,120,PENUP,finish QR outline 177
+XY 25.505 30 1800,0,ACK_XY target=,travel to QR zigzag hatch 178
+PENDOWN,120,PENDOWN,start QR zigzag hatch 178
+XY 26 30.495 600,0,ACK_XY target=,draw QR zigzag hatch 178.1
+XY 26 30.99 600,0,ACK_XY target=,draw QR zigzag hatch 178.2
+XY 25.01 30 600,0,ACK_XY target=,draw QR zigzag hatch 178.3
+XY 24.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 178.4
+XY 25.515 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.5
+XY 25.02 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.6
+XY 24.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 178.7
+XY 23.525 30 600,0,ACK_XY target=,draw QR zigzag hatch 178.8
+XY 24.525 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.9
+XY 24.03 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.10
+XY 23.03 30 600,0,ACK_XY target=,draw QR zigzag hatch 178.11
+XY 22.535 30 600,0,ACK_XY target=,draw QR zigzag hatch 178.12
+XY 23.535 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.13
+XY 23.04 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.14
+XY 22.04 30 600,0,ACK_XY target=,draw QR zigzag hatch 178.15
+XY 22 30.455 600,0,ACK_XY target=,draw QR zigzag hatch 178.16
+XY 22.545 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.17
+XY 22.05 31 600,0,ACK_XY target=,draw QR zigzag hatch 178.18
+XY 22 30.95 600,0,ACK_XY target=,draw QR zigzag hatch 178.19
+PENUP,120,PENUP,finish QR zigzag hatch 178
+XY 31 30 1800,0,ACK_XY target=,travel to QR outline 179
+PENDOWN,120,PENDOWN,start QR outline 179
+XY 34 30 600,0,ACK_XY target=,draw QR outline 179.1
+XY 34 31 600,0,ACK_XY target=,draw QR outline 179.2
+XY 31 31 600,0,ACK_XY target=,draw QR outline 179.3
+XY 31 30 600,0,ACK_XY target=,draw QR outline 179.4
+PENUP,120,PENUP,finish QR outline 179
+XY 33.505 30 1800,0,ACK_XY target=,travel to QR zigzag hatch 180
+PENDOWN,120,PENDOWN,start QR zigzag hatch 180
+XY 34 30.495 600,0,ACK_XY target=,draw QR zigzag hatch 180.1
+XY 34 30.99 600,0,ACK_XY target=,draw QR zigzag hatch 180.2
+XY 33.01 30 600,0,ACK_XY target=,draw QR zigzag hatch 180.3
+XY 32.515 30 600,0,ACK_XY target=,draw QR zigzag hatch 180.4
+XY 33.515 31 600,0,ACK_XY target=,draw QR zigzag hatch 180.5
+XY 33.02 31 600,0,ACK_XY target=,draw QR zigzag hatch 180.6
+XY 32.02 30 600,0,ACK_XY target=,draw QR zigzag hatch 180.7
+XY 31.525 30 600,0,ACK_XY target=,draw QR zigzag hatch 180.8
+XY 32.525 31 600,0,ACK_XY target=,draw QR zigzag hatch 180.9
+XY 32.03 31 600,0,ACK_XY target=,draw QR zigzag hatch 180.10
+XY 31.03 30 600,0,ACK_XY target=,draw QR zigzag hatch 180.11
+XY 31 30.465 600,0,ACK_XY target=,draw QR zigzag hatch 180.12
+XY 31.535 31 600,0,ACK_XY target=,draw QR zigzag hatch 180.13
+XY 31.04 31 600,0,ACK_XY target=,draw QR zigzag hatch 180.14
+XY 31 30.96 600,0,ACK_XY target=,draw QR zigzag hatch 180.15
+PENUP,120,PENUP,finish QR zigzag hatch 180
+XY 14 31 1800,0,ACK_XY target=,travel to QR outline 181
+PENDOWN,120,PENDOWN,start QR outline 181
+XY 15 31 600,0,ACK_XY target=,draw QR outline 181.1
+XY 15 32 600,0,ACK_XY target=,draw QR outline 181.2
+XY 14 32 600,0,ACK_XY target=,draw QR outline 181.3
+XY 14 31 600,0,ACK_XY target=,draw QR outline 181.4
+PENUP,120,PENUP,finish QR outline 181
+XY 14.505 31 1800,0,ACK_XY target=,travel to QR zigzag hatch 182
+PENDOWN,120,PENDOWN,start QR zigzag hatch 182
+XY 15 31.495 600,0,ACK_XY target=,draw QR zigzag hatch 182.1
+XY 15 31.99 600,0,ACK_XY target=,draw QR zigzag hatch 182.2
+XY 14.01 31 600,0,ACK_XY target=,draw QR zigzag hatch 182.3
+XY 14 31.485 600,0,ACK_XY target=,draw QR zigzag hatch 182.4
+XY 14.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 182.5
+XY 14.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 182.6
+XY 14 31.98 600,0,ACK_XY target=,draw QR zigzag hatch 182.7
+PENUP,120,PENUP,finish QR zigzag hatch 182
+XY 16 31 1800,0,ACK_XY target=,travel to QR outline 183
+PENDOWN,120,PENDOWN,start QR outline 183
+XY 19 31 600,0,ACK_XY target=,draw QR outline 183.1
+XY 19 32 600,0,ACK_XY target=,draw QR outline 183.2
+XY 16 32 600,0,ACK_XY target=,draw QR outline 183.3
+XY 16 31 600,0,ACK_XY target=,draw QR outline 183.4
+PENUP,120,PENUP,finish QR outline 183
+XY 18.505 31 1800,0,ACK_XY target=,travel to QR zigzag hatch 184
+PENDOWN,120,PENDOWN,start QR zigzag hatch 184
+XY 19 31.495 600,0,ACK_XY target=,draw QR zigzag hatch 184.1
+XY 19 31.99 600,0,ACK_XY target=,draw QR zigzag hatch 184.2
+XY 18.01 31 600,0,ACK_XY target=,draw QR zigzag hatch 184.3
+XY 17.515 31 600,0,ACK_XY target=,draw QR zigzag hatch 184.4
+XY 18.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 184.5
+XY 18.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 184.6
+XY 17.02 31 600,0,ACK_XY target=,draw QR zigzag hatch 184.7
+XY 16.525 31 600,0,ACK_XY target=,draw QR zigzag hatch 184.8
+XY 17.525 32 600,0,ACK_XY target=,draw QR zigzag hatch 184.9
+XY 17.03 32 600,0,ACK_XY target=,draw QR zigzag hatch 184.10
+XY 16.03 31 600,0,ACK_XY target=,draw QR zigzag hatch 184.11
+XY 16 31.465 600,0,ACK_XY target=,draw QR zigzag hatch 184.12
+XY 16.535 32 600,0,ACK_XY target=,draw QR zigzag hatch 184.13
+XY 16.04 32 600,0,ACK_XY target=,draw QR zigzag hatch 184.14
+XY 16 31.96 600,0,ACK_XY target=,draw QR zigzag hatch 184.15
+PENUP,120,PENUP,finish QR zigzag hatch 184
+XY 20 31 1800,0,ACK_XY target=,travel to QR outline 185
+PENDOWN,120,PENDOWN,start QR outline 185
+XY 21 31 600,0,ACK_XY target=,draw QR outline 185.1
+XY 21 32 600,0,ACK_XY target=,draw QR outline 185.2
+XY 20 32 600,0,ACK_XY target=,draw QR outline 185.3
+XY 20 31 600,0,ACK_XY target=,draw QR outline 185.4
+PENUP,120,PENUP,finish QR outline 185
+XY 20.505 31 1800,0,ACK_XY target=,travel to QR zigzag hatch 186
+PENDOWN,120,PENDOWN,start QR zigzag hatch 186
+XY 21 31.495 600,0,ACK_XY target=,draw QR zigzag hatch 186.1
+XY 21 31.99 600,0,ACK_XY target=,draw QR zigzag hatch 186.2
+XY 20.01 31 600,0,ACK_XY target=,draw QR zigzag hatch 186.3
+XY 20 31.485 600,0,ACK_XY target=,draw QR zigzag hatch 186.4
+XY 20.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 186.5
+XY 20.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 186.6
+XY 20 31.98 600,0,ACK_XY target=,draw QR zigzag hatch 186.7
+PENUP,120,PENUP,finish QR zigzag hatch 186
+XY 22 31 1800,0,ACK_XY target=,travel to QR outline 187
+PENDOWN,120,PENDOWN,start QR outline 187
+XY 23 31 600,0,ACK_XY target=,draw QR outline 187.1
+XY 23 32 600,0,ACK_XY target=,draw QR outline 187.2
+XY 22 32 600,0,ACK_XY target=,draw QR outline 187.3
+XY 22 31 600,0,ACK_XY target=,draw QR outline 187.4
+PENUP,120,PENUP,finish QR outline 187
+XY 22.505 31 1800,0,ACK_XY target=,travel to QR zigzag hatch 188
+PENDOWN,120,PENDOWN,start QR zigzag hatch 188
+XY 23 31.495 600,0,ACK_XY target=,draw QR zigzag hatch 188.1
+XY 23 31.99 600,0,ACK_XY target=,draw QR zigzag hatch 188.2
+XY 22.01 31 600,0,ACK_XY target=,draw QR zigzag hatch 188.3
+XY 22 31.485 600,0,ACK_XY target=,draw QR zigzag hatch 188.4
+XY 22.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 188.5
+XY 22.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 188.6
+XY 22 31.98 600,0,ACK_XY target=,draw QR zigzag hatch 188.7
+PENUP,120,PENUP,finish QR zigzag hatch 188
+XY 24 31 1800,0,ACK_XY target=,travel to QR outline 189
+PENDOWN,120,PENDOWN,start QR outline 189
+XY 33 31 600,0,ACK_XY target=,draw QR outline 189.1
+XY 33 32 600,0,ACK_XY target=,draw QR outline 189.2
+XY 24 32 600,0,ACK_XY target=,draw QR outline 189.3
+XY 24 31 600,0,ACK_XY target=,draw QR outline 189.4
+PENUP,120,PENUP,finish QR outline 189
+XY 32.505 31 1800,0,ACK_XY target=,travel to QR zigzag hatch 190
+PENDOWN,120,PENDOWN,start QR zigzag hatch 190
+XY 33 31.495 600,0,ACK_XY target=,draw QR zigzag hatch 190.1
+XY 33 31.99 600,0,ACK_XY target=,draw QR zigzag hatch 190.2
+XY 32.01 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.3
+XY 31.515 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.4
+XY 32.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.5
+XY 32.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.6
+XY 31.02 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.7
+XY 30.525 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.8
+XY 31.525 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.9
+XY 31.03 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.10
+XY 30.03 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.11
+XY 29.535 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.12
+XY 30.535 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.13
+XY 30.04 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.14
+XY 29.04 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.15
+XY 28.545 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.16
+XY 29.545 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.17
+XY 29.05 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.18
+XY 28.05 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.19
+XY 27.555 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.20
+XY 28.555 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.21
+XY 28.06 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.22
+XY 27.06 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.23
+XY 26.565 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.24
+XY 27.565 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.25
+XY 27.07 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.26
+XY 26.07 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.27
+XY 25.575 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.28
+XY 26.575 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.29
+XY 26.08 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.30
+XY 25.08 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.31
+XY 24.585 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.32
+XY 25.585 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.33
+XY 25.09 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.34
+XY 24.09 31 600,0,ACK_XY target=,draw QR zigzag hatch 190.35
+XY 24 31.405 600,0,ACK_XY target=,draw QR zigzag hatch 190.36
+XY 24.595 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.37
+XY 24.101 32 600,0,ACK_XY target=,draw QR zigzag hatch 190.38
+XY 24 31.899 600,0,ACK_XY target=,draw QR zigzag hatch 190.39
+PENUP,120,PENUP,finish QR zigzag hatch 190
+XY 14 32 1800,0,ACK_XY target=,travel to QR outline 191
+PENDOWN,120,PENDOWN,start QR outline 191
+XY 15 32 600,0,ACK_XY target=,draw QR outline 191.1
+XY 15 33 600,0,ACK_XY target=,draw QR outline 191.2
+XY 14 33 600,0,ACK_XY target=,draw QR outline 191.3
+XY 14 32 600,0,ACK_XY target=,draw QR outline 191.4
+PENUP,120,PENUP,finish QR outline 191
+XY 14.505 32 1800,0,ACK_XY target=,travel to QR zigzag hatch 192
+PENDOWN,120,PENDOWN,start QR zigzag hatch 192
+XY 15 32.495 600,0,ACK_XY target=,draw QR zigzag hatch 192.1
+XY 15 32.99 600,0,ACK_XY target=,draw QR zigzag hatch 192.2
+XY 14.01 32 600,0,ACK_XY target=,draw QR zigzag hatch 192.3
+XY 14 32.485 600,0,ACK_XY target=,draw QR zigzag hatch 192.4
+XY 14.515 33 600,0,ACK_XY target=,draw QR zigzag hatch 192.5
+XY 14.02 33 600,0,ACK_XY target=,draw QR zigzag hatch 192.6
+XY 14 32.98 600,0,ACK_XY target=,draw QR zigzag hatch 192.7
+PENUP,120,PENUP,finish QR zigzag hatch 192
+XY 16 32 1800,0,ACK_XY target=,travel to QR outline 193
+PENDOWN,120,PENDOWN,start QR outline 193
+XY 19 32 600,0,ACK_XY target=,draw QR outline 193.1
+XY 19 33 600,0,ACK_XY target=,draw QR outline 193.2
+XY 16 33 600,0,ACK_XY target=,draw QR outline 193.3
+XY 16 32 600,0,ACK_XY target=,draw QR outline 193.4
+PENUP,120,PENUP,finish QR outline 193
+XY 18.505 32 1800,0,ACK_XY target=,travel to QR zigzag hatch 194
+PENDOWN,120,PENDOWN,start QR zigzag hatch 194
+XY 19 32.495 600,0,ACK_XY target=,draw QR zigzag hatch 194.1
+XY 19 32.99 600,0,ACK_XY target=,draw QR zigzag hatch 194.2
+XY 18.01 32 600,0,ACK_XY target=,draw QR zigzag hatch 194.3
+XY 17.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 194.4
+XY 18.515 33 600,0,ACK_XY target=,draw QR zigzag hatch 194.5
+XY 18.02 33 600,0,ACK_XY target=,draw QR zigzag hatch 194.6
+XY 17.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 194.7
+XY 16.525 32 600,0,ACK_XY target=,draw QR zigzag hatch 194.8
+XY 17.525 33 600,0,ACK_XY target=,draw QR zigzag hatch 194.9
+XY 17.03 33 600,0,ACK_XY target=,draw QR zigzag hatch 194.10
+XY 16.03 32 600,0,ACK_XY target=,draw QR zigzag hatch 194.11
+XY 16 32.465 600,0,ACK_XY target=,draw QR zigzag hatch 194.12
+XY 16.535 33 600,0,ACK_XY target=,draw QR zigzag hatch 194.13
+XY 16.04 33 600,0,ACK_XY target=,draw QR zigzag hatch 194.14
+XY 16 32.96 600,0,ACK_XY target=,draw QR zigzag hatch 194.15
+PENUP,120,PENUP,finish QR zigzag hatch 194
+XY 20 32 1800,0,ACK_XY target=,travel to QR outline 195
+PENDOWN,120,PENDOWN,start QR outline 195
+XY 21 32 600,0,ACK_XY target=,draw QR outline 195.1
+XY 21 33 600,0,ACK_XY target=,draw QR outline 195.2
+XY 20 33 600,0,ACK_XY target=,draw QR outline 195.3
+XY 20 32 600,0,ACK_XY target=,draw QR outline 195.4
+PENUP,120,PENUP,finish QR outline 195
+XY 20.505 32 1800,0,ACK_XY target=,travel to QR zigzag hatch 196
+PENDOWN,120,PENDOWN,start QR zigzag hatch 196
+XY 21 32.495 600,0,ACK_XY target=,draw QR zigzag hatch 196.1
+XY 21 32.99 600,0,ACK_XY target=,draw QR zigzag hatch 196.2
+XY 20.01 32 600,0,ACK_XY target=,draw QR zigzag hatch 196.3
+XY 20 32.485 600,0,ACK_XY target=,draw QR zigzag hatch 196.4
+XY 20.515 33 600,0,ACK_XY target=,draw QR zigzag hatch 196.5
+XY 20.02 33 600,0,ACK_XY target=,draw QR zigzag hatch 196.6
+XY 20 32.98 600,0,ACK_XY target=,draw QR zigzag hatch 196.7
+PENUP,120,PENUP,finish QR zigzag hatch 196
+XY 22 32 1800,0,ACK_XY target=,travel to QR outline 197
+PENDOWN,120,PENDOWN,start QR outline 197
+XY 24 32 600,0,ACK_XY target=,draw QR outline 197.1
+XY 24 33 600,0,ACK_XY target=,draw QR outline 197.2
+XY 22 33 600,0,ACK_XY target=,draw QR outline 197.3
+XY 22 32 600,0,ACK_XY target=,draw QR outline 197.4
+PENUP,120,PENUP,finish QR outline 197
+XY 23.505 32 1800,0,ACK_XY target=,travel to QR zigzag hatch 198
+PENDOWN,120,PENDOWN,start QR zigzag hatch 198
+XY 24 32.495 600,0,ACK_XY target=,draw QR zigzag hatch 198.1
+XY 24 32.99 600,0,ACK_XY target=,draw QR zigzag hatch 198.2
+XY 23.01 32 600,0,ACK_XY target=,draw QR zigzag hatch 198.3
+XY 22.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 198.4
+XY 23.515 33 600,0,ACK_XY target=,draw QR zigzag hatch 198.5
+XY 23.02 33 600,0,ACK_XY target=,draw QR zigzag hatch 198.6
+XY 22.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 198.7
+XY 22 32.475 600,0,ACK_XY target=,draw QR zigzag hatch 198.8
+XY 22.525 33 600,0,ACK_XY target=,draw QR zigzag hatch 198.9
+XY 22.03 33 600,0,ACK_XY target=,draw QR zigzag hatch 198.10
+XY 22 32.97 600,0,ACK_XY target=,draw QR zigzag hatch 198.11
+PENUP,120,PENUP,finish QR zigzag hatch 198
+XY 26 32 1800,0,ACK_XY target=,travel to QR outline 199
+PENDOWN,120,PENDOWN,start QR outline 199
+XY 27 32 600,0,ACK_XY target=,draw QR outline 199.1
+XY 27 33 600,0,ACK_XY target=,draw QR outline 199.2
+XY 26 33 600,0,ACK_XY target=,draw QR outline 199.3
+XY 26 32 600,0,ACK_XY target=,draw QR outline 199.4
+PENUP,120,PENUP,finish QR outline 199
+XY 26.505 32 1800,0,ACK_XY target=,travel to QR zigzag hatch 200
+PENDOWN,120,PENDOWN,start QR zigzag hatch 200
+XY 27 32.495 600,0,ACK_XY target=,draw QR zigzag hatch 200.1
+XY 27 32.99 600,0,ACK_XY target=,draw QR zigzag hatch 200.2
+XY 26.01 32 600,0,ACK_XY target=,draw QR zigzag hatch 200.3
+XY 26 32.485 600,0,ACK_XY target=,draw QR zigzag hatch 200.4
+XY 26.515 33 600,0,ACK_XY target=,draw QR zigzag hatch 200.5
+XY 26.02 33 600,0,ACK_XY target=,draw QR zigzag hatch 200.6
+XY 26 32.98 600,0,ACK_XY target=,draw QR zigzag hatch 200.7
+PENUP,120,PENUP,finish QR zigzag hatch 200
+XY 28 32 1800,0,ACK_XY target=,travel to QR outline 201
+PENDOWN,120,PENDOWN,start QR outline 201
+XY 32 32 600,0,ACK_XY target=,draw QR outline 201.1
+XY 32 33 600,0,ACK_XY target=,draw QR outline 201.2
+XY 28 33 600,0,ACK_XY target=,draw QR outline 201.3
+XY 28 32 600,0,ACK_XY target=,draw QR outline 201.4
+PENUP,120,PENUP,finish QR outline 201
+XY 31.505 32 1800,0,ACK_XY target=,travel to QR zigzag hatch 202
+PENDOWN,120,PENDOWN,start QR zigzag hatch 202
+XY 32 32.495 600,0,ACK_XY target=,draw QR zigzag hatch 202.1
+XY 32 32.99 600,0,ACK_XY target=,draw QR zigzag hatch 202.2
+XY 31.01 32 600,0,ACK_XY target=,draw QR zigzag hatch 202.3
+XY 30.515 32 600,0,ACK_XY target=,draw QR zigzag hatch 202.4
+XY 31.515 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.5
+XY 31.02 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.6
+XY 30.02 32 600,0,ACK_XY target=,draw QR zigzag hatch 202.7
+XY 29.525 32 600,0,ACK_XY target=,draw QR zigzag hatch 202.8
+XY 30.525 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.9
+XY 30.03 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.10
+XY 29.03 32 600,0,ACK_XY target=,draw QR zigzag hatch 202.11
+XY 28.535 32 600,0,ACK_XY target=,draw QR zigzag hatch 202.12
+XY 29.535 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.13
+XY 29.04 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.14
+XY 28.04 32 600,0,ACK_XY target=,draw QR zigzag hatch 202.15
+XY 28 32.455 600,0,ACK_XY target=,draw QR zigzag hatch 202.16
+XY 28.545 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.17
+XY 28.05 33 600,0,ACK_XY target=,draw QR zigzag hatch 202.18
+XY 28 32.95 600,0,ACK_XY target=,draw QR zigzag hatch 202.19
+PENUP,120,PENUP,finish QR zigzag hatch 202
+XY 14 33 1800,0,ACK_XY target=,travel to QR outline 203
+PENDOWN,120,PENDOWN,start QR outline 203
+XY 15 33 600,0,ACK_XY target=,draw QR outline 203.1
+XY 15 34 600,0,ACK_XY target=,draw QR outline 203.2
+XY 14 34 600,0,ACK_XY target=,draw QR outline 203.3
+XY 14 33 600,0,ACK_XY target=,draw QR outline 203.4
+PENUP,120,PENUP,finish QR outline 203
+XY 14.505 33 1800,0,ACK_XY target=,travel to QR zigzag hatch 204
+PENDOWN,120,PENDOWN,start QR zigzag hatch 204
+XY 15 33.495 600,0,ACK_XY target=,draw QR zigzag hatch 204.1
+XY 15 33.99 600,0,ACK_XY target=,draw QR zigzag hatch 204.2
+XY 14.01 33 600,0,ACK_XY target=,draw QR zigzag hatch 204.3
+XY 14 33.485 600,0,ACK_XY target=,draw QR zigzag hatch 204.4
+XY 14.515 34 600,0,ACK_XY target=,draw QR zigzag hatch 204.5
+XY 14.02 34 600,0,ACK_XY target=,draw QR zigzag hatch 204.6
+XY 14 33.98 600,0,ACK_XY target=,draw QR zigzag hatch 204.7
+PENUP,120,PENUP,finish QR zigzag hatch 204
+XY 20 33 1800,0,ACK_XY target=,travel to QR outline 205
+PENDOWN,120,PENDOWN,start QR outline 205
+XY 21 33 600,0,ACK_XY target=,draw QR outline 205.1
+XY 21 34 600,0,ACK_XY target=,draw QR outline 205.2
+XY 20 34 600,0,ACK_XY target=,draw QR outline 205.3
+XY 20 33 600,0,ACK_XY target=,draw QR outline 205.4
+PENUP,120,PENUP,finish QR outline 205
+XY 20.505 33 1800,0,ACK_XY target=,travel to QR zigzag hatch 206
+PENDOWN,120,PENDOWN,start QR zigzag hatch 206
+XY 21 33.495 600,0,ACK_XY target=,draw QR zigzag hatch 206.1
+XY 21 33.99 600,0,ACK_XY target=,draw QR zigzag hatch 206.2
+XY 20.01 33 600,0,ACK_XY target=,draw QR zigzag hatch 206.3
+XY 20 33.485 600,0,ACK_XY target=,draw QR zigzag hatch 206.4
+XY 20.515 34 600,0,ACK_XY target=,draw QR zigzag hatch 206.5
+XY 20.02 34 600,0,ACK_XY target=,draw QR zigzag hatch 206.6
+XY 20 33.98 600,0,ACK_XY target=,draw QR zigzag hatch 206.7
+PENUP,120,PENUP,finish QR zigzag hatch 206
+XY 24 33 1800,0,ACK_XY target=,travel to QR outline 207
+PENDOWN,120,PENDOWN,start QR outline 207
+XY 29 33 600,0,ACK_XY target=,draw QR outline 207.1
+XY 29 34 600,0,ACK_XY target=,draw QR outline 207.2
+XY 24 34 600,0,ACK_XY target=,draw QR outline 207.3
+XY 24 33 600,0,ACK_XY target=,draw QR outline 207.4
+PENUP,120,PENUP,finish QR outline 207
+XY 28.505 33 1800,0,ACK_XY target=,travel to QR zigzag hatch 208
+PENDOWN,120,PENDOWN,start QR zigzag hatch 208
+XY 29 33.495 600,0,ACK_XY target=,draw QR zigzag hatch 208.1
+XY 29 33.99 600,0,ACK_XY target=,draw QR zigzag hatch 208.2
+XY 28.01 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.3
+XY 27.515 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.4
+XY 28.515 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.5
+XY 28.02 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.6
+XY 27.02 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.7
+XY 26.525 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.8
+XY 27.525 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.9
+XY 27.03 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.10
+XY 26.03 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.11
+XY 25.535 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.12
+XY 26.535 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.13
+XY 26.04 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.14
+XY 25.04 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.15
+XY 24.545 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.16
+XY 25.545 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.17
+XY 25.05 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.18
+XY 24.05 33 600,0,ACK_XY target=,draw QR zigzag hatch 208.19
+XY 24 33.445 600,0,ACK_XY target=,draw QR zigzag hatch 208.20
+XY 24.555 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.21
+XY 24.06 34 600,0,ACK_XY target=,draw QR zigzag hatch 208.22
+XY 24 33.94 600,0,ACK_XY target=,draw QR zigzag hatch 208.23
+PENUP,120,PENUP,finish QR zigzag hatch 208
+XY 32 33 1800,0,ACK_XY target=,travel to QR outline 209
+PENDOWN,120,PENDOWN,start QR outline 209
+XY 33 33 600,0,ACK_XY target=,draw QR outline 209.1
+XY 33 34 600,0,ACK_XY target=,draw QR outline 209.2
+XY 32 34 600,0,ACK_XY target=,draw QR outline 209.3
+XY 32 33 600,0,ACK_XY target=,draw QR outline 209.4
+PENUP,120,PENUP,finish QR outline 209
+XY 32.505 33 1800,0,ACK_XY target=,travel to QR zigzag hatch 210
+PENDOWN,120,PENDOWN,start QR zigzag hatch 210
+XY 33 33.495 600,0,ACK_XY target=,draw QR zigzag hatch 210.1
+XY 33 33.99 600,0,ACK_XY target=,draw QR zigzag hatch 210.2
+XY 32.01 33 600,0,ACK_XY target=,draw QR zigzag hatch 210.3
+XY 32 33.485 600,0,ACK_XY target=,draw QR zigzag hatch 210.4
+XY 32.515 34 600,0,ACK_XY target=,draw QR zigzag hatch 210.5
+XY 32.02 34 600,0,ACK_XY target=,draw QR zigzag hatch 210.6
+XY 32 33.98 600,0,ACK_XY target=,draw QR zigzag hatch 210.7
+PENUP,120,PENUP,finish QR zigzag hatch 210
+XY 34 33 1800,0,ACK_XY target=,travel to QR outline 211
+PENDOWN,120,PENDOWN,start QR outline 211
+XY 35 33 600,0,ACK_XY target=,draw QR outline 211.1
+XY 35 34 600,0,ACK_XY target=,draw QR outline 211.2
+XY 34 34 600,0,ACK_XY target=,draw QR outline 211.3
+XY 34 33 600,0,ACK_XY target=,draw QR outline 211.4
+PENUP,120,PENUP,finish QR outline 211
+XY 34.505 33 1800,0,ACK_XY target=,travel to QR zigzag hatch 212
+PENDOWN,120,PENDOWN,start QR zigzag hatch 212
+XY 35 33.495 600,0,ACK_XY target=,draw QR zigzag hatch 212.1
+XY 35 33.99 600,0,ACK_XY target=,draw QR zigzag hatch 212.2
+XY 34.01 33 600,0,ACK_XY target=,draw QR zigzag hatch 212.3
+XY 34 33.485 600,0,ACK_XY target=,draw QR zigzag hatch 212.4
+XY 34.515 34 600,0,ACK_XY target=,draw QR zigzag hatch 212.5
+XY 34.02 34 600,0,ACK_XY target=,draw QR zigzag hatch 212.6
+XY 34 33.98 600,0,ACK_XY target=,draw QR zigzag hatch 212.7
+PENUP,120,PENUP,finish QR zigzag hatch 212
+XY 14 34 1800,0,ACK_XY target=,travel to QR outline 213
+PENDOWN,120,PENDOWN,start QR outline 213
+XY 21 34 600,0,ACK_XY target=,draw QR outline 213.1
+XY 21 35 600,0,ACK_XY target=,draw QR outline 213.2
+XY 14 35 600,0,ACK_XY target=,draw QR outline 213.3
+XY 14 34 600,0,ACK_XY target=,draw QR outline 213.4
+PENUP,120,PENUP,finish QR outline 213
+XY 20.505 34 1800,0,ACK_XY target=,travel to QR zigzag hatch 214
+PENDOWN,120,PENDOWN,start QR zigzag hatch 214
+XY 21 34.495 600,0,ACK_XY target=,draw QR zigzag hatch 214.1
+XY 21 34.99 600,0,ACK_XY target=,draw QR zigzag hatch 214.2
+XY 20.01 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.3
+XY 19.515 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.4
+XY 20.515 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.5
+XY 20.02 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.6
+XY 19.02 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.7
+XY 18.525 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.8
+XY 19.525 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.9
+XY 19.03 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.10
+XY 18.03 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.11
+XY 17.535 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.12
+XY 18.535 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.13
+XY 18.04 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.14
+XY 17.04 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.15
+XY 16.545 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.16
+XY 17.545 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.17
+XY 17.05 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.18
+XY 16.05 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.19
+XY 15.555 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.20
+XY 16.555 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.21
+XY 16.06 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.22
+XY 15.06 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.23
+XY 14.565 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.24
+XY 15.565 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.25
+XY 15.07 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.26
+XY 14.07 34 600,0,ACK_XY target=,draw QR zigzag hatch 214.27
+XY 14 34.425 600,0,ACK_XY target=,draw QR zigzag hatch 214.28
+XY 14.575 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.29
+XY 14.08 35 600,0,ACK_XY target=,draw QR zigzag hatch 214.30
+XY 14 34.92 600,0,ACK_XY target=,draw QR zigzag hatch 214.31
+PENUP,120,PENUP,finish QR zigzag hatch 214
+XY 22 34 1800,0,ACK_XY target=,travel to QR outline 215
+PENDOWN,120,PENDOWN,start QR outline 215
+XY 23 34 600,0,ACK_XY target=,draw QR outline 215.1
+XY 23 35 600,0,ACK_XY target=,draw QR outline 215.2
+XY 22 35 600,0,ACK_XY target=,draw QR outline 215.3
+XY 22 34 600,0,ACK_XY target=,draw QR outline 215.4
+PENUP,120,PENUP,finish QR outline 215
+XY 22.505 34 1800,0,ACK_XY target=,travel to QR zigzag hatch 216
+PENDOWN,120,PENDOWN,start QR zigzag hatch 216
+XY 23 34.495 600,0,ACK_XY target=,draw QR zigzag hatch 216.1
+XY 23 34.99 600,0,ACK_XY target=,draw QR zigzag hatch 216.2
+XY 22.01 34 600,0,ACK_XY target=,draw QR zigzag hatch 216.3
+XY 22 34.485 600,0,ACK_XY target=,draw QR zigzag hatch 216.4
+XY 22.515 35 600,0,ACK_XY target=,draw QR zigzag hatch 216.5
+XY 22.02 35 600,0,ACK_XY target=,draw QR zigzag hatch 216.6
+XY 22 34.98 600,0,ACK_XY target=,draw QR zigzag hatch 216.7
+PENUP,120,PENUP,finish QR zigzag hatch 216
+XY 24 34 1800,0,ACK_XY target=,travel to QR outline 217
+PENDOWN,120,PENDOWN,start QR outline 217
+XY 25 34 600,0,ACK_XY target=,draw QR outline 217.1
+XY 25 35 600,0,ACK_XY target=,draw QR outline 217.2
+XY 24 35 600,0,ACK_XY target=,draw QR outline 217.3
+XY 24 34 600,0,ACK_XY target=,draw QR outline 217.4
+PENUP,120,PENUP,finish QR outline 217
+XY 24.505 34 1800,0,ACK_XY target=,travel to QR zigzag hatch 218
+PENDOWN,120,PENDOWN,start QR zigzag hatch 218
+XY 25 34.495 600,0,ACK_XY target=,draw QR zigzag hatch 218.1
+XY 25 34.99 600,0,ACK_XY target=,draw QR zigzag hatch 218.2
+XY 24.01 34 600,0,ACK_XY target=,draw QR zigzag hatch 218.3
+XY 24 34.485 600,0,ACK_XY target=,draw QR zigzag hatch 218.4
+XY 24.515 35 600,0,ACK_XY target=,draw QR zigzag hatch 218.5
+XY 24.02 35 600,0,ACK_XY target=,draw QR zigzag hatch 218.6
+XY 24 34.98 600,0,ACK_XY target=,draw QR zigzag hatch 218.7
+PENUP,120,PENUP,finish QR zigzag hatch 218
+XY 26 34 1800,0,ACK_XY target=,travel to QR outline 219
+PENDOWN,120,PENDOWN,start QR outline 219
+XY 27 34 600,0,ACK_XY target=,draw QR outline 219.1
+XY 27 35 600,0,ACK_XY target=,draw QR outline 219.2
+XY 26 35 600,0,ACK_XY target=,draw QR outline 219.3
+XY 26 34 600,0,ACK_XY target=,draw QR outline 219.4
+PENUP,120,PENUP,finish QR outline 219
+XY 26.505 34 1800,0,ACK_XY target=,travel to QR zigzag hatch 220
+PENDOWN,120,PENDOWN,start QR zigzag hatch 220
+XY 27 34.495 600,0,ACK_XY target=,draw QR zigzag hatch 220.1
+XY 27 34.99 600,0,ACK_XY target=,draw QR zigzag hatch 220.2
+XY 26.01 34 600,0,ACK_XY target=,draw QR zigzag hatch 220.3
+XY 26 34.485 600,0,ACK_XY target=,draw QR zigzag hatch 220.4
+XY 26.515 35 600,0,ACK_XY target=,draw QR zigzag hatch 220.5
+XY 26.02 35 600,0,ACK_XY target=,draw QR zigzag hatch 220.6
+XY 26 34.98 600,0,ACK_XY target=,draw QR zigzag hatch 220.7
+PENUP,120,PENUP,finish QR zigzag hatch 220
+XY 29 34 1800,0,ACK_XY target=,travel to QR outline 221
+PENDOWN,120,PENDOWN,start QR outline 221
+XY 30 34 600,0,ACK_XY target=,draw QR outline 221.1
+XY 30 35 600,0,ACK_XY target=,draw QR outline 221.2
+XY 29 35 600,0,ACK_XY target=,draw QR outline 221.3
+XY 29 34 600,0,ACK_XY target=,draw QR outline 221.4
+PENUP,120,PENUP,finish QR outline 221
+XY 29.505 34 1800,0,ACK_XY target=,travel to QR zigzag hatch 222
+PENDOWN,120,PENDOWN,start QR zigzag hatch 222
+XY 30 34.495 600,0,ACK_XY target=,draw QR zigzag hatch 222.1
+XY 30 34.99 600,0,ACK_XY target=,draw QR zigzag hatch 222.2
+XY 29.01 34 600,0,ACK_XY target=,draw QR zigzag hatch 222.3
+XY 29 34.485 600,0,ACK_XY target=,draw QR zigzag hatch 222.4
+XY 29.515 35 600,0,ACK_XY target=,draw QR zigzag hatch 222.5
+XY 29.02 35 600,0,ACK_XY target=,draw QR zigzag hatch 222.6
+XY 29 34.98 600,0,ACK_XY target=,draw QR zigzag hatch 222.7
+PENUP,120,PENUP,finish QR zigzag hatch 222
+XY 31 34 1800,0,ACK_XY target=,travel to QR outline 223
+PENDOWN,120,PENDOWN,start QR outline 223
+XY 33 34 600,0,ACK_XY target=,draw QR outline 223.1
+XY 33 35 600,0,ACK_XY target=,draw QR outline 223.2
+XY 31 35 600,0,ACK_XY target=,draw QR outline 223.3
+XY 31 34 600,0,ACK_XY target=,draw QR outline 223.4
+PENUP,120,PENUP,finish QR outline 223
+XY 32.505 34 1800,0,ACK_XY target=,travel to QR zigzag hatch 224
+PENDOWN,120,PENDOWN,start QR zigzag hatch 224
+XY 33 34.495 600,0,ACK_XY target=,draw QR zigzag hatch 224.1
+XY 33 34.99 600,0,ACK_XY target=,draw QR zigzag hatch 224.2
+XY 32.01 34 600,0,ACK_XY target=,draw QR zigzag hatch 224.3
+XY 31.515 34 600,0,ACK_XY target=,draw QR zigzag hatch 224.4
+XY 32.515 35 600,0,ACK_XY target=,draw QR zigzag hatch 224.5
+XY 32.02 35 600,0,ACK_XY target=,draw QR zigzag hatch 224.6
+XY 31.02 34 600,0,ACK_XY target=,draw QR zigzag hatch 224.7
+XY 31 34.475 600,0,ACK_XY target=,draw QR zigzag hatch 224.8
+XY 31.525 35 600,0,ACK_XY target=,draw QR zigzag hatch 224.9
+XY 31.03 35 600,0,ACK_XY target=,draw QR zigzag hatch 224.10
+XY 31 34.97 600,0,ACK_XY target=,draw QR zigzag hatch 224.11
+PENUP,120,PENUP,finish QR zigzag hatch 224
+PENUP,250,PENUP,final pen-up
