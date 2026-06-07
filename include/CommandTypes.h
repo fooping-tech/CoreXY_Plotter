@@ -30,4 +30,5 @@ enum class CommandType {
   LED_PARAM,
   LED_STATUS,
   MELODY,
+  GCODE,
 };

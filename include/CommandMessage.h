@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "CommandTypes.h"
 #include "LedTypes.h"
+#include "ParsedGcode.h"
 
 struct CommandMessage {
   CommandType type = CommandType::INVALID;
@@ -15,5 +16,6 @@ struct CommandMessage {
   int32_t b_steps = 0;
   uint32_t duration_us = 0;
   LedCommand led;
+  ParsedGcode gcode;
   char error[96] = {};
 };

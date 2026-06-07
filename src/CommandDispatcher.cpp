@@ -1,5 +1,7 @@
 #include "CommandDispatcher.h"
+#include "GcodeParser.h"
 #include "PlotterConfig.h"
+#include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -41,8 +43,16 @@ CommandMessage CommandDispatcher::parse(const char* line) {
     return command;
   }
   snprintf(command.name, sizeof(command.name), "%s", name);
+  name[0] = static_cast<char>(toupper(static_cast<unsigned char>(name[0])));
 
-  if (strcmp(name, "HELP") == 0) command.type = CommandType::HELP;
+  if (name[0] == 'G' || name[0] == 'M') {
+    if (!GcodeParser::parse(line, command.gcode, command.error,
+                            sizeof(command.error))) {
+      return command;
+    }
+    command.type = CommandType::GCODE;
+  }
+  else if (strcmp(name, "HELP") == 0) command.type = CommandType::HELP;
   else if (strcmp(name, "CONFIG") == 0) command.type = CommandType::CONFIG;
   else if (strcmp(name, "POS") == 0) command.type = CommandType::POS;
   else if (strcmp(name, "ZERO") == 0) command.type = CommandType::ZERO;

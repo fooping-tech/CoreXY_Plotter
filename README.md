@@ -11,7 +11,7 @@ pio run
 
 ## Simulation mode
 
-`include/PlotterConfig.h`の`SIMULATION_MODE`は初期値`1`です。この状態では
+`include/PlotterConfig.h`の`SIMULATION_MODE`は初期確認時に`1`へ切り替えて使えます。この状態では
 `XY`、`TEST_A`、`TEST_B`コマンドは予定動作をログ表示しますが、モータ出力APIを
 呼びません。実機確認前に`SELFTEST`とsimulation用コマンドを実行してください。
 
@@ -38,6 +38,15 @@ LED_STATUS
 LED_OFF
 TMC_INIT
 MELODY
+G28
+G21
+G90
+G1 X10 Y10 F600
+G91
+G1 X5 Y0 F600
+M3
+M5
+M114
 ```
 
 `MELODY`は診断専用です。起動時には自動再生せず、通常motionがidleでTMC UARTが
@@ -47,7 +56,8 @@ readyの場合だけ明示実行します。終了または中断時には通常
 
 - TMC2209のMS1/MS2またはジャンパで、A/Bアドレスをそれぞれ`0`と`1`に設定する必要があります。
 - `TMC_STATUS`の診断値とメロディ用1200mA profileは実機条件に合わせた確認が必要です。
-- `moveABSteps()`はbring-up用で、厳密なXY線形補間を保証しません。
-- homing、G-code、look-ahead、junction deviation、timed segmentは未実装です。
+- `TEST_A`/`TEST_B`の独立A/B moveはbring-up用で、厳密なXY線形補間を保証しません。
+- G-codeは最小対応です。`G0/G1/G20/G21/G28/G90/G91/M3/M5/M114`のみ対応し、arc、Z、checksum検証、完全なGRBL互換は未実装です。
+- look-aheadとjunction deviationは実装済みですが、実機調整は未完了です。
 # CoreXY_Plotter
 # CoreXY_Plotter

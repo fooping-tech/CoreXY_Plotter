@@ -1,0 +1,20 @@
+command,delay_ms,expect,comment
+HELP,1500,G0/G1,Confirm firmware help includes minimal G-code support
+SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion before G-code moves
+ZERO,500,ZERO,Forget stale logical position before clearing alarm
+ALARM_CLEAR,500,ALARM_CLEAR complete,Clear any previous alarm before homing
+LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing
+G28,500,HOME complete,Home through G-code before XY moves
+G21,300,units=MM,Use millimeter X/Y coordinates
+G90,300,distance=ABSOLUTE,Use absolute positioning
+G1 X10 Y10 F600,2500,"ACK_XY target=(10.000,10.000)",Absolute linear move
+G91,300,distance=RELATIVE,Switch to relative positioning
+G1 X5 Y0 F600,2000,"ACK_XY target=(15.000,10.000)",Relative +X move
+G20,300,units=INCH,Switch X/Y coordinate input to inches
+G1 X0.1 Y0 F600,2000,"ACK_XY target=(17.540,10.000)",Relative inch X/Y conversion; F remains mm/min
+G21,300,units=MM,Return to millimeter coordinates
+G90,300,distance=ABSOLUTE,Return to absolute positioning
+M3,500,PEN DOWN,Map spindle-on to pen down
+G0 X10 Y10 F600,2000,"ACK_XY target=(10.000,10.000)",Rapid command uses existing safe XY path
+M5,500,PEN UP,Map spindle-off to pen up
+M114,500,POS,Report current position

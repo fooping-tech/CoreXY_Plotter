@@ -2,6 +2,7 @@
 #include "AppContext.h"
 #include "CoreXYKinematics.h"
 #include "Diagnostics.h"
+#include "GcodeInterpreter.h"
 #include "JunctionPlanner.h"
 #include "PlotterConfig.h"
 #include "PlannerQueue.h"
@@ -12,6 +13,7 @@
 namespace {
 TrapezoidPlanner trapezoid_planner;
 JunctionPlanner junction_planner;
+GcodeInterpreter gcode_interpreter;
 SegmentGenerator segment_generator;
 SegmentQueue segment_queue;
 PlannerQueue planner_queue;
@@ -123,6 +125,28 @@ bool receiveNextCommand(CommandMessage& command, TickType_t ticks_to_wait) {
   return xQueueReceive(command_queue, &command, ticks_to_wait) == pdTRUE;
 }
 
+GcodeInterpreterResult translateGcodeCommand(const CommandMessage& command,
+                                             const MachineState& reference,
+                                             CommandMessage& translated) {
+  char log[128] = {};
+  const GcodeInterpreterResult result = gcode_interpreter.interpret(
+      command.gcode, reference, translated, log, sizeof(log));
+  if (result == GcodeInterpreterResult::MODAL_UPDATE) {
+    logMessage("%s", log);
+  } else if (result == GcodeInterpreterResult::ERROR) {
+    logMessage("ERROR: %s", log);
+  } else if (translated.type == CommandType::XY) {
+    logMessage("GCODE %s -> XY X=%.3f Y=%.3f F=%.3f mode=%s units=%s",
+               command.name, translated.x_mm, translated.y_mm,
+               translated.feed_mm_min,
+               gcode_interpreter.absoluteMode() ? "ABS" : "REL",
+               gcode_interpreter.unitsInches() ? "INCH" : "MM");
+  } else {
+    logMessage("GCODE %s -> command %s", command.name, translated.name);
+  }
+  return result;
+}
+
 bool buildXYBlock(const CommandMessage& command, float start_x_mm,
                   float start_y_mm, MotionBlock& block) {
   if (stopForAbort("XY rejected before planning")) {
@@ -224,6 +248,7 @@ void handleXYBatch(const CommandMessage& first_command) {
   planner_queue.clear();
   float planned_x_mm = machine_state.x_mm;
   float planned_y_mm = machine_state.y_mm;
+  float planned_feed_mm_min = machine_state.feed_mm_min;
 
   MotionBlock block{};
   if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm, block)) return;
@@ -234,11 +259,32 @@ void handleXYBatch(const CommandMessage& first_command) {
   }
   planned_x_mm = first_command.x_mm;
   planned_y_mm = first_command.y_mm;
+  planned_feed_mm_min = first_command.feed_mm_min;
 
   CommandMessage next_command;
   while (!planner_queue.isFull() &&
          receiveNextCommand(next_command,
                             pdMS_TO_TICKS(LOOKAHEAD_BATCH_COLLECT_MS))) {
+    if (next_command.type == CommandType::GCODE) {
+      MachineState planned_state = machine_state;
+      planned_state.x_mm = planned_x_mm;
+      planned_state.y_mm = planned_y_mm;
+      planned_state.feed_mm_min = planned_feed_mm_min;
+      CommandMessage translated{};
+      const GcodeInterpreterResult result =
+          translateGcodeCommand(next_command, planned_state, translated);
+      if (result == GcodeInterpreterResult::ERROR) {
+        return;
+      }
+      if (result == GcodeInterpreterResult::MODAL_UPDATE) {
+        continue;
+      }
+      if (translated.type != CommandType::XY) {
+        stashPendingCommand(translated);
+        break;
+      }
+      next_command = translated;
+    }
     if (next_command.type != CommandType::XY) {
       stashPendingCommand(next_command);
       break;
@@ -254,6 +300,7 @@ void handleXYBatch(const CommandMessage& first_command) {
     }
     planned_x_mm = next_command.x_mm;
     planned_y_mm = next_command.y_mm;
+    planned_feed_mm_min = next_command.feed_mm_min;
   }
 
   if (!planQueuedBlocks()) {
@@ -472,6 +519,21 @@ void motionTask(void*) {
         motor_melody_controller.play(stepper_backend, tmc_manager,
                                      safety_manager);
         break;
+      case CommandType::GCODE: {
+        CommandMessage translated{};
+        const GcodeInterpreterResult result =
+            translateGcodeCommand(command, machine_state, translated);
+        if (result == GcodeInterpreterResult::ERROR ||
+            result == GcodeInterpreterResult::MODAL_UPDATE) {
+          break;
+        }
+        if (translated.type == CommandType::XY) {
+          handleXYBatch(translated);
+        } else {
+          stashPendingCommand(translated);
+        }
+        break;
+      }
       case CommandType::LED:
       case CommandType::LED_PIXEL:
       case CommandType::LED_OFF:

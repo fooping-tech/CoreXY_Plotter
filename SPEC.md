@@ -731,25 +731,34 @@ Phase 10では、motionTaskが連続して受信できた`XY`を短いバッチ�
 
 ---
 
-## 21. 将来G-code仕様
+## 21. 最小G-code仕様
 
-初期では実装しない。  
-将来対応予定:
+Phase 7では、完全なG-code互換ではなく、既存のSerialコマンドへ安全に接続できる
+最小G-codeを実装する。
 
 | G-code | 意味 |
 |---|---|
-| G0 | rapid move |
-| G1 | linear feed move |
-| G20 | inch |
-| G21 | mm |
-| G28 | homing |
-| G90 | absolute |
-| G91 | relative |
-| M3 | pen down |
-| M5 | pen up |
-| M114 | position report |
+| G0 | 既存`XY`経路を使うrapid相当移動 |
+| G1 | 既存`XY`経路を使うlinear feed移動 |
+| G20 | X/Y入力単位をinchへ切替 |
+| G21 | X/Y入力単位をmmへ切替 |
+| G28 | 既存`HOME`経路へ接続 |
+| G90 | absolute positioning |
+| G91 | relative positioning |
+| M3 | 既存`PENDOWN`経路へ接続 |
+| M5 | 既存`PENUP`経路へ接続 |
+| M114 | 既存`POS`経路へ接続 |
 
 F値はmm/minとして扱う。
+
+実装ルール:
+
+- `GcodeParser`は文字列を`ParsedGcode`へ変換するだけで、motionを直接実行しない
+- `GcodeInterpreter`はmotion core側で`MachineState`を参照し、absolute/relativeと単位を解決する
+- `G0`/`G1`は既存`XY`コマンドへ変換し、SafetyManager、PlannerQueue、TrapezoidPlanner、JunctionPlanner、SegmentGeneratorを通る
+- `G20`はX/Y入力値だけをinchからmmへ変換し、`F`はmm/minのまま扱う
+- 1行に複数のG/Mコードは対応しない
+- Z軸、arc、checksum検証、modal motion continuation、完全なGRBL互換は対象外とする
 
 ---
 
@@ -775,3 +784,4 @@ F値はmm/minとして扱う。
 - 動き出し・動き終わりの歪み調査用に、同一中心へ5個の正方形を重ねて描く反時計回り版`concentric_squares_check.csv`と時計回り版`concentric_squares_clockwise_check.csv`をSerial Toolから実行できる
 - 通常版完走後の速度依存性確認用に、feedを省略して`DEFAULT_FEED_MM_MIN`で実行する`concentric_squares_high_speed_check.csv`をSerial Toolから実行できる
 - `diagnostic_ab_timed_square_draw.csv`で、PENDOWNした四角描画を`AB_TIMED`直接実行経路で行い、通常XY描画CSVと比較できる
+- `G0/G1/G20/G21/G28/G90/G91/M3/M5/M114`の最小G-codeをSerialから受け、既存の安全なmotion/pen/status/homing経路へ接続できる

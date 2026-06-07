@@ -46,7 +46,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の想定フェーズ:
 
 ```text
-現在地: Phase 0〜6.9 完了。Phase 8 台形加減速、Phase 9 timed segment、Phase 10 look-ahead / junction deviation実装済み。実機bring-upで脱調対策を調整中
+現在地: Phase 0〜10 実装済み。Phase 10 look-ahead / junction deviationは実機未確認。実機bring-upで脱調対策を調整中
 ```
 
 現在の状態:
@@ -66,7 +66,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 台形加減速 | `TrapezoidPlanner`でTRAPEZOID/TRIANGULAR profileを実装済み |
 | timed segment | `SegmentGenerator`とFastAccelStepper `moveTimed()`によるA/B同期実行を実装済み |
 | 脱調対策 | 描画用の保守的な速度/加速度/電流/ペン圧設定とcenter shapes実機確認を追加 |
-| G-code parser | 未実装予定 |
+| G-code parser | Phase 7最小G-codeを実装済み、実機確認は未完了 |
 | look-ahead | 実装済み、実機未確認 |
 | junction deviation | 実装済み、実機未確認 |
 
@@ -94,7 +94,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 6.7 | NEOPIXEL Status LED | GPIO33の外付けNEOPIXELを設定灯数で制御する | [x] |
 | 6.8 | Motor Melody Diagnostics | STEP周波数とTMC設定を一時変更して診断メロディを鳴らす | [x] |
 | 6.9 | Homing bring-up | X/Y原点復帰、hard limit、homed状態を実装する | [x] |
-| 7 | 最小G-code | G0/G1/G90/G91/G20/G21/M3/M5/M114 | [ ] |
+| 7 | 最小G-code | G0/G1/G90/G91/G20/G21/G28/M3/M5/M114 | [x] |
 | 8 | 台形加減速 | TrapezoidPlannerを実装 | [x] |
 | 9 | timed segment | SegmentGeneratorでA/B同期 | [x] |
 | 10 | look-ahead | JunctionPlanner、junction deviation | [-] |
@@ -103,12 +103,12 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の実装対象:
 
 ```text
-Phase 9 timed segment実装後の実機描画安定化
+Phase 7最小G-code実装後の実機確認と、timed segment実機描画安定化
 ```
 
 Phase 0〜6.9、Phase 8、Phase 9は完了済み。
 Phase 10は実装済み、実機確認は未完了。
-Phase 7、Phase 11以降は、実装範囲を確認してから着手する。
+Phase 7は最小G-code範囲で実装済み。Phase 11以降は、実装範囲を確認してから着手する。
 ただし、先々の設計を忘れないようチェックリストとして残しておく。
 
 ---
@@ -960,27 +960,30 @@ G-codeの`G28`を実装する前に、Serialコマンドで原点復帰を検証
 
 # Phase 7: 最小G-code
 
-Status: 将来。まだ実装しない。
+Status: 実装済み。`G0/G1`は既存`XY`経路へ、`G28`は既存`HOME`経路へ接続する。実機確認は未完了。
 
 ## チェックリスト
 
-- [ ] `GcodeParser`を追加
-- [ ] `ParsedGcode`を追加
-- [ ] `GcodeInterpreter`を追加
-- [ ] `G0 X Y F`
-- [ ] `G1 X Y F`
-- [ ] `G20`
-- [ ] `G21`
-- [ ] `G28`
-- [ ] `G90`
-- [ ] `G91`
-- [ ] `M3`
-- [ ] `M5`
-- [ ] `M114`
-- [ ] parserはmotionを直接実行しない
-- [ ] interpreterがMachineStateを扱う
-- [ ] motionはSafetyManagerを通る
-- [ ] F値はmm/minとして扱う
+- [x] `GcodeParser`を追加
+- [x] `ParsedGcode`を追加
+- [x] `GcodeInterpreter`を追加
+- [x] `G0 X Y F`
+- [x] `G1 X Y F`
+- [x] `G20`
+- [x] `G21`
+- [x] `G28`
+- [x] `G90`
+- [x] `G91`
+- [x] `M3`
+- [x] `M5`
+- [x] `M114`
+- [x] parserはmotionを直接実行しない
+- [x] interpreterがMachineStateを扱う
+- [x] motionはSafetyManagerを通る
+- [x] F値はmm/minとして扱う
+- [x] `tools/serial_tool/examples/gcode_check.csv`を追加
+- [x] `tools/serial_tool/docs/gcode-check.md`を追加
+- [ ] 実機で`gcode_check.csv`を実行し、`G28`、単位切替、相対移動、pen、`M114`を確認する
 
 ---
 
@@ -1714,6 +1717,8 @@ Phase 6.9を実装してください。
 | R20 | [ ] | 動き出し・動き終わりの歪み原因が、加減速設定、ペン圧、ベルト張り、機械ガタ、ステップ抜けのどれか未確定 | 反時計回り/時計回りの同心正方形CSVで方向、サイズ、始点/終点依存性を切り分ける |
 | R21 | [ ] | AB_TIMEDでも歪む場合、`StepperBackendFastAccel`の`moveTimed()`投入、A/B同期開始、duration指定、queue容量見積もりのどれが支配的か未確定 | `diagnostic_ab_timed_square_draw.csv`で小/大/連続/方向違いの結果を比較し、backendログと照合する |
 | R22 | [ ] | Phase 10のjunction deviation値、classic jerk上限、batch収集時間が実機で未調整 | `lookahead_check.csv`を`--queue-mode`で実行し、`LOOKAHEAD blocks>1`、角の丸まり、閉じズレ、脱調、温度を確認して調整する |
+| R23 | [ ] | Phase 7最小G-codeはbuild確認のみで、実機での`G28`、相対移動、inch換算、pen動作確認が未完了 | `gcode_check.csv`を実行し、`ACK_XY`、`POS`、pen、limit/homing状態を確認する |
+| R24 | [ ] | 2026-06-07時点でCore2 USB serial portが見えず、`pio run --target upload`がBluetooth port自動検出で失敗 | Core2をUSB接続し、`/dev/cu.usbserial-*`等のportを指定してuploadとSerial Monitor確認を実行する |
 
 ---
 
@@ -1754,6 +1759,8 @@ Phase 6.9を実装してください。
 | 2026-06-07 | QR Toolの描画方式を、横run矩形の外周描画と45度斜線ハッチングに変更 | Codex |
 | 2026-06-07 | QR Toolの内部ハッチングを、線ごとのペン上下から連続ジグザグ塗りつぶしに変更 | Codex |
 | 2026-06-07 | QR Toolの塗りつぶしを横run単位から上下左右接続成分単位の横方向ジグザグ連続パスへ変更 | Codex |
+| 2026-06-07 | Phase 7最小G-codeを実装。`GcodeParser`、`ParsedGcode`、`GcodeInterpreter`、`G0/G1/G20/G21/G28/G90/G91/M3/M5/M114`、gcode check CSV/手順書を追加 | Codex |
+| 2026-06-07 | Phase 7実装後に`pio run`成功、`gcode_check.csv --dry-run`成功、`test_serial_send.py`成功。Core2 USB port未検出のためuploadと実機Serial確認は未実行 | Codex |
 
 ---
 
@@ -1782,21 +1789,24 @@ M0: M5Stack Core2用の安全なファームウェア土台を作る
 次マイルストーンは以下。
 
 ```text
-M1: 実機homingとhard limit alarmの土台を作る
+M1: 実機homing、timed segment、最小G-codeの土台を作る
 ```
 
 完了条件:
 
-- [ ] Phase 6.9 Homing bring-up complete
+- [x] Phase 6.9 Homing bring-up complete
+- [x] Phase 7 minimal G-code structure complete
+- [x] Phase 8 trapezoid planner complete
+- [x] Phase 9 timed segment complete
+- [-] Phase 10 look-ahead implemented; machine verification pending
 
 未実装のままでよいもの:
 
-- [ ] G-code parser
 - [ ] WebUI
 - [ ] SD execution
 - [ ] input shaping
 
 注意:
 
-Phase 7とPhase 11以降は、実装範囲を確認してから着手する。  
+Phase 11以降は、実装範囲を確認してから着手する。  
 Codexは勝手に実装しないこと。

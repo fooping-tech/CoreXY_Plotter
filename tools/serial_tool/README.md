@@ -89,6 +89,7 @@ python tools/serial_tool/serial_send.py \
 | [Trapezoid Check](docs/trapezoid-check.md) | MotionBlockの台形/三角加減速計画ログ | `examples/trapezoid_check.csv` |
 | [Timed Segment Check](docs/timed-segment-check.md) | DDA timed segment生成とFastAccelStepper `moveTimed()`投入 | `examples/timed_segment_check.csv` |
 | [Look-ahead Check](docs/lookahead-check.md) | JunctionPlanner、junction deviation、連続XYバッチの確認 | `examples/lookahead_check.csv` |
+| [G-code Check](docs/gcode-check.md) | Phase 7の最小G-code parser/interpreter確認 | `examples/gcode_check.csv` |
 | [High-Speed Check](docs/high-speed-check.md) | homing後の通常XY移動を上限feed付近で確認 | `examples/high_speed_check.csv`, `examples/high_speed_sweep_check.csv` |
 | [Concentric Squares Check](docs/concentric-squares-check.md) | 動き出し・動き終わりの線歪みを5重正方形で調査 | `examples/concentric_squares_check.csv`, `examples/concentric_squares_clockwise_check.csv`, `examples/concentric_squares_high_speed_check.csv` |
 | [Diagnostic AB_TIMED Square Draw](docs/diagnostic-ab-timed-square-draw.md) | `AB_TIMED`でA/Bを直接timed実行して四角の歪みを比較 | `examples/diagnostic_ab_timed_square_draw.csv` |
