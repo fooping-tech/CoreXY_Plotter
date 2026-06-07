@@ -307,7 +307,8 @@ M5Stack Core2前提のピン、Core割り付け、UART構成を固定する。
 
 ### 1.3 `XY` simulation
 
-- [x] `XY <x> <y> <feed>`を受けられる
+- [x] `XY <x> <y> [feed]`を受けられる
+- [x] feed省略時は`DEFAULT_FEED_MM_MIN`を使う
 - [x] current XYをログに出す
 - [x] target XYをログに出す
 - [x] dx/dyをログに出す
@@ -319,9 +320,9 @@ M5Stack Core2前提のピン、Core割り付け、UART構成を固定する。
 ## Phase 1 完了条件
 
 - [x] `SELFTEST PASS`
-- [x] `ZERO`後 `XY 10 0 600` で A=800 B=800
-- [x] `ZERO`後 `XY 0 10 600` で A=800 B=-800
-- [x] `ZERO`後 `XY 10 10 600` で A=1600 B=0
+- [x] `ZERO`後 `XY 10 0` で A=800 B=800
+- [x] `ZERO`後 `XY 0 10` で A=800 B=-800
+- [x] `ZERO`後 `XY 10 10` で A=1600 B=0
 - [x] `SIMULATION_MODE=1`でFastAccelStepper move APIを呼んでいない
 
 ---
@@ -1041,7 +1042,7 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 - [x] 紙面中心を`(X_MIN+X_MAX)/2`, `(Y_MIN+Y_MAX)/2`相当の`(27.5, 27.5)`として扱う
 - [x] マル、四角、三角、星を中心付近へ描画する
 - [x] 図形サイズはsoft limit端から十分余白を残す
-- [x] 描画feedは保守的な`300 mm/min`、移動feedは`600 mm/min`から開始する
+- [x] 通常描画CSVはfeedを省略し、ファームウェア側の`DEFAULT_FEED_MM_MIN`から開始する
 - [x] `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認する
 - [ ] 脱調が再発しないか、同じCSVを複数回連続で実行して確認する
 
@@ -1049,10 +1050,14 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 
 - [x] `tools/serial_tool/examples/concentric_squares_check.csv`を追加する
 - [x] 逆方向確認用に`tools/serial_tool/examples/concentric_squares_clockwise_check.csv`を追加する
+- [x] 速度依存性確認用に`tools/serial_tool/examples/concentric_squares_high_speed_check.csv`を追加する
+- [x] `concentric_squares_high_speed_check.csv`は`delay_ms=0`、`expect`空欄とし、`serial_send.py --queue-mode`でCommandQueue満杯時にbackpressureする
 - [x] 同じ中心`(27.5, 27.5)`に辺長違いの正方形を5個重ねて描く
 - [x] 水平/垂直辺だけで構成し、各辺の始点・終点の歪みを目視確認しやすくする
 - [x] 手順書`tools/serial_tool/docs/concentric-squares-check.md`を追加する
 - [ ] 実機で実行し、各正方形の閉じ位置、角の丸まり、終点オーバーシュートを確認する
+- [ ] 高速版を実機で実行し、通常版と比べて角の丸まり、終点オーバーシュート、閉じズレ、脱調、温度上昇が増えるか確認する
+- [ ] 高速版を`--queue-mode`で実行し、`CommandQueue full`が再送で回復し、PENUP/PENDOWN順序が崩れないことを確認する
 - [ ] 歪みが再現する辺、描画方向、サイズ依存性を記録し、速度/加速度/ペン圧/ベルト張り/ガタのどれを優先調整するか決める
 
 ### 9.1.5 AB_TIMED診断 / backend直接timed実行切り分け
@@ -1159,14 +1164,14 @@ CONFIG
 POS
 SELFTEST
 ZERO
-XY 10 0 600
+XY 10 0
 ZERO
-XY 0 10 600
+XY 0 10
 ZERO
-XY 10 10 600
-XY -1 0 600
-XY 301 0 600
-XY 0 301 600
+XY 10 10
+XY -1 0
+XY 301 0
+XY 0 301
 XY 10 10 0
 TMC_STATUS
 ```
@@ -1174,9 +1179,9 @@ TMC_STATUS
 チェック:
 
 - [ ] `SELFTEST PASS`
-- [ ] `XY 10 0 600`でA=800 B=800
-- [ ] `XY 0 10 600`でA=800 B=-800
-- [ ] `XY 10 10 600`でA=1600 B=0
+- [ ] `XY 10 0`でA=800 B=800
+- [ ] `XY 0 10`でA=800 B=-800
+- [ ] `XY 10 10`でA=1600 B=0
 - [ ] soft limit違反が拒否される
 - [ ] feed 0が拒否される
 - [ ] simulationではモータが動かない
@@ -1365,6 +1370,19 @@ python tools/serial_tool/serial_send.py \
   --echo
 ```
 
+高速版:
+
+```text
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --csv tools/serial_tool/examples/concentric_squares_high_speed_check.csv \
+  --startup-delay 4 \
+  --startup-drain 1 \
+  --timeout 12 \
+  --queue-mode \
+  --echo
+```
+
 チェック:
 
 - [ ] `HOME`が完了する
@@ -1373,6 +1391,8 @@ python tools/serial_tool/serial_send.py \
 - [ ] 各正方形の終点角に伸び、ずれ、オーバーシュートがない
 - [ ] 水平辺と垂直辺で歪みの出方に差があるか確認する
 - [ ] 反時計回りと時計回りで歪み位置が入れ替わるか確認する
+- [ ] 通常版と高速版で歪み、閉じズレ、脱調、温度上昇に差があるか確認する
+- [ ] 高速版は`--queue-mode`で実行し、`CommandQueue full`が継続せず最後まで送信できる
 - [ ] サイズ違いで歪みの出方に差があるか確認する
 - [ ] 最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
 
@@ -1386,6 +1406,7 @@ python tools/serial_tool/serial_send.py \
 
 - `tools/serial_tool/examples/concentric_squares_clockwise_check.csv`
 - `tools/serial_tool/examples/concentric_squares_check.csv`
+- `tools/serial_tool/examples/concentric_squares_high_speed_check.csv`
 
 AB_TIMED診断CSV:
 

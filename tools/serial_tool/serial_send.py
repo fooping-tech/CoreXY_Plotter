@@ -19,10 +19,20 @@ DEFAULT_STARTUP_DELAY_S = 4.0
 DEFAULT_STARTUP_DRAIN_S = 0.5
 DEFAULT_OPEN_RETRIES = 3
 DEFAULT_CLOSE_DELAY_S = 0.3
+DEFAULT_QUEUE_RETRY_DELAY_MS = 100
+DEFAULT_QUEUE_RETRY_TIMEOUT_S = 30.0
 READ_DRAIN_S = 0.2
 READ_IDLE_S = 0.15
 INTERRUPT_ABORT_TIMEOUT_S = 1.0
 INTERRUPT_ABORT_MIN_READ_S = 0.2
+QUEUE_ACK_PATTERNS = ("ACK QUEUED", "ACK ABORT requested")
+QUEUE_FULL_PATTERN = "ERROR: CommandQueue full"
+ERROR_PATTERN = "ERROR:"
+SYNC_COMPLETION_BY_COMMAND = {
+    "HOME": "HOME complete",
+    "HOME_X": "HOME_X set zero",
+    "HOME_Y": "HOME_Y set zero",
+}
 
 
 @dataclass(frozen=True)
@@ -108,6 +118,32 @@ def parse_args() -> argparse.Namespace:
         "--echo",
         action="store_true",
         help="Print each command before sending it.",
+    )
+    parser.add_argument(
+        "--queue-mode",
+        action="store_true",
+        help=(
+            "Send each row after it is accepted by the firmware command queue. "
+            "Retries rows that hit CommandQueue full; HOME commands still wait for completion."
+        ),
+    )
+    parser.add_argument(
+        "--queue-retry-delay-ms",
+        type=int,
+        default=DEFAULT_QUEUE_RETRY_DELAY_MS,
+        help=(
+            "Delay before retrying a row after CommandQueue full in --queue-mode. "
+            f"Default: {DEFAULT_QUEUE_RETRY_DELAY_MS}."
+        ),
+    )
+    parser.add_argument(
+        "--queue-retry-timeout",
+        type=float,
+        default=DEFAULT_QUEUE_RETRY_TIMEOUT_S,
+        help=(
+            "Maximum seconds to keep retrying one row after CommandQueue full in --queue-mode. "
+            f"Default: {DEFAULT_QUEUE_RETRY_TIMEOUT_S}."
+        ),
     )
     dtr_group = parser.add_mutually_exclusive_group()
     dtr_group.add_argument(
@@ -202,6 +238,22 @@ def print_plan(rows: Iterable[CommandRow]) -> None:
         )
 
 
+def command_name(command: str) -> str:
+    return command.split(maxsplit=1)[0].upper() if command.strip() else ""
+
+
+def contains_any(text: str, patterns: str | tuple[str, ...]) -> bool:
+    if isinstance(patterns, str):
+        return bool(patterns) and patterns in text
+    return any(pattern and pattern in text for pattern in patterns)
+
+
+def has_stop_patterns(patterns: str | tuple[str, ...]) -> bool:
+    if isinstance(patterns, str):
+        return bool(patterns)
+    return any(bool(pattern) for pattern in patterns)
+
+
 def import_serial_module():
     try:
         import serial  # type: ignore[import-not-found]
@@ -230,7 +282,7 @@ def read_response_text(
     serial_port,
     min_duration_s: float,
     max_duration_s: float,
-    stop_on: str,
+    stop_on: str | tuple[str, ...],
 ) -> str:
     started_at = time.monotonic()
     deadline = started_at + max(max_duration_s, min_duration_s)
@@ -242,9 +294,9 @@ def read_response_text(
         text = b"".join(chunks).decode("utf-8", errors="replace")
         idle_s = None if last_rx_at is None else now - last_rx_at
         if elapsed_s >= min_duration_s:
-            if stop_on and stop_on in text and idle_s is not None and idle_s >= READ_IDLE_S:
+            if contains_any(text, stop_on) and idle_s is not None and idle_s >= READ_IDLE_S:
                 break
-            if not stop_on and idle_s is not None and idle_s >= READ_IDLE_S:
+            if not has_stop_patterns(stop_on) and idle_s is not None and idle_s >= READ_IDLE_S:
                 break
         if now >= deadline:
             break
@@ -304,6 +356,116 @@ def send_abort_on_interrupt(serial_port) -> None:
         print(response, end="" if response.endswith("\n") else "\n", flush=True)
 
 
+def print_response(response: str) -> None:
+    if response:
+        print(response, end="" if response.endswith("\n") else "\n", flush=True)
+
+
+def queue_completion_pattern(row: CommandRow) -> str:
+    if row.expect:
+        return row.expect
+    return SYNC_COMPLETION_BY_COMMAND.get(command_name(row.command), "")
+
+
+def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: CommandRow) -> int:
+    retry_deadline = time.monotonic() + args.queue_retry_timeout
+    stop_on = QUEUE_ACK_PATTERNS + (QUEUE_FULL_PATTERN, ERROR_PATTERN)
+    attempt = 0
+    response = ""
+
+    while True:
+        attempt += 1
+        if args.echo:
+            suffix = f" retry={attempt}" if attempt > 1 else ""
+            print(f">>> {index:03d}: {row.command}{suffix}", flush=True)
+        serial_port.write((row.command + "\n").encode("utf-8"))
+        serial_port.flush()
+        response = read_response_text(
+            serial_port,
+            min_duration_s=0.0,
+            max_duration_s=args.timeout,
+            stop_on=stop_on,
+        )
+        print_response(response)
+
+        if QUEUE_FULL_PATTERN in response:
+            if time.monotonic() >= retry_deadline:
+                print(
+                    f"ERROR: line {row.line_number}: CommandQueue stayed full "
+                    f"for {args.queue_retry_timeout:.1f}s",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                return 1
+            time.sleep(args.queue_retry_delay_ms / 1000.0)
+            continue
+
+        if contains_any(response, QUEUE_ACK_PATTERNS):
+            break
+
+        if ERROR_PATTERN in response:
+            print(
+                f"ERROR: line {row.line_number}: firmware rejected command before queue ACK",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 1
+
+        print(
+            f"ERROR: line {row.line_number}: queue ACK was not found in serial response",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 1
+
+    completion = queue_completion_pattern(row)
+    if completion and completion not in response:
+        delay_s = row.delay_ms / 1000.0
+        completion_response = read_response_text(
+            serial_port,
+            min_duration_s=delay_s,
+            max_duration_s=max(args.timeout, delay_s),
+            stop_on=completion,
+        )
+        print_response(completion_response)
+        response += completion_response
+
+    if completion and completion not in response:
+        print(
+            f"ERROR: line {row.line_number}: expected {completion!r} "
+            "was not found in serial response",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 1
+
+    return 0
+
+
+def send_row_standard_mode(serial_port, args: argparse.Namespace, index: int, row: CommandRow) -> int:
+    if args.echo:
+        print(f">>> {index:03d}: {row.command}", flush=True)
+    serial_port.write((row.command + "\n").encode("utf-8"))
+    serial_port.flush()
+    delay_s = row.delay_ms / 1000.0
+    response = read_response_text(
+        serial_port,
+        min_duration_s=delay_s,
+        max_duration_s=max(args.timeout, delay_s),
+        stop_on=row.expect,
+    )
+    print_response(response)
+    if row.expect and row.expect not in response:
+        print(
+            f"ERROR: line {row.line_number}: expected {row.expect!r} "
+            "was not found in serial response",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 1
+    return 0
+
+
 def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
     if not args.port:
         raise ValueError("--port is required unless --dry-run is used")
@@ -317,6 +479,10 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
         raise ValueError("--open-retries must be >= 1")
     if args.close_delay < 0:
         raise ValueError("--close-delay must be >= 0")
+    if args.queue_retry_delay_ms < 0:
+        raise ValueError("--queue-retry-delay-ms must be >= 0")
+    if args.queue_retry_timeout < 0:
+        raise ValueError("--queue-retry-timeout must be >= 0")
 
     serial = import_serial_module()
     failures = 0
@@ -337,26 +503,11 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
             print(startup_text, end="" if startup_text.endswith("\n") else "\n", flush=True)
 
         for index, row in enumerate(rows, start=1):
-            if args.echo:
-                print(f">>> {index:03d}: {row.command}", flush=True)
-            serial_port.write((row.command + "\n").encode("utf-8"))
-            serial_port.flush()
-            delay_s = row.delay_ms / 1000.0
-            response = read_response_text(
-                serial_port,
-                min_duration_s=delay_s,
-                max_duration_s=max(args.timeout, delay_s),
-                stop_on=row.expect,
-            )
-            if response:
-                print(response, end="" if response.endswith("\n") else "\n", flush=True)
-            if row.expect and row.expect not in response:
-                print(
-                    f"ERROR: line {row.line_number}: expected {row.expect!r} "
-                    "was not found in serial response",
-                    file=sys.stderr,
-                    flush=True,
-                )
+            if args.queue_mode:
+                result = send_row_queue_mode(serial_port, args, index, row)
+            else:
+                result = send_row_standard_mode(serial_port, args, index, row)
+            if result:
                 failures += 1
                 if not args.continue_on_error:
                     return 1

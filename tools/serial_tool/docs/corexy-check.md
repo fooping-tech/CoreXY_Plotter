@@ -29,10 +29,10 @@ XY移動はmotion側で受理されると、以下の`ACK_XY`も返します。
 
 | Command | Expected ACK |
 |---|---|
-| `XY 10 0 600` | `ACK_XY target=(10.000,0.000) A=800 B=800` |
-| `XY 0 10 600` | `ACK_XY target=(0.000,10.000) A=800 B=-800` |
-| `XY 10 10 600` | `ACK_XY target=(10.000,10.000) A=1600 B=0` |
-| `XY 20 0 600` from current `(10,10)` | `ACK_XY target=(20.000,0.000) A=0 B=1600` |
+| `XY 10 0` | `ACK_XY target=(10.000,0.000) A=800 B=800` |
+| `XY 0 10` | `ACK_XY target=(0.000,10.000) A=800 B=-800` |
+| `XY 10 10` | `ACK_XY target=(10.000,10.000) A=1600 B=0` |
+| `XY 20 0` from current `(10,10)` | `ACK_XY target=(20.000,0.000) A=0 B=1600` |
 
 ## Related Config
 
@@ -44,6 +44,7 @@ XY移動はmotion側で受理されると、以下の`ACK_XY`も返します。
 
 ## Notes
 
-- `XY 20 0 600`は現在位置`(10,10)`から`dx=+10, dy=-10`を作るための移動です。`ZERO`直後には実行しないでください。
+- `XY 20 0`は現在位置`(10,10)`から`dx=+10, dy=-10`を作るための移動です。`ZERO`直後には実行しないでください。
+- feedを省略した`XY`はファームウェア側の`DEFAULT_FEED_MM_MIN`を使います。
 - soft limitに引っかかる場合は`ZERO`位置と可動範囲を確認してください。
 - CoreXY式はファームウェアの`CoreXYKinematics`だけに置き、Python側へ重複実装しません。

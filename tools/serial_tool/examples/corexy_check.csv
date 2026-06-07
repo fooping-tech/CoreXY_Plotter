@@ -4,10 +4,10 @@ SELFTEST,500,SELFTEST PASS,Run firmware-side CoreXY conversion self-test
 TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
 TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 ZERO,500,ZERO,Reset logical origin
-XY 10 0 600,1000,ACK_XY target=(10.000,0.000) A=800 B=800,Check +X maps to A positive and B positive
+XY 10 0,1000,"ACK_XY target=(10.000,0.000) A=800 B=800",Check +X maps to A positive and B positive
 ZERO,500,ZERO,Reset logical origin
-XY 0 10 600,1000,ACK_XY target=(0.000,10.000) A=800 B=-800,Check +Y maps to A positive and B negative
+XY 0 10,1000,"ACK_XY target=(0.000,10.000) A=800 B=-800",Check +Y maps to A positive and B negative
 ZERO,500,ZERO,Reset logical origin
-XY 10 10 600,1000,ACK_XY target=(10.000,10.000) A=1600 B=0,Check +X+Y maps mostly to A only
-XY 20 0 600,1000,ACK_XY target=(20.000,0.000) A=0 B=1600,Check +X-Y delta from current 10 10 to target 20 0 stays inside soft limits
+XY 10 10,1000,"ACK_XY target=(10.000,10.000) A=1600 B=0",Check +X+Y maps mostly to A only
+XY 20 0,1000,"ACK_XY target=(20.000,0.000) A=0 B=1600",Check +X-Y delta from current 10 10 to target 20 0 stays inside soft limits
 ZERO,500,ZERO,Finish with logical origin reset

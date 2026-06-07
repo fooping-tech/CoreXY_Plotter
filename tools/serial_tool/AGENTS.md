@@ -40,6 +40,6 @@ Separate responsibilities:
 
 - CSV sending stays in `serial_send.py`.
 - Drawing, SVG, image, or path conversion should be added as separate modules or scripts.
-- Generated drawing data should use firmware-space commands such as `PENUP`, `PENDOWN`, and `XY <x_mm> <y_mm> <feed_mm_min>`.
+- Generated drawing data should use firmware-space commands such as `PENUP`, `PENDOWN`, and `XY <x_mm> <y_mm>`. Use `XY <x_mm> <y_mm> <feed_mm_min>` only when the CSV is intentionally testing or overriding feed.
 
 Keep host-side tools conservative. The firmware owns machine state, safety checks, CoreXY conversion, and motion execution.

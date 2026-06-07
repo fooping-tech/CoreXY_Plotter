@@ -62,7 +62,7 @@ python tools/serial_tool/serial_send.py \
 
 ## Notes
 
-- feedはファームウェアの`XY <x_mm> <y_mm> <feed_mm_min>`契約に合わせて`mm/min`です。
+- feedは`mm/min`です。通常の`XY <x_mm> <y_mm>`は`DEFAULT_FEED_MM_MIN`を使いますが、この高速チェックでは速度条件そのものを確認するため`XY <x_mm> <y_mm> <feed_mm_min>`で明示します。
 - `HOME`行は`HOME complete`を`expect`で待ちます。`--timeout 60`はHOMEや長い移動の最大待ち時間で、起動時読み捨て時間は`--startup-drain`で別管理します。
 - `5000 mm/min`は`83.333 mm/s`です。`STEPS_PER_MM=80`では約`6667 steps/s`相当です。
 - 現在の`MAX_MOTOR_SPEED_STEPS_S=7000`では、理論上のfeed上限は`5250 mm/min`相当です。

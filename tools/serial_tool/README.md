@@ -89,7 +89,7 @@ python tools/serial_tool/serial_send.py \
 | [Trapezoid Check](docs/trapezoid-check.md) | MotionBlockの台形/三角加減速計画ログ | `examples/trapezoid_check.csv` |
 | [Timed Segment Check](docs/timed-segment-check.md) | DDA timed segment生成とFastAccelStepper `moveTimed()`投入 | `examples/timed_segment_check.csv` |
 | [High-Speed Check](docs/high-speed-check.md) | homing後の通常XY移動を上限feed付近で確認 | `examples/high_speed_check.csv`, `examples/high_speed_sweep_check.csv` |
-| [Concentric Squares Check](docs/concentric-squares-check.md) | 動き出し・動き終わりの線歪みを5重正方形で調査 | `examples/concentric_squares_check.csv`, `examples/concentric_squares_clockwise_check.csv` |
+| [Concentric Squares Check](docs/concentric-squares-check.md) | 動き出し・動き終わりの線歪みを5重正方形で調査 | `examples/concentric_squares_check.csv`, `examples/concentric_squares_clockwise_check.csv`, `examples/concentric_squares_high_speed_check.csv` |
 | [Diagnostic AB_TIMED Square Draw](docs/diagnostic-ab-timed-square-draw.md) | `AB_TIMED`でA/Bを直接timed実行して四角の歪みを比較 | `examples/diagnostic_ab_timed_square_draw.csv` |
 | [Servo On/Off Check](docs/servo-on-off-check.md) | ペン上げ/下げサーボ角度と配線 | `examples/servo_check.csv` |
 | [LED Check](docs/led-check.md) | NEOPIXEL配線、色、輝度、pattern | `examples/led_check.csv` |
@@ -108,7 +108,7 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 
 | Column | Required | Description |
 |---|---:|---|
-| `command` | yes | ファームウェアへ送る1行コマンド。例: `XY 10 0 600` |
+| `command` | yes | ファームウェアへ送る1行コマンド。例: `XY 10 0` |
 | `delay_ms` | no | 送信後の待ち時間。空なら`--default-delay-ms`を使用 |
 | `expect` | no | 受信ログに含まれるべき部分文字列。不一致なら非ゼロ終了 |
 | `comment` | no | 人間用メモ。送信されません |
@@ -116,8 +116,15 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 `delay_ms`は各コマンド送信後の最小読み取り時間です。`expect`がある場合は、`delay_ms`経過後に`expect`を受信し、受信が短時間idleになると次の行へ進みます。
 最大待ち時間は`max(delay_ms, --timeout)`です。`HOME`のように完了時間が読みにくいコマンドは、CSV側の`delay_ms`を短くし、実行時の`--timeout`を長くしてください。
 
+`--queue-mode`では、各行は`ACK QUEUED`を受信してから次の行へ進みます。
+`ERROR: CommandQueue full`を受信した場合は、同じ行を`--queue-retry-delay-ms`ごとに再送します。
+`HOME`、`HOME_X`、`HOME_Y`は後続motionを先に積まないよう、queue投入後も完了ログまで待ちます。
+このモードではCSVの`delay_ms=0`と空の`expect`を使って、固定待ちなしでCommandQueueへ詰められます。
+
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。
 XY移動はmotion側で受理されると`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`も返します。
+`XY <x_mm> <y_mm>`はファームウェア側の`DEFAULT_FEED_MM_MIN`を使います。
+速度評価や一時的なoverrideが必要なCSVだけ、`XY <x_mm> <y_mm> <feed_mm_min>`で明示feedを指定します。
 拒否されたXY移動は`NACK_XY ...`を返します。
 
 実行中に`Ctrl-C`で中断した場合、ツールはserial portを閉じる前に`ABORT`を送信します。
@@ -131,7 +138,7 @@ command,delay_ms,expect,comment
 CONFIG,500,,Show firmware configuration
 SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion
 ZERO,500,ZERO,Reset logical origin
-XY 10 0 600,700,A=800,Validate +X CoreXY mapping
+XY 10 0,700,A=800,Validate +X CoreXY mapping
 ```
 
 ## Firmware References
@@ -147,7 +154,8 @@ XY 10 0 600,700,A=800,Validate +X CoreXY mapping
 ## Drawing Data Extension
 
 将来、絵をデータ化する場合も送信処理はこのCSV形式を入口にします。
-SVG、画像、G-code風データなどから`PENUP`、`PENDOWN`、`XY <x_mm> <y_mm> <feed_mm_min>`のCSVを生成する処理は、送信処理とは別モジュールとして追加してください。
+SVG、画像、G-code風データなどから`PENUP`、`PENDOWN`、`XY <x_mm> <y_mm>`のCSVを生成する処理は、送信処理とは別モジュールとして追加してください。
+速度条件を検査したいCSVでは`XY <x_mm> <y_mm> <feed_mm_min>`を使えます。
 
 Python側でCoreXYのA/B変換、soft limit判定、planner相当の補間を重複実装しないでください。
 それらはファームウェア側の`CoreXYKinematics`、`SafetyManager`、将来のplannerが担当します。

@@ -9,58 +9,58 @@ ALARM_CLEAR,100,ALARM_CLEAR complete,Clear any previous alarm before homing
 LIMIT_STATUS,100,LIMIT_STATUS,Record limit state before homing
 HOME,100,HOME complete,Home before drawing centered shapes
 POS,100,HOMED=YES,Confirm machine is homed
-XY 45.500 27.500 600,7000,"ACK_XY target=(45.500,27.500)",Move to circle start
+XY 45.500 27.500,7000,"ACK_XY target=(45.500,27.500)",Move to circle start
 PENDOWN,700,PEN DOWN,Draw largest circle centered at 27.5 27.5 radius 18
-XY 44.887 32.159 300,1700,,Circle segment 15deg
-XY 43.088 36.500 300,1700,,Circle segment 30deg
-XY 40.228 40.228 300,1700,,Circle segment 45deg
-XY 36.500 43.088 300,1700,,Circle segment 60deg
-XY 32.159 44.887 300,1700,,Circle segment 75deg
-XY 27.500 45.500 300,1700,,Circle segment 90deg
-XY 22.841 44.887 300,1700,,Circle segment 105deg
-XY 18.500 43.088 300,1700,,Circle segment 120deg
-XY 14.772 40.228 300,1700,,Circle segment 135deg
-XY 11.912 36.500 300,1700,,Circle segment 150deg
-XY 10.113 32.159 300,1700,,Circle segment 165deg
-XY 9.500 27.500 300,1700,,Circle segment 180deg
-XY 10.113 22.841 300,1700,,Circle segment 195deg
-XY 11.912 18.500 300,1700,,Circle segment 210deg
-XY 14.772 14.772 300,1700,,Circle segment 225deg
-XY 18.500 11.912 300,1700,,Circle segment 240deg
-XY 22.841 10.113 300,1700,,Circle segment 255deg
-XY 27.500 9.500 300,1700,,Circle segment 270deg
-XY 32.159 10.113 300,1700,,Circle segment 285deg
-XY 36.500 11.912 300,1700,,Circle segment 300deg
-XY 40.228 14.772 300,1700,,Circle segment 315deg
-XY 43.088 18.500 300,1700,,Circle segment 330deg
-XY 44.887 22.841 300,1700,,Circle segment 345deg
-XY 45.500 27.500 300,1900,"ACK_XY target=(45.500,27.500)",Close circle
+XY 44.887 32.159,1700,,Circle segment 15deg
+XY 43.088 36.500,1700,,Circle segment 30deg
+XY 40.228 40.228,1700,,Circle segment 45deg
+XY 36.500 43.088,1700,,Circle segment 60deg
+XY 32.159 44.887,1700,,Circle segment 75deg
+XY 27.500 45.500,1700,,Circle segment 90deg
+XY 22.841 44.887,1700,,Circle segment 105deg
+XY 18.500 43.088,1700,,Circle segment 120deg
+XY 14.772 40.228,1700,,Circle segment 135deg
+XY 11.912 36.500,1700,,Circle segment 150deg
+XY 10.113 32.159,1700,,Circle segment 165deg
+XY 9.500 27.500,1700,,Circle segment 180deg
+XY 10.113 22.841,1700,,Circle segment 195deg
+XY 11.912 18.500,1700,,Circle segment 210deg
+XY 14.772 14.772,1700,,Circle segment 225deg
+XY 18.500 11.912,1700,,Circle segment 240deg
+XY 22.841 10.113,1700,,Circle segment 255deg
+XY 27.500 9.500,1700,,Circle segment 270deg
+XY 32.159 10.113,1700,,Circle segment 285deg
+XY 36.500 11.912,1700,,Circle segment 300deg
+XY 40.228 14.772,1700,,Circle segment 315deg
+XY 43.088 18.500,1700,,Circle segment 330deg
+XY 44.887 22.841,1700,,Circle segment 345deg
+XY 45.500 27.500,1900,"ACK_XY target=(45.500,27.500)",Close circle
 PENUP,500,PEN UP,Lift after circle
-XY 14.500 14.500 600,5500,"ACK_XY target=(14.500,14.500)",Move to square start
+XY 14.500 14.500,5500,"ACK_XY target=(14.500,14.500)",Move to square start
 PENDOWN,700,PEN DOWN,Draw square centered at 27.5 27.5 side 26
-XY 40.500 14.500 300,7000,,Square bottom edge
-XY 40.500 40.500 300,7000,,Square right edge
-XY 14.500 40.500 300,7000,,Square top edge
-XY 14.500 14.500 300,7500,"ACK_XY target=(14.500,14.500)",Square left edge
+XY 40.500 14.500,7000,,Square bottom edge
+XY 40.500 40.500,7000,,Square right edge
+XY 14.500 40.500,7000,,Square top edge
+XY 14.500 14.500,7500,"ACK_XY target=(14.500,14.500)",Square left edge
 PENUP,500,PEN UP,Lift after square
-XY 27.500 37.500 600,4000,"ACK_XY target=(27.500,37.500)",Move to triangle start
+XY 27.500 37.500,4000,"ACK_XY target=(27.500,37.500)",Move to triangle start
 PENDOWN,700,PEN DOWN,Draw triangle centered at 27.5 27.5 radius 10
-XY 18.840 22.500 300,5000,,Triangle edge
-XY 36.160 22.500 300,5000,,Triangle edge
-XY 27.500 37.500 300,5000,"ACK_XY target=(27.500,37.500)",Close triangle
+XY 18.840 22.500,5000,,Triangle edge
+XY 36.160 22.500,5000,,Triangle edge
+XY 27.500 37.500,5000,"ACK_XY target=(27.500,37.500)",Close triangle
 PENUP,500,PEN UP,Lift after triangle
-XY 27.500 21.500 600,3000,"ACK_XY target=(27.500,21.500)",Move to star start
+XY 27.500 21.500,3000,"ACK_XY target=(27.500,21.500)",Move to star start
 PENDOWN,700,PEN DOWN,Draw smallest star centered at 27.5 27.5 outer radius 6
-XY 29.122 25.267 300,1700,,Star inner point
-XY 33.206 25.646 300,1700,,Star outer point
-XY 30.125 28.353 300,1700,,Star inner point
-XY 31.027 32.354 300,1700,,Star outer point
-XY 27.500 30.260 300,1700,,Star inner point
-XY 23.973 32.354 300,1700,,Star outer point
-XY 24.875 28.353 300,1700,,Star inner point
-XY 21.794 25.646 300,1700,,Star outer point
-XY 25.878 25.267 300,1700,,Star inner point
-XY 27.500 21.500 300,1900,"ACK_XY target=(27.500,21.500)",Close star
+XY 29.122 25.267,1700,,Star inner point
+XY 33.206 25.646,1700,,Star outer point
+XY 30.125 28.353,1700,,Star inner point
+XY 31.027 32.354,1700,,Star outer point
+XY 27.500 30.260,1700,,Star inner point
+XY 23.973 32.354,1700,,Star outer point
+XY 24.875 28.353,1700,,Star inner point
+XY 21.794 25.646,1700,,Star outer point
+XY 25.878 25.267,1700,,Star inner point
+XY 27.500 21.500,1900,"ACK_XY target=(27.500,21.500)",Close star
 PENUP,700,PEN UP,Finish drawing with pen up
 MELODY,3000,MELODY complete,End melody and restore normal TMC profile
 POS,1000,POS,Confirm final position

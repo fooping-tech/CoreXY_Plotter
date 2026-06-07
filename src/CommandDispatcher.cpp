@@ -150,12 +150,14 @@ CommandMessage CommandDispatcher::parse(const char* line) {
     command.type = strcmp(name, "TEST_A") == 0 ? CommandType::TEST_A
                                                 : CommandType::TEST_B;
   } else if (strcmp(name, "XY") == 0) {
-    if (sscanf(line, "%*s %f %f %f", &command.x_mm, &command.y_mm,
-               &command.feed_mm_min) != 3) {
+    int parsed = sscanf(line, "%*s %f %f %f", &command.x_mm, &command.y_mm,
+                        &command.feed_mm_min);
+    if (parsed < 2) {
       snprintf(command.error, sizeof(command.error),
-               "XY requires <x_mm> <y_mm> <feed_mm_min>");
+               "XY requires <x_mm> <y_mm> [feed_mm_min]");
       return command;
     }
+    if (parsed == 2) command.feed_mm_min = DEFAULT_FEED_MM_MIN;
     command.type = CommandType::XY;
   } else {
     snprintf(command.error, sizeof(command.error), "unknown command: %s", name);

@@ -310,7 +310,7 @@ MotorMelodyController
 | パラメータ | 値 |
 |---|---:|
 | `STEPS_PER_MM` | `80.0f` |
-| `DEFAULT_FEED_MM_MIN` | `600.0f` |
+| `DEFAULT_FEED_MM_MIN` | `1200.0f` |
 | `MAX_FEED_MM_MIN` | `5000.0f` |
 | `DEFAULT_MOTOR_SPEED_STEPS_S` | `3000` |
 | `MAX_MOTOR_SPEED_STEPS_S` | `7000` |
@@ -429,7 +429,7 @@ Core 0へ表示するときはStatusQueueを通す。
 | `TEST_A <steps>` | Aモータ単独テスト |
 | `TEST_B <steps>` | Bモータ単独テスト |
 | `AB_TIMED <a_steps> <b_steps> <duration_us>` | 診断専用。XY/planner/segment生成をバイパスしA/B timed segmentを直接実行 |
-| `XY <x_mm> <y_mm> <feed_mm_min>` | XY移動またはsimulation |
+| `XY <x_mm> <y_mm> [feed_mm_min]` | XY移動またはsimulation。feed省略時は`DEFAULT_FEED_MM_MIN` |
 | `PENUP` | ペン上げ |
 | `PENDOWN` | ペン下げ |
 | `SELFTEST` | CoreXY変換等の自己診断 |
@@ -481,6 +481,9 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 - CSV `delay_ms`: 各コマンド送信後の最小読み取り時間
 - 各行の最大待ち時間は`max(delay_ms, --timeout)`
 - `expect`が指定されている場合、`delay_ms`経過後に`expect`を受信済みで、受信が短時間idleになったら次の行へ進む
+- `--queue-mode`: 各行を送信後、`ACK QUEUED`または`ACK ABORT requested`を受信してから次行へ進む
+- `--queue-mode`中に`ERROR: CommandQueue full`を受信した場合は、同じ行を`--queue-retry-delay-ms`間隔で再送する
+- `--queue-mode`でも`HOME`、`HOME_X`、`HOME_Y`は後続motionを先に積まないよう、queue投入後に完了ログまで待つ
 - `Ctrl-C`で中断された場合、serial portを閉じる前に`ABORT`を送信して短時間応答を読む
 
 `--timeout`は`HOME`や長いXY移動の最大待ち時間として使う。
@@ -492,9 +495,9 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 
 処理順:
 
-1. target X/Y/feedをparse
+1. target X/Yと任意のfeedをparseする。feed省略時は`DEFAULT_FEED_MM_MIN`を使う
 2. SafetyManagerでsoft limit確認
-3. feed確認
+3. feed確認。明示feedは速度評価や一時override用として扱う
 4. currentからdelta計算
 5. CoreXYKinematicsでA/B step算出
 6. TrapezoidPlannerで台形または三角加減速profileを生成
@@ -508,7 +511,7 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 ログ例:
 
 ```text
-XY target=(10.000,0.000) current=(0.000,0.000) dx=10.000 dy=0.000 A=800 B=800 F=600.000
+XY target=(10.000,0.000) current=(0.000,0.000) dx=10.000 dy=0.000 A=800 B=800 F=1200.000
 SIMULATION_MODE: no motor output
 ```
 
@@ -735,4 +738,5 @@ F値はmm/minとして扱う。
 - 台形加減速profileとtimed segmentによるA/B同期XY移動が実行できる
 - `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
 - 動き出し・動き終わりの歪み調査用に、同一中心へ5個の正方形を重ねて描く反時計回り版`concentric_squares_check.csv`と時計回り版`concentric_squares_clockwise_check.csv`をSerial Toolから実行できる
+- 通常版完走後の速度依存性確認用に、描画feed`1800 mm/min`、ペンアップ移動feed`2400 mm/min`の`concentric_squares_high_speed_check.csv`をSerial Toolから実行できる
 - `diagnostic_ab_timed_square_draw.csv`で、PENDOWNした四角描画を`AB_TIMED`直接実行経路で行い、通常XY描画CSVと比較できる
