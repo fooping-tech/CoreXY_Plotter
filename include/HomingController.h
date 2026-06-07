@@ -39,13 +39,22 @@ class HomingController {
   const char* lastReason() const;
 
  private:
+  enum class MoveStopCondition : uint8_t {
+    None,
+    TargetAnyActive,
+    TargetDebouncedActive,
+    TargetAnyReleased,
+  };
+
   bool homeAxis(Axis axis, StepperBackendFastAccel& backend,
                 SafetyManager& safety, MachineState& machine);
-  bool moveIncrement(Axis axis, int8_t direction, float feed_mm_min,
-                     bool stop_on_target_limit,
-                     StepperBackendFastAccel& backend, SafetyManager& safety,
-                     MachineState& machine,
-                     bool& other_limit_allowed_active);
+  bool moveUntilCondition(Axis axis, int8_t direction, float distance_limit_mm,
+                          float feed_mm_min,
+                          MoveStopCondition stop_condition,
+                          StepperBackendFastAccel& backend,
+                          SafetyManager& safety, MachineState& machine,
+                          bool& other_limit_allowed_active,
+                          bool& stop_condition_met);
   bool targetLimitActive(Axis axis, const SafetyManager& safety) const;
   bool targetLimitRawActive(Axis axis, const SafetyManager& safety) const;
   bool targetLimitAnyActive(Axis axis, const SafetyManager& safety) const;

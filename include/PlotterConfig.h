@@ -126,10 +126,6 @@ constexpr float HOMING_MAX_TRAVEL_Y_MM = 100.0f;
 constexpr float HOMING_SET_X_MM = 0.0f;
 constexpr float HOMING_SET_Y_MM = 0.0f;
 
-// homing中の分割移動単位 [mm]。
-// 小さいほどlimit検出が細かいが、homingに時間がかかる。
-constexpr float HOMING_INCREMENT_MM = 0.25f;
-
 // limit switchのdebounce時間 [ms]。
 // 決め方: チャタリングが消える最小値。長すぎると検出が遅れる。
 constexpr uint32_t HOMING_LIMIT_DEBOUNCE_MS = 30;

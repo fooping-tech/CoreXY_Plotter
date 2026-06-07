@@ -457,6 +457,9 @@ Core 0へ表示するときはStatusQueueを通す。
 HOMEを扱うserial check CSVでは、原則として`ZERO -> ALARM_CLEAR -> HOME`の順にする。
 HOME開始時またはSeekFast中に対象limitのrawまたはdebouncedがONなら、seek方向へ押し込まず即Backoffへ入る。
 BackoffからSeekSlowへ移る条件は、対象limitのrawとdebouncedの両方がOFFになることとする。
+HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復ではなく、各フェーズの上限距離ぶんの長いmoveを開始し、limit条件成立時にbackendを停止する。
+これにより`HOMING_SEEK_FEED_MM_MIN`と`HOMING_SLOW_FEED_MM_MIN`は、加速距離が足りる範囲で実効速度へ反映される。
+停止後のMachineStateはFastAccelStepperのA/B現在ステップ差分から更新する。
 `ABORT`で停止した場合は実位置が論理座標と一致する保証がないため、homed状態を無効化しalarm状態にする。復旧は`ZERO -> ALARM_CLEAR -> HOME`の順に行う。
 
 ---

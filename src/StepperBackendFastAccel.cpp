@@ -212,6 +212,22 @@ void StepperBackendFastAccel::waitUntilIdle() {
   }
 }
 
+int32_t StepperBackendFastAccel::currentASteps() const {
+#if SIMULATION_MODE
+  return 0;
+#else
+  return motor_a_ == nullptr ? 0 : motor_a_->getCurrentPosition();
+#endif
+}
+
+int32_t StepperBackendFastAccel::currentBSteps() const {
+#if SIMULATION_MODE
+  return 0;
+#else
+  return motor_b_ == nullptr ? 0 : motor_b_->getCurrentPosition();
+#endif
+}
+
 StepperBackend::TimedSegmentResult StepperBackendFastAccel::mapMoveTimedResult(
     int8_t result) const {
   if (result == static_cast<int8_t>(MOVE_TIMED_OK) ||

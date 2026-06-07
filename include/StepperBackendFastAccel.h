@@ -22,6 +22,8 @@ class StepperBackendFastAccel : public StepperBackend {
   void stop() override;
   bool isRunning() const override;
   void waitUntilIdle() override;
+  int32_t currentASteps() const;
+  int32_t currentBSteps() const;
 
  private:
   void configureSpeed(float feed_mm_min);

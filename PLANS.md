@@ -1324,6 +1324,8 @@ python tools/serial_tool/serial_send.py \
 - [x] `ZERO -> ALARM_CLEAR -> HOME`の順にして、原点外limit active alarmが再発しにくい復旧順序にする
 - [x] HOME開始時またはSeekFast中に対象limit raw/debouncedのどちらかがONなら、seek方向へ押し込まず即Backoffする
 - [x] Backoff完了判定は対象limit raw/debouncedの両方がOFFになってからSeekSlowへ進む
+- [x] Homingのfast seek/backoff/slow seekは短い固定距離move反復ではなく、長距離moveをlimit条件で停止する方式にする
+- [x] Homing停止後のMachineStateはFastAccelStepperのA/B現在ステップ差分から更新する
 - [ ] 実機で脱調後または意図的な座標ずれ後に、`ZERO -> ALARM_CLEAR -> HOME`で復旧できることを確認する
 
 ## 12.10 Serial Tool中断時のABORT仕様
@@ -1573,6 +1575,7 @@ Phase 6.9を実装してください。
 | 2026-06-07 | HOMEを扱うCSVで`ALARM_CLEAR`前に`ZERO`を入れ、脱調後に古い論理座標を破棄してから再homingする復旧順序へ統一 | Codex |
 | 2026-06-07 | HOME開始時のlimit raw ONを即Backoff条件に追加し、debounce未反映中にseek方向へ押し込む短時間移動を防止 | Codex |
 | 2026-06-07 | Serial Toolの`Ctrl-C`中断時に`ABORT`を送信し、ファームウェア側でmotion/homingを停止してalarmへ遷移する追加仕様を反映 | Codex |
+| 2026-06-07 | Homingを短い固定距離move反復から長距離moveのlimit停止方式へ変更し、fast seek速度設定が実効速度へ反映されやすい構造に更新 | Codex |
 
 ---
 

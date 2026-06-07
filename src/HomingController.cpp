@@ -33,6 +33,16 @@ int8_t directionForAxis(HomingController::Axis axis) {
 const char* axisName(HomingController::Axis axis) {
   return axis == HomingController::Axis::X ? "X" : "Y";
 }
+
+void applyABStepDeltaToMachine(int32_t delta_a_steps, int32_t delta_b_steps,
+                               MachineState& machine) {
+  machine.a_steps += delta_a_steps;
+  machine.b_steps += delta_b_steps;
+  machine.x_mm +=
+      static_cast<float>(delta_a_steps + delta_b_steps) / (2.0f * STEPS_PER_MM);
+  machine.y_mm +=
+      static_cast<float>(delta_a_steps - delta_b_steps) / (2.0f * STEPS_PER_MM);
+}
 }
 
 bool HomingController::runHomeX(StepperBackendFastAccel& backend,
@@ -141,8 +151,6 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
   const bool target_limit_active_at_start = targetLimitAnyActive(axis, safety);
   const float backoff_limit_mm =
       target_limit_active_at_start ? HOMING_START_BACKOFF_MM : HOMING_BACKOFF_MM;
-  float travel_mm = 0.0f;
-  float backoff_mm = 0.0f;
 
   State seek_fast = axis == Axis::X ? State::SeekFastX : State::SeekFastY;
   State backoff = axis == Axis::X ? State::BackoffX : State::BackoffY;
@@ -162,6 +170,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
   }
 
   for (;;) {
+    bool stop_condition_met = false;
     safety.poll();
     if (other_limit_allowed_active && !otherLimitActive(axis, safety)) {
       other_limit_allowed_active = false;
@@ -187,38 +196,40 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
       case State::SeekFastY:
         if (targetLimitAnyActive(axis, safety)) {
           setState(backoff, machine, "LIMIT_PRESSED_SEEK_FAST_TO_BACKOFF");
-          backoff_mm = 0.0f;
           break;
         }
-        if (travel_mm >= maxTravelForAxis(axis)) {
+        if (!moveUntilCondition(axis, seek_dir, maxTravelForAxis(axis),
+                                HOMING_SEEK_FEED_MM_MIN,
+                                MoveStopCondition::TargetAnyActive, backend,
+                                safety, machine, other_limit_allowed_active,
+                                stop_condition_met)) {
+          return false;
+        }
+        if (!stop_condition_met) {
           markAlarm("homing seek fast max travel", safety, machine);
           return false;
         }
-        if (!moveIncrement(axis, seek_dir, HOMING_SEEK_FEED_MM_MIN, true,
-                           backend, safety, machine,
-                           other_limit_allowed_active)) {
-          return false;
-        }
-        travel_mm += HOMING_INCREMENT_MM;
+        setState(backoff, machine, "LIMIT_PRESSED_SEEK_FAST_TO_BACKOFF");
         break;
 
       case State::BackoffX:
       case State::BackoffY:
         if (!targetLimitAnyActive(axis, safety)) {
-          travel_mm = 0.0f;
           setState(seek_slow, machine, "BACKOFF_LIMIT_RELEASED");
           break;
         }
-        if (backoff_mm >= backoff_limit_mm) {
+        if (!moveUntilCondition(axis, -seek_dir, backoff_limit_mm,
+                                HOMING_SEEK_FEED_MM_MIN,
+                                MoveStopCondition::TargetAnyReleased, backend,
+                                safety, machine, other_limit_allowed_active,
+                                stop_condition_met)) {
+          return false;
+        }
+        if (!stop_condition_met) {
           markAlarm("homing backoff limit still on", safety, machine);
           return false;
         }
-        if (!moveIncrement(axis, -seek_dir, HOMING_SEEK_FEED_MM_MIN, false,
-                           backend, safety, machine,
-                           other_limit_allowed_active)) {
-          return false;
-        }
-        backoff_mm += HOMING_INCREMENT_MM;
+        setState(seek_slow, machine, "BACKOFF_LIMIT_RELEASED");
         break;
 
       case State::SeekSlowX:
@@ -227,16 +238,19 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
           setState(set_zero, machine, "LIMIT_PRESSED_SEEK_SLOW_TO_SET_ZERO");
           break;
         }
-        if (travel_mm >= maxTravelForAxis(axis)) {
+        if (!moveUntilCondition(axis, seek_dir, maxTravelForAxis(axis),
+                                HOMING_SLOW_FEED_MM_MIN,
+                                MoveStopCondition::TargetDebouncedActive,
+                                backend, safety, machine,
+                                other_limit_allowed_active,
+                                stop_condition_met)) {
+          return false;
+        }
+        if (!stop_condition_met) {
           markAlarm("homing seek slow max travel", safety, machine);
           return false;
         }
-        if (!moveIncrement(axis, seek_dir, HOMING_SLOW_FEED_MM_MIN, true,
-                           backend, safety, machine,
-                           other_limit_allowed_active)) {
-          return false;
-        }
-        travel_mm += HOMING_INCREMENT_MM;
+        setState(set_zero, machine, "LIMIT_PRESSED_SEEK_SLOW_TO_SET_ZERO");
         break;
 
       case State::SetXZero:
@@ -258,22 +272,17 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
   }
 }
 
-bool HomingController::moveIncrement(Axis axis, int8_t direction,
-                                     float feed_mm_min,
-                                     bool stop_on_target_limit,
-                                     StepperBackendFastAccel& backend,
-                                     SafetyManager& safety,
-                                     MachineState& machine,
-                                     bool& other_limit_allowed_active) {
-  // Bring-up only:
-  // Short incremental XY moves let us poll limit switches between segments.
-  // Future timed segment execution should replace this with a lower-latency
-  // stop path that keeps CoreXY interpolation strict.
+bool HomingController::moveUntilCondition(
+    Axis axis, int8_t direction, float distance_limit_mm, float feed_mm_min,
+    MoveStopCondition stop_condition, StepperBackendFastAccel& backend,
+    SafetyManager& safety, MachineState& machine,
+    bool& other_limit_allowed_active, bool& stop_condition_met) {
+  stop_condition_met = false;
   const float dx_mm = axis == Axis::X
-                          ? static_cast<float>(direction) * HOMING_INCREMENT_MM
+                          ? static_cast<float>(direction) * distance_limit_mm
                           : 0.0f;
   const float dy_mm = axis == Axis::Y
-                          ? static_cast<float>(direction) * HOMING_INCREMENT_MM
+                          ? static_cast<float>(direction) * distance_limit_mm
                           : 0.0f;
   const CoreXYDelta delta =
       CoreXYKinematics::xyDeltaToABSteps(dx_mm, dy_mm, STEPS_PER_MM);
@@ -282,13 +291,34 @@ bool HomingController::moveIncrement(Axis axis, int8_t direction,
   logMessage("SIMULATION_MODE: HOMING move axis=%s dx=%.3f dy=%.3f A=%ld B=%ld F=%.3f",
              axisName(axis), dx_mm, dy_mm, delta.a_steps, delta.b_steps,
              feed_mm_min);
+  applyABStepDeltaToMachine(delta.a_steps, delta.b_steps, machine);
 #else
+  const int32_t start_a_steps = backend.currentASteps();
+  const int32_t start_b_steps = backend.currentBSteps();
   if (!backend.moveABSteps(delta.a_steps, delta.b_steps, feed_mm_min)) {
     markAlarm("homing backend rejected move", safety, machine);
     return false;
   }
   while (backend.isRunning()) {
     safety.poll();
+    switch (stop_condition) {
+      case MoveStopCondition::None:
+        break;
+      case MoveStopCondition::TargetAnyActive:
+        stop_condition_met = targetLimitAnyActive(axis, safety);
+        break;
+      case MoveStopCondition::TargetDebouncedActive:
+        stop_condition_met = targetLimitActive(axis, safety);
+        break;
+      case MoveStopCondition::TargetAnyReleased:
+        stop_condition_met = !targetLimitAnyActive(axis, safety);
+        break;
+    }
+    if (stop_condition_met) {
+      backend.stop();
+      backend.waitUntilIdle();
+      break;
+    }
     if (isMotionAbortRequested()) {
       backend.stop();
       backend.waitUntilIdle();
@@ -306,19 +336,29 @@ bool HomingController::moveIncrement(Axis axis, int8_t direction,
       markAlarm("homing target-other limit active", safety, machine);
       return false;
     }
-    if (stop_on_target_limit && targetLimitActive(axis, safety)) {
-      backend.stop();
-      backend.waitUntilIdle();
-      break;
-    }
     vTaskDelay(pdMS_TO_TICKS(kMovePollMs));
   }
+
+  safety.poll();
+  switch (stop_condition) {
+    case MoveStopCondition::None:
+      break;
+    case MoveStopCondition::TargetAnyActive:
+      stop_condition_met = stop_condition_met || targetLimitAnyActive(axis, safety);
+      break;
+    case MoveStopCondition::TargetDebouncedActive:
+      stop_condition_met = stop_condition_met || targetLimitActive(axis, safety);
+      break;
+    case MoveStopCondition::TargetAnyReleased:
+      stop_condition_met = stop_condition_met || !targetLimitAnyActive(axis, safety);
+      break;
+  }
+
+  const int32_t moved_a_steps = backend.currentASteps() - start_a_steps;
+  const int32_t moved_b_steps = backend.currentBSteps() - start_b_steps;
+  applyABStepDeltaToMachine(moved_a_steps, moved_b_steps, machine);
 #endif
 
-  machine.x_mm += dx_mm;
-  machine.y_mm += dy_mm;
-  machine.a_steps += delta.a_steps;
-  machine.b_steps += delta.b_steps;
   return true;
 }
 
