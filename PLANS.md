@@ -1753,6 +1753,7 @@ Phase 6.9を実装してください。
 | 2026-06-07 | Serial Toolの`--queue-mode`で`HOME`/`HOME_X`/`HOME_Y`の完了ログ待ちを既定30秒にし、QR CSVのhoming timeoutを防止 | Codex |
 | 2026-06-07 | QR Toolの描画方式を、横run矩形の外周描画と45度斜線ハッチングに変更 | Codex |
 | 2026-06-07 | QR Toolの内部ハッチングを、線ごとのペン上下から連続ジグザグ塗りつぶしに変更 | Codex |
+| 2026-06-07 | QR Toolの塗りつぶしを横run単位から上下左右接続成分単位の横方向ジグザグ連続パスへ変更 | Codex |
 
 ---
 

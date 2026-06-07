@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -209,44 +208,152 @@ def module_rect_to_mm(
     )
 
 
-def outline_path(rect: RectMm) -> StrokePath:
-    return StrokePath(
-        points_mm=(
-            (rect.x0_mm, rect.y0_mm),
-            (rect.x1_mm, rect.y0_mm),
-            (rect.x1_mm, rect.y1_mm),
-            (rect.x0_mm, rect.y1_mm),
-            (rect.x0_mm, rect.y0_mm),
-        ),
-        kind="outline",
-    )
+def run_x0(rect: RectModules) -> int:
+    return rect.x
 
 
-def zigzag_hatch_path(rect: RectMm, hatch_pitch_mm: float) -> StrokePath | None:
-    segments: list[tuple[tuple[float, float], tuple[float, float]]] = []
-    c_min = rect.y0_mm - rect.x1_mm
-    c_max = rect.y1_mm - rect.x0_mm
-    c_step = hatch_pitch_mm * math.sqrt(2.0)
-    c = c_min + c_step
-    while c < c_max:
-        x_start = max(rect.x0_mm, rect.y0_mm - c)
-        x_end = min(rect.x1_mm, rect.y1_mm - c)
-        if x_end - x_start > 0.01:
-            segments.append(((x_start, x_start + c), (x_end, x_end + c)))
-        c += c_step
+def run_x1(rect: RectModules) -> int:
+    return rect.x + rect.width
 
-    if not segments:
-        return None
 
+def runs_touch_vertically(a: RectModules, b: RectModules) -> bool:
+    return abs(a.y - b.y) == 1 and max(run_x0(a), run_x0(b)) < min(run_x1(a), run_x1(b))
+
+
+def connected_run_components(rects: Sequence[RectModules]) -> list[list[int]]:
+    runs_by_y: dict[int, list[int]] = {}
+    for index, rect in enumerate(rects):
+        runs_by_y.setdefault(rect.y, []).append(index)
+
+    visited: set[int] = set()
+    components: list[list[int]] = []
+    for start_index in range(len(rects)):
+        if start_index in visited:
+            continue
+        stack = [start_index]
+        visited.add(start_index)
+        component: list[int] = []
+        while stack:
+            index = stack.pop()
+            component.append(index)
+            rect = rects[index]
+            for adjacent_y in (rect.y - 1, rect.y + 1):
+                for neighbor_index in runs_by_y.get(adjacent_y, []):
+                    if neighbor_index in visited:
+                        continue
+                    if runs_touch_vertically(rect, rects[neighbor_index]):
+                        visited.add(neighbor_index)
+                        stack.append(neighbor_index)
+        components.append(sorted(component, key=lambda item: (rects[item].y, rects[item].x)))
+    return components
+
+
+def component_adjacency(
+    rects: Sequence[RectModules],
+    component: Sequence[int],
+) -> dict[int, list[int]]:
+    component_set = set(component)
+    adjacency = {index: [] for index in component}
+    for index in component:
+        rect = rects[index]
+        for neighbor_index in component_set:
+            if neighbor_index == index:
+                continue
+            if runs_touch_vertically(rect, rects[neighbor_index]):
+                adjacency[index].append(neighbor_index)
+        adjacency[index].sort(key=lambda item: (rects[item].y, rects[item].x))
+    return adjacency
+
+
+def overlap_x_mm(
+    a: RectModules,
+    b: RectModules,
+    origin_x_mm: float,
+    module_mm: float,
+) -> float:
+    overlap_start = max(run_x0(a), run_x0(b))
+    overlap_end = min(run_x1(a), run_x1(b))
+    return origin_x_mm + ((overlap_start + overlap_end) * 0.5) * module_mm
+
+
+def horizontal_scan_y_positions(y0_mm: float, y1_mm: float, hatch_pitch_mm: float) -> list[float]:
+    y_positions: list[float] = []
+    y = y0_mm + hatch_pitch_mm * 0.5
+    while y < y1_mm:
+        y_positions.append(y)
+        y += hatch_pitch_mm
+    if not y_positions:
+        y_positions.append((y0_mm + y1_mm) * 0.5)
+    return y_positions
+
+
+def run_horizontal_zigzag_points(
+    rect: RectMm,
+    hatch_pitch_mm: float,
+    start_x_mm: float | None,
+) -> list[tuple[float, float]]:
+    y_positions = horizontal_scan_y_positions(rect.y0_mm, rect.y1_mm, hatch_pitch_mm)
+    start_left = start_x_mm is None or start_x_mm <= (rect.x0_mm + rect.x1_mm) * 0.5
     points: list[tuple[float, float]] = []
-    for index, (start, end) in enumerate(segments):
-        segment_points = (start, end) if index % 2 == 0 else (end, start)
-        if not points:
-            points.extend(segment_points)
-        else:
-            points.append(segment_points[0])
-            points.append(segment_points[1])
-    return StrokePath(points_mm=tuple(points), kind="zigzag hatch")
+    for line_index, y_mm in enumerate(y_positions):
+        left_to_right = (line_index % 2 == 0) == start_left
+        line_points = (
+            ((rect.x0_mm, y_mm), (rect.x1_mm, y_mm))
+            if left_to_right
+            else ((rect.x1_mm, y_mm), (rect.x0_mm, y_mm))
+        )
+        points.extend(line_points)
+    return points
+
+
+def append_point(points: list[tuple[float, float]], point: tuple[float, float]) -> None:
+    if not points or points[-1] != point:
+        points.append(point)
+
+
+def component_zigzag_path(
+    rects: Sequence[RectModules],
+    component: Sequence[int],
+    origin_x_mm: float,
+    origin_y_mm: float,
+    module_mm: float,
+    hatch_pitch_mm: float,
+) -> StrokePath:
+    adjacency = component_adjacency(rects, component)
+    start_index = min(component, key=lambda item: (rects[item].y, rects[item].x))
+    visited: set[int] = set()
+    points: list[tuple[float, float]] = []
+
+    def dfs(index: int, entry_x_mm: float | None) -> None:
+        visited.add(index)
+        rect = rects[index]
+        rect_mm = module_rect_to_mm(rect, origin_x_mm, origin_y_mm, module_mm)
+        fill_points = run_horizontal_zigzag_points(rect_mm, hatch_pitch_mm, entry_x_mm)
+        for point in fill_points:
+            append_point(points, point)
+
+        for neighbor_index in adjacency[index]:
+            if neighbor_index in visited:
+                continue
+            neighbor_rect = rects[neighbor_index]
+            neighbor_mm = module_rect_to_mm(neighbor_rect, origin_x_mm, origin_y_mm, module_mm)
+            connector_x_mm = overlap_x_mm(rect, neighbor_rect, origin_x_mm, module_mm)
+            parent_y_mm = points[-1][1]
+            child_first_y_mm = horizontal_scan_y_positions(
+                neighbor_mm.y0_mm,
+                neighbor_mm.y1_mm,
+                hatch_pitch_mm,
+            )[0]
+
+            append_point(points, (connector_x_mm, parent_y_mm))
+            append_point(points, (connector_x_mm, child_first_y_mm))
+            dfs(neighbor_index, connector_x_mm)
+            child_return_y_mm = points[-1][1]
+            append_point(points, (connector_x_mm, child_return_y_mm))
+            append_point(points, (connector_x_mm, parent_y_mm))
+
+    dfs(start_index, None)
+    return StrokePath(points_mm=tuple(points), kind="connected horizontal zigzag fill")
 
 
 def build_stroke_paths(
@@ -257,12 +364,18 @@ def build_stroke_paths(
     hatch_pitch_mm: float,
 ) -> list[StrokePath]:
     paths: list[StrokePath] = []
-    for rect in rects:
-        rect_mm = module_rect_to_mm(rect, origin_x_mm, origin_y_mm, module_mm)
-        paths.append(outline_path(rect_mm))
-        hatch_path = zigzag_hatch_path(rect_mm, hatch_pitch_mm)
-        if hatch_path is not None:
-            paths.append(hatch_path)
+    rect_list = list(rects)
+    for component in connected_run_components(rect_list):
+        paths.append(
+            component_zigzag_path(
+                rects=rect_list,
+                component=component,
+                origin_x_mm=origin_x_mm,
+                origin_y_mm=origin_y_mm,
+                module_mm=module_mm,
+                hatch_pitch_mm=hatch_pitch_mm,
+            )
+        )
     return paths
 
 

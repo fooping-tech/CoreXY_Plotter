@@ -29,7 +29,7 @@ python tools/qr_tool/qr_to_plot_csv.py \
   --error-correction M
 ```
 
-`qrcode`のquiet zoneは4 modulesです。黒セルは横方向の連続runに結合し、各run矩形の外周を描いてから、内部をペンアップなしの45度ジグザグハッチングで塗ります。CSVの最初と最後には`PENUP`が入ります。
+`qrcode`のquiet zoneは4 modulesです。黒セルは上下左右につながる接続成分へ結合し、各成分をペンアップなしの横方向ジグザグで塗ります。CSVの最初と最後には`PENUP`が入ります。
 生成CSVの先頭には`CONFIG`、`SELFTEST`、`TMC_INIT`、`TMC_STATUS`、`PENUP`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`HOME`、`POS`のbring-up確認preambleが入ります。
 
 ## Send

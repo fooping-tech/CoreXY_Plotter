@@ -39,10 +39,11 @@ def test_short_text_generates_csv_with_plotter_commands(tmp_path: Path) -> None:
 
     assert matrix_size_modules > 0
     assert paths
-    assert any(path.kind == "outline" for path in paths)
-    assert any(path.kind == "zigzag hatch" for path in paths)
+    assert all(path.kind == "connected horizontal zigzag fill" for path in paths)
     assert all(
-        len(path.points_mm) > 2 for path in paths if path.kind == "zigzag hatch"
+        len(path.points_mm) > 2
+        for path in paths
+        if path.kind == "connected horizontal zigzag fill"
     )
     assert commands[:10] == [
         "CONFIG",
@@ -84,5 +85,4 @@ def test_preview_svg_contains_generated_hatch_lines(tmp_path: Path) -> None:
     svg_text = args.preview_svg.read_text(encoding="utf-8")
     assert "<svg" in svg_text
     assert "<polyline " in svg_text
-    assert 'data-kind="outline"' in svg_text
-    assert 'data-kind="zigzag hatch"' in svg_text
+    assert 'data-kind="connected horizontal zigzag fill"' in svg_text
