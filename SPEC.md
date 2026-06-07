@@ -310,12 +310,15 @@ MotorMelodyController
 | パラメータ | 値 |
 |---|---:|
 | `STEPS_PER_MM` | `80.0f` |
-| `DEFAULT_FEED_MM_MIN` | `1200.0f` |
-| `MAX_FEED_MM_MIN` | `5000.0f` |
-| `DEFAULT_MOTOR_SPEED_STEPS_S` | `3000` |
-| `MAX_MOTOR_SPEED_STEPS_S` | `7000` |
-| `DEFAULT_MOTOR_ACCEL_STEPS_S2` | `3000` |
-| `DEFAULT_ACCEL_MM_S2` | `37.5f` |
+| `COREXY_MAX_MOTOR_GAIN` | `1.41421356237f` |
+| `SPEED_SAFETY` | `0.80f` |
+| `DEFAULT_FEED_RATIO` | `0.40f` |
+| `MAX_MOTOR_SPEED_STEPS_S` | `20000` |
+| `MAX_FEED_MM_MIN` | `MAX_MOTOR_SPEED_STEPS_S * 60 / (STEPS_PER_MM * COREXY_MAX_MOTOR_GAIN) * SPEED_SAFETY` |
+| `DEFAULT_FEED_MM_MIN` | `MAX_FEED_MM_MIN * DEFAULT_FEED_RATIO` |
+| `DEFAULT_MOTOR_SPEED_STEPS_S` | `round(DEFAULT_FEED_MM_MIN * STEPS_PER_MM / 60)` |
+| `DEFAULT_ACCEL_MM_S2` | `100.0f` |
+| `DEFAULT_MOTOR_ACCEL_STEPS_S2` | `round(DEFAULT_ACCEL_MM_S2 * STEPS_PER_MM * COREXY_MAX_MOTOR_GAIN)` |
 | `X_MIN_MM` | `0.0f` |
 | `X_MAX_MM` | `55.0f` |
 | `Y_MIN_MM` | `0.0f` |
@@ -511,7 +514,7 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 ログ例:
 
 ```text
-XY target=(10.000,0.000) current=(0.000,0.000) dx=10.000 dy=0.000 A=800 B=800 F=1200.000
+XY target=(10.000,0.000) current=(0.000,0.000) dx=10.000 dy=0.000 A=800 B=800 F=3394.113
 SIMULATION_MODE: no motor output
 ```
 

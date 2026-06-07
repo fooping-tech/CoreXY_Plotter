@@ -1024,6 +1024,9 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 
 - [x] `DEFAULT_MOTOR_ACCEL_STEPS_S2`を実機描画用に保守的な値へ下げる
 - [x] `DEFAULT_ACCEL_MM_S2`の`CONFIG`表示とcheck CSV期待値を追従させる
+- [x] CoreXY最悪条件`sqrt(2)`と`SPEED_SAFETY`を使って`MAX_FEED_MM_MIN`を`MAX_MOTOR_SPEED_STEPS_S`から導出する
+- [x] `DEFAULT_FEED_MM_MIN`、`DEFAULT_MOTOR_SPEED_STEPS_S`、`DEFAULT_MOTOR_ACCEL_STEPS_S2`を独立設定ではなく導出値にする
+- [x] timed segment生成時にA/B各segmentのstep周波数が`MAX_MOTOR_SPEED_STEPS_S`を超えないことを確認する
 - [x] `TMC_NORMAL_RMS_CURRENT_MA`を実機で脱調しない方向へ調整する
 - [x] `PEN_DOWN_ANGLE_DEG`をconfig化した上で、紙への押し付けを弱める方向へ調整する
 - [ ] TMC電流増加後のモータ/ドライバ温度を連続描画で確認し、必要なら電流を下げる
@@ -1337,7 +1340,7 @@ python tools/serial_tool/serial_send.py \
 
 チェック:
 
-- [x] `CONFIG`で`accel=37.500`を確認できる
+- [x] `CONFIG`で`accel=100.000`を確認できる
 - [x] `TMC_STATUS`で通常profileの電流設定を確認できる
 - [x] `HOME`が完了する
 - [x] マル、四角、三角、星の描画コマンドが最後までACKされる

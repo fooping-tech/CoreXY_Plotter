@@ -16,7 +16,7 @@ python tools/serial_tool/serial_send.py \
 
 | Command | Expected log |
 |---|---|
-| `CONFIG` | `accel=37.500` |
+| `CONFIG` | `accel=100.000` |
 | `ALARM_CLEAR` | `ALARM_CLEAR complete` |
 | `LIMIT_STATUS` | Record whether X/Y limit starts ON or OFF |
 | `HOME` | `HOME complete` |

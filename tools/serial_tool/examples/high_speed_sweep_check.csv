@@ -1,5 +1,5 @@
 command,delay_ms,expect,comment
-CONFIG,500,max_feed=5000.000,Confirm max feed is high enough for the sweep
+CONFIG,500,max_feed=8485.281,Confirm max feed is high enough for the sweep
 TMC_INIT,1000,TMC_INIT,Initialize TMC2209 UART manager
 TMC_STATUS,700,TMC_STATUS,Show TMC2209 status
 ZERO,500,ZERO,Forget any stale logical position before clearing alarm

@@ -2,12 +2,25 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include "PlotterConfig.h"
 #include "SegmentQueue.h"
 
 namespace {
 constexpr float DEFAULT_SEGMENT_TIME_S = 0.020f;
 constexpr float MIN_SEGMENT_TIME_S = 0.001f;
 constexpr float MIN_MOVE_TIME_S = 0.000001f;
+
+bool segmentWithinMotorSpeedLimit(const MotionSegment& segment) {
+  if (segment.duration_us == 0) return false;
+  const float a_hz =
+      fabsf(static_cast<float>(segment.a_steps)) * 1000000.0f /
+      static_cast<float>(segment.duration_us);
+  const float b_hz =
+      fabsf(static_cast<float>(segment.b_steps)) * 1000000.0f /
+      static_cast<float>(segment.duration_us);
+  return a_hz <= MAX_MOTOR_SPEED_STEPS_S &&
+         b_hz <= MAX_MOTOR_SPEED_STEPS_S;
+}
 }
 
 bool SegmentGenerator::generate(const MotionBlock& block,
@@ -19,7 +32,7 @@ bool SegmentGenerator::generate(const MotionBlock& block,
       lroundf((block.acceleration_time_s + block.cruise_time_s +
                block.deceleration_time_s) *
               1000000.0f));
-  return segment.duration_us > 0;
+  return segmentWithinMotorSpeedLimit(segment);
 }
 
 bool SegmentGenerator::generate(const MotionBlock& block,
@@ -63,6 +76,7 @@ bool SegmentGenerator::generate(const MotionBlock& block,
     segment.duration_us =
         static_cast<uint32_t>(max(1.0f, (time_s - previous_time_s) * 1000000.0f));
 
+    if (!segmentWithinMotorSpeedLimit(segment)) return false;
     if (!queue.enqueue(segment)) return false;
 
     previous_a_steps = cumulative_a_steps;

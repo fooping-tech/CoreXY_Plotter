@@ -22,37 +22,73 @@
 // 実測で補正する。例: 80 steps/mmなら10mm移動で800step。
 constexpr float STEPS_PER_MM = 80.0f;
 
-// feed未指定時や初期化時に使う標準送り速度 [mm/min]。
-// 決め方: 確実に脱調しない低めの速度から始める。
-constexpr float DEFAULT_FEED_MM_MIN = 8000.0f;
+// CoreXYではXY速度方向によってA/Bモータのstep周波数が変わる。
+// 最悪条件は45度方向で、片側モータがXY空間のsqrt(2)倍の速度になる。
+constexpr float COREXY_MAX_MOTOR_GAIN = 1.41421356237f;
 
-// XYコマンドで許可する最大送り速度 [mm/min]。
-// 決め方: MAX_MOTOR_SPEED_STEPS_S / STEPS_PER_MM * 60 以下にする。
-// 5000 mm/minは、STEPS_PER_MM=80では約6667 steps/s。
-constexpr float MAX_FEED_MM_MIN = 8000.0f;
+// 最大feed算出時の安全率。理論上限をそのまま使わず余裕を残す。
+constexpr float SPEED_SAFETY = 1.0f;//0.80f;
 
-// FastAccelStepperの初期速度 [steps/s]。
-// 主に単軸テストや初期化時の保守的な値。通常XYはfeedから速度を決める。
-constexpr uint32_t DEFAULT_MOTOR_SPEED_STEPS_S = 5000;
+// 標準feedを最大feedの何割にするか。
+// DEFAULT_FEEDとMAX_FEEDを分け、通常描画が常に限界速度にならないようにする。
+constexpr float DEFAULT_FEED_RATIO = 1.0f;//0.80f;
 
 // モータSTEP周波数の上限 [steps/s]。
-// 決め方: MAX_FEED_MM_MINをsteps/sへ換算した値より少し大きくする。
 // 大きすぎると脱調、ノイズ、ドライバ発熱が増える。
-constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 20000;
+constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 30000;
+
+// XYコマンドで許可する最大送り速度 [mm/min]。
+// CoreXY最悪条件を考慮し、片側モータstep周波数が
+// MAX_MOTOR_SPEED_STEPS_Sを超えない範囲から安全率込みで導出する。
+constexpr float MAX_FEED_MM_MIN =
+    MAX_MOTOR_SPEED_STEPS_S * 60.0f /
+    (STEPS_PER_MM * COREXY_MAX_MOTOR_GAIN) * SPEED_SAFETY;
+
+// feed未指定時や初期化時に使う標準送り速度 [mm/min]。
+// 最大feedから比率で導出し、標準速度と限界速度の意味を分ける。
+constexpr float DEFAULT_FEED_MM_MIN = MAX_FEED_MM_MIN * DEFAULT_FEED_RATIO;
+
+// FastAccelStepperの初期速度 [steps/s]。
+// 主に単軸テストや初期化時の値。通常XYはfeedから速度を決める。
+constexpr uint32_t DEFAULT_MOTOR_SPEED_STEPS_S = static_cast<uint32_t>(
+    DEFAULT_FEED_MM_MIN * STEPS_PER_MM / 60.0f + 0.5f);
+
+// TrapezoidPlannerで使うXY空間の加速度 [mm/s^2]。
+// 決め方: 低めから上げ、脱調や振動が出ない値にする。
+// ペンが紙に接触する描画では負荷が増えるため、実機で段階的に確認する。
+constexpr float DEFAULT_ACCEL_MM_S2 = 10000.0f;
 
 // モータ加速度 [steps/s^2]。
-// 決め方: 低めから上げ、脱調や振動が出ない値にする。
-// ペンが紙に接触する描画では負荷が増えるため、まず保守的な値にする。
-// DEFAULT_ACCEL_MM_S2 = DEFAULT_MOTOR_ACCEL_STEPS_S2 / STEPS_PER_MM。
-constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = 20000;
-
-// TrapezoidPlannerで使う加速度 [mm/s^2]。
-// 上のsteps単位設定から自動換算するため、通常は直接変更しない。
-constexpr float DEFAULT_ACCEL_MM_S2 = DEFAULT_MOTOR_ACCEL_STEPS_S2 / STEPS_PER_MM;
+// CoreXY最悪条件を考慮し、XY空間加速度にsteps/mmとsqrt(2)を掛けて導出する。
+constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = static_cast<uint32_t>(
+    DEFAULT_ACCEL_MM_S2 * STEPS_PER_MM * COREXY_MAX_MOTOR_GAIN + 0.5f);
 
 // 将来の加速度clamp用の上限 [mm/s^2]。
 // 現状はDEFAULT_ACCEL_MM_S2と同じ値。
-constexpr float MAX_ACCEL_MM_S2 = DEFAULT_MOTOR_ACCEL_STEPS_S2 / STEPS_PER_MM;
+constexpr float MAX_ACCEL_MM_S2 = DEFAULT_ACCEL_MM_S2;
+
+static_assert(STEPS_PER_MM > 0.0f, "STEPS_PER_MM must be > 0");
+static_assert(COREXY_MAX_MOTOR_GAIN >= 1.4142f,
+              "COREXY_MAX_MOTOR_GAIN must account for CoreXY diagonal motor speed");
+static_assert(SPEED_SAFETY > 0.0f && SPEED_SAFETY <= 1.0f,
+              "SPEED_SAFETY must be in (0, 1]");
+static_assert(DEFAULT_FEED_RATIO > 0.0f && DEFAULT_FEED_RATIO <= 1.0f,
+              "DEFAULT_FEED_RATIO must be in (0, 1]");
+static_assert(MAX_MOTOR_SPEED_STEPS_S > 0,
+              "MAX_MOTOR_SPEED_STEPS_S must be > 0");
+static_assert(DEFAULT_FEED_MM_MIN <= MAX_FEED_MM_MIN,
+              "DEFAULT_FEED_MM_MIN must be <= MAX_FEED_MM_MIN");
+static_assert(DEFAULT_MOTOR_SPEED_STEPS_S <= MAX_MOTOR_SPEED_STEPS_S,
+              "DEFAULT_MOTOR_SPEED_STEPS_S must be <= MAX_MOTOR_SPEED_STEPS_S");
+static_assert(
+    MAX_FEED_MM_MIN * STEPS_PER_MM * COREXY_MAX_MOTOR_GAIN / 60.0f
+        <= MAX_MOTOR_SPEED_STEPS_S,
+    "MAX_FEED_MM_MIN exceeds MAX_MOTOR_SPEED_STEPS_S in CoreXY worst case");
+static_assert(DEFAULT_ACCEL_MM_S2 > 0.0f, "DEFAULT_ACCEL_MM_S2 must be > 0");
+static_assert(MAX_ACCEL_MM_S2 >= DEFAULT_ACCEL_MM_S2,
+              "MAX_ACCEL_MM_S2 must be >= DEFAULT_ACCEL_MM_S2");
+static_assert(DEFAULT_MOTOR_ACCEL_STEPS_S2 > 0,
+              "DEFAULT_MOTOR_ACCEL_STEPS_S2 must be > 0");
 
 // AB_TIMED診断コマンドで許可する最小duration [us]。
 // 短すぎるtimed moveはFastAccelStepper queueや機械側の切り分けに向かないため拒否する。
