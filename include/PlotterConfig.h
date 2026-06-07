@@ -24,7 +24,7 @@ constexpr float STEPS_PER_MM = 80.0f;
 
 // feed未指定時や初期化時に使う標準送り速度 [mm/min]。
 // 決め方: 確実に脱調しない低めの速度から始める。
-constexpr float DEFAULT_FEED_MM_MIN = 600.0f;
+constexpr float DEFAULT_FEED_MM_MIN = 1200.0f;
 
 // XYコマンドで許可する最大送り速度 [mm/min]。
 // 決め方: MAX_MOTOR_SPEED_STEPS_S / STEPS_PER_MM * 60 以下にする。
@@ -77,7 +77,7 @@ constexpr uint32_t DIR_CHANGE_DELAY_US = 200;
 // ペン上げ/下げのサーボ角度 [deg]。
 // 決め方: 機構に合わせて、紙を擦らない上げ角と十分に接地する下げ角を実測する。
 constexpr uint8_t PEN_UP_ANGLE_DEG = 60;
-constexpr uint8_t PEN_DOWN_ANGLE_DEG = 70;
+constexpr uint8_t PEN_DOWN_ANGLE_DEG = 80;
 
 // ============================================================================
 // Motor direction
@@ -102,7 +102,7 @@ constexpr int8_t HOMING_Y_DIR = -1;
 
 // fast seek速度 [mm/min]。最初にlimitへ向かう速度。
 // 決め方: 確実に停止できる範囲で速くする。
-constexpr float HOMING_SEEK_FEED_MM_MIN = 600.0f;
+constexpr float HOMING_SEEK_FEED_MM_MIN = 1200.0f;
 
 // slow seek速度 [mm/min]。backoff後に再度limitへ当てる低速。
 // 決め方: 原点再現性を優先して低くする。
@@ -118,8 +118,8 @@ constexpr float HOMING_START_BACKOFF_MM = 40.0f;
 
 // homingで探索を許す最大移動距離 [mm]。
 // 決め方: 実ストロークより大きく、異常時に無限移動しない値にする。
-constexpr float HOMING_MAX_TRAVEL_X_MM = 320.0f;
-constexpr float HOMING_MAX_TRAVEL_Y_MM = 320.0f;
+constexpr float HOMING_MAX_TRAVEL_X_MM = 100.0f;
+constexpr float HOMING_MAX_TRAVEL_Y_MM = 100.0f;
 
 // homing完了時にMachineStateへ設定する座標 [mm]。
 // 原点switchを作業座標0にするなら0。
