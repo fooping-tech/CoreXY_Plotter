@@ -24,27 +24,27 @@ constexpr float STEPS_PER_MM = 80.0f;
 
 // feed未指定時や初期化時に使う標準送り速度 [mm/min]。
 // 決め方: 確実に脱調しない低めの速度から始める。
-constexpr float DEFAULT_FEED_MM_MIN = 1200.0f;
+constexpr float DEFAULT_FEED_MM_MIN = 8000.0f;
 
 // XYコマンドで許可する最大送り速度 [mm/min]。
 // 決め方: MAX_MOTOR_SPEED_STEPS_S / STEPS_PER_MM * 60 以下にする。
 // 5000 mm/minは、STEPS_PER_MM=80では約6667 steps/s。
-constexpr float MAX_FEED_MM_MIN = 5000.0f;
+constexpr float MAX_FEED_MM_MIN = 8000.0f;
 
 // FastAccelStepperの初期速度 [steps/s]。
 // 主に単軸テストや初期化時の保守的な値。通常XYはfeedから速度を決める。
-constexpr uint32_t DEFAULT_MOTOR_SPEED_STEPS_S = 3000;
+constexpr uint32_t DEFAULT_MOTOR_SPEED_STEPS_S = 5000;
 
 // モータSTEP周波数の上限 [steps/s]。
 // 決め方: MAX_FEED_MM_MINをsteps/sへ換算した値より少し大きくする。
 // 大きすぎると脱調、ノイズ、ドライバ発熱が増える。
-constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 7000;
+constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 20000;
 
 // モータ加速度 [steps/s^2]。
 // 決め方: 低めから上げ、脱調や振動が出ない値にする。
 // ペンが紙に接触する描画では負荷が増えるため、まず保守的な値にする。
 // DEFAULT_ACCEL_MM_S2 = DEFAULT_MOTOR_ACCEL_STEPS_S2 / STEPS_PER_MM。
-constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = 3000;
+constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = 20000;
 
 // TrapezoidPlannerで使う加速度 [mm/s^2]。
 // 上のsteps単位設定から自動換算するため、通常は直接変更しない。
