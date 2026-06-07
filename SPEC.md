@@ -741,5 +741,5 @@ F値はmm/minとして扱う。
 - 台形加減速profileとtimed segmentによるA/B同期XY移動が実行できる
 - `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
 - 動き出し・動き終わりの歪み調査用に、同一中心へ5個の正方形を重ねて描く反時計回り版`concentric_squares_check.csv`と時計回り版`concentric_squares_clockwise_check.csv`をSerial Toolから実行できる
-- 通常版完走後の速度依存性確認用に、描画feed`1800 mm/min`、ペンアップ移動feed`2400 mm/min`の`concentric_squares_high_speed_check.csv`をSerial Toolから実行できる
+- 通常版完走後の速度依存性確認用に、feedを省略して`DEFAULT_FEED_MM_MIN`で実行する`concentric_squares_high_speed_check.csv`をSerial Toolから実行できる
 - `diagnostic_ab_timed_square_draw.csv`で、PENDOWNした四角描画を`AB_TIMED`直接実行経路で行い、通常XY描画CSVと比較できる
