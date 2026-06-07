@@ -1,0 +1,8 @@
+command,delay_ms,expect,comment
+CONFIG,500,BOARD,Confirm firmware and serial link before ABORT check
+POS,500,POS,Show current state before ABORT
+ABORT,500,ABORT,Request motion abort and force alarm state
+POS,500,ALARM=YES,Confirm ABORT puts machine into alarm
+ZERO,500,ZERO,Forget stale logical position before clearing alarm
+ALARM_CLEAR,500,ALARM_CLEAR complete,Clear abort alarm
+POS,500,ALARM=NO,Confirm alarm is cleared after recovery sequence

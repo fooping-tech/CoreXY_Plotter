@@ -138,7 +138,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
   safety.poll();
   const int8_t seek_dir = directionForAxis(axis);
   bool other_limit_allowed_active = otherLimitActive(axis, safety);
-  const bool target_limit_active_at_start = targetLimitActive(axis, safety);
+  const bool target_limit_active_at_start = targetLimitAnyActive(axis, safety);
   const float backoff_limit_mm =
       target_limit_active_at_start ? HOMING_START_BACKOFF_MM : HOMING_BACKOFF_MM;
   float travel_mm = 0.0f;
@@ -170,6 +170,12 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
       markAlarm(safety.alarmReason(), safety, machine);
       return false;
     }
+    if (isMotionAbortRequested()) {
+      clearMotionAbort();
+      backend.stop();
+      markAlarm("abort requested", safety, machine);
+      return false;
+    }
     if (otherLimitUnexpected(axis, safety, machine,
                              other_limit_allowed_active)) {
       markAlarm("homing target-other limit active", safety, machine);
@@ -179,7 +185,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
     switch (state_) {
       case State::SeekFastX:
       case State::SeekFastY:
-        if (targetLimitActive(axis, safety)) {
+        if (targetLimitAnyActive(axis, safety)) {
           setState(backoff, machine, "LIMIT_PRESSED_SEEK_FAST_TO_BACKOFF");
           backoff_mm = 0.0f;
           break;
@@ -198,7 +204,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
 
       case State::BackoffX:
       case State::BackoffY:
-        if (!targetLimitActive(axis, safety)) {
+        if (!targetLimitAnyActive(axis, safety)) {
           travel_mm = 0.0f;
           setState(seek_slow, machine, "BACKOFF_LIMIT_RELEASED");
           break;
@@ -283,6 +289,13 @@ bool HomingController::moveIncrement(Axis axis, int8_t direction,
   }
   while (backend.isRunning()) {
     safety.poll();
+    if (isMotionAbortRequested()) {
+      backend.stop();
+      backend.waitUntilIdle();
+      clearMotionAbort();
+      markAlarm("abort requested", safety, machine);
+      return false;
+    }
     if (other_limit_allowed_active && !otherLimitActive(axis, safety)) {
       other_limit_allowed_active = false;
     }
@@ -317,6 +330,11 @@ bool HomingController::targetLimitActive(Axis axis,
 bool HomingController::targetLimitRawActive(
     Axis axis, const SafetyManager& safety) const {
   return axis == Axis::X ? safety.xLimitRawActive() : safety.yLimitRawActive();
+}
+
+bool HomingController::targetLimitAnyActive(
+    Axis axis, const SafetyManager& safety) const {
+  return targetLimitRawActive(axis, safety) || targetLimitActive(axis, safety);
 }
 
 bool HomingController::otherLimitActive(Axis axis,

@@ -18,6 +18,11 @@ NeoPixelController neopixel_controller;
 LedPatternEngine led_pattern_engine;
 MotorMelodyController motor_melody_controller;
 HomingController homing_controller;
+volatile bool motion_abort_requested = false;
+
+void requestMotionAbort() { motion_abort_requested = true; }
+bool isMotionAbortRequested() { return motion_abort_requested; }
+void clearMotionAbort() { motion_abort_requested = false; }
 
 void logMessage(const char* format, ...) {
   LogMessage message{};

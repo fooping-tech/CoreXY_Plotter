@@ -26,6 +26,9 @@ extern LedPatternEngine led_pattern_engine;
 extern MotorMelodyController motor_melody_controller;
 extern HomingController homing_controller;
 
+void requestMotionAbort();
+bool isMotionAbortRequested();
+void clearMotionAbort();
 void logMessage(const char* format, ...);
 void publishStatus();
 void uiTask(void*);

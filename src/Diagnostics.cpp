@@ -7,7 +7,7 @@
 
 void Diagnostics::printHelp() {
   logMessage("HELP CONFIG POS ZERO TEST_A <steps> TEST_B <steps>");
-  logMessage("XY <x_mm> <y_mm> <feed_mm_min> HOME HOME_X HOME_Y HOME_STATUS LIMIT_STATUS ALARM_CLEAR");
+  logMessage("XY <x_mm> <y_mm> <feed_mm_min> HOME HOME_X HOME_Y HOME_STATUS LIMIT_STATUS ALARM_CLEAR ABORT");
   logMessage("PENUP PENDOWN SELFTEST TMC_INIT TMC_STATUS");
   logMessage("LED <r> <g> <b> LED_PIXEL <index> <r> <g> <b> LED_OFF LED_STATUS");
   logMessage("LED_PATTERN <OFF|SOLID|PACIFICA|FIRE> LED_BRIGHTNESS <value> LED_PARAM <name> <value> MELODY");

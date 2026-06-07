@@ -434,6 +434,13 @@ Core 0へ表示するときはStatusQueueを通す。
 | `SELFTEST` | CoreXY変換等の自己診断 |
 | `TMC_INIT` | TMC2209初期化 |
 | `TMC_STATUS` | TMC2209状態表示 |
+| `HOME` | X/Y順のhoming |
+| `HOME_X` | X軸homing |
+| `HOME_Y` | Y軸homing |
+| `HOME_STATUS` | homing状態表示 |
+| `LIMIT_STATUS` | limit switch状態表示 |
+| `ALARM_CLEAR` | alarm解除 |
+| `ABORT` | 実行中motion/homingを停止し、alarmへ遷移 |
 | `LED <r> <g> <b>` | 外付けNEOPIXEL全灯をRGB指定で点灯 |
 | `LED_PIXEL <index> <r> <g> <b>` | 指定indexのNEOPIXELをRGB指定で点灯 |
 | `LED_OFF` | 外付けNEOPIXELを消灯 |
@@ -442,8 +449,15 @@ Core 0へ表示するときはStatusQueueを通す。
 受信応答:
 
 - parseに成功し、対象キューへ投入できたコマンドは`ACK QUEUED <command>`を返す。
+- `ABORT`はcommandTaskで即時停止要求flagを立てる。CommandQueueへ投入できない場合も`ACK ABORT requested`を返し、motion/homing側のpollで停止を試みる。
 - parse失敗またはキュー満杯の場合は`ERROR: ...`を返し、`ACK QUEUED`は返さない。
 - motion側で安全確認または実行投入に失敗した場合は`REJECT: ...`または`ERROR: ...`に加えて、XYでは`NACK_XY ...`を返す。
+
+脱調や手動停止により論理座標が信用できない状態から再homingする場合は、`ALARM_CLEAR`の前に`ZERO`を実行して現在の論理座標とhomed状態を破棄する。
+HOMEを扱うserial check CSVでは、原則として`ZERO -> ALARM_CLEAR -> HOME`の順にする。
+HOME開始時またはSeekFast中に対象limitのrawまたはdebouncedがONなら、seek方向へ押し込まず即Backoffへ入る。
+BackoffからSeekSlowへ移る条件は、対象limitのrawとdebouncedの両方がOFFになることとする。
+`ABORT`で停止した場合は実位置が論理座標と一致する保証がないため、homed状態を無効化しalarm状態にする。復旧は`ZERO -> ALARM_CLEAR -> HOME`の順に行う。
 
 ---
 
@@ -460,6 +474,7 @@ Core 0へ表示するときはStatusQueueを通す。
 - CSV `delay_ms`: 各コマンド送信後の最小読み取り時間
 - 各行の最大待ち時間は`max(delay_ms, --timeout)`
 - `expect`が指定されている場合、`delay_ms`経過後に`expect`を受信済みで、受信が短時間idleになったら次の行へ進む
+- `Ctrl-C`で中断された場合、serial portを閉じる前に`ABORT`を送信して短時間応答を読む
 
 `--timeout`は`HOME`や長いXY移動の最大待ち時間として使う。
 起動ログ読み捨て時間には使わない。

@@ -48,6 +48,7 @@ class HomingController {
                      bool& other_limit_allowed_active);
   bool targetLimitActive(Axis axis, const SafetyManager& safety) const;
   bool targetLimitRawActive(Axis axis, const SafetyManager& safety) const;
+  bool targetLimitAnyActive(Axis axis, const SafetyManager& safety) const;
   bool otherLimitActive(Axis axis, const SafetyManager& safety) const;
   bool otherLimitUnexpected(Axis axis, const SafetyManager& safety,
                             const MachineState& machine,

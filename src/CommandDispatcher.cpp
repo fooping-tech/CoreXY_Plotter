@@ -56,6 +56,7 @@ CommandMessage CommandDispatcher::parse(const char* line) {
   else if (strcmp(name, "HOME_STATUS") == 0) command.type = CommandType::HOME_STATUS;
   else if (strcmp(name, "LIMIT_STATUS") == 0) command.type = CommandType::LIMIT_STATUS;
   else if (strcmp(name, "ALARM_CLEAR") == 0) command.type = CommandType::ALARM_CLEAR;
+  else if (strcmp(name, "ABORT") == 0) command.type = CommandType::ABORT;
   else if (strcmp(name, "LED_OFF") == 0) {
     command.type = CommandType::LED_OFF;
     command.led.type = LedCommandType::OFF;

@@ -21,6 +21,8 @@ DEFAULT_OPEN_RETRIES = 3
 DEFAULT_CLOSE_DELAY_S = 0.3
 READ_DRAIN_S = 0.2
 READ_IDLE_S = 0.15
+INTERRUPT_ABORT_TIMEOUT_S = 1.0
+INTERRUPT_ABORT_MIN_READ_S = 0.2
 
 
 @dataclass(frozen=True)
@@ -282,6 +284,26 @@ def open_serial_port(serial, port: str, baud: int, timeout: float, retries: int)
     raise RuntimeError(detail)
 
 
+def send_abort_on_interrupt(serial_port) -> None:
+    if not serial_port.is_open:
+        return
+    print("Interrupted: sending ABORT before closing serial port.", file=sys.stderr, flush=True)
+    try:
+        serial_port.write(b"ABORT\n")
+        serial_port.flush()
+        response = read_response_text(
+            serial_port,
+            min_duration_s=INTERRUPT_ABORT_MIN_READ_S,
+            max_duration_s=INTERRUPT_ABORT_TIMEOUT_S,
+            stop_on="ABORT",
+        )
+    except Exception as exc:
+        print(f"WARNING: failed to send ABORT: {exc}", file=sys.stderr, flush=True)
+        return
+    if response:
+        print(response, end="" if response.endswith("\n") else "\n", flush=True)
+
+
 def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
     if not args.port:
         raise ValueError("--port is required unless --dry-run is used")
@@ -339,6 +361,9 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
                 if not args.continue_on_error:
                     return 1
         return 1 if failures else 0
+    except KeyboardInterrupt:
+        send_abort_on_interrupt(serial_port)
+        raise
     finally:
         if serial_port.is_open:
             serial_port.flush()

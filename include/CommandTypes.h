@@ -20,6 +20,7 @@ enum class CommandType {
   HOME_STATUS,
   LIMIT_STATUS,
   ALARM_CLEAR,
+  ABORT,
   LED,
   LED_PIXEL,
   LED_OFF,

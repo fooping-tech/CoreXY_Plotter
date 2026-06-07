@@ -1313,7 +1313,33 @@ python tools/serial_tool/serial_send.py \
 - [x] 起動ログ読み捨て時間は`--startup-drain`で指定できる
 - [x] `--startup-delay 0 --timeout 60`でも、最初のコマンド送信前に60秒待たない
 - [x] `HOME`行はCSV `delay_ms`を短くし、`expect=HOME complete`と長めの`--timeout`で完了待ちできる
-- [ ] high-speed / homing系CSVのHOME行を、固定長待ちからexpect主体の短い`delay_ms`へ整理する
+- [x] high-speed / homing系CSVのHOME行を、固定長待ちからexpect主体の短い`delay_ms`へ整理する
+
+## 12.9 脱調後の再homing復旧順序
+
+チェック:
+
+- [x] HOMEを扱うCSVでは`ALARM_CLEAR`の前に`ZERO`を入れる
+- [x] `ZERO`で脱調後の古い論理座標とhomed状態を破棄してからalarmを解除する
+- [x] `ZERO -> ALARM_CLEAR -> HOME`の順にして、原点外limit active alarmが再発しにくい復旧順序にする
+- [x] HOME開始時またはSeekFast中に対象limit raw/debouncedのどちらかがONなら、seek方向へ押し込まず即Backoffする
+- [x] Backoff完了判定は対象limit raw/debouncedの両方がOFFになってからSeekSlowへ進む
+- [ ] 実機で脱調後または意図的な座標ずれ後に、`ZERO -> ALARM_CLEAR -> HOME`で復旧できることを確認する
+
+## 12.10 Serial Tool中断時のABORT仕様
+
+`serial_send.py`を`Ctrl-C`で止めた場合、Python側だけが終了してファームウェア側のmotion/homingが残ると、次回コマンドが戻らないように見える。
+追加仕様として、中断時はserial portを閉じる前に`ABORT`を送信し、ファームウェアは実行中motion/homingを停止してalarmへ遷移する。
+
+チェック:
+
+- [x] Serial command `ABORT`を追加する
+- [x] `ABORT`はcommandTaskで即時停止要求flagを立てる
+- [x] motion/timed segment実行中に停止要求flagをpollしてbackendを停止する
+- [x] homing実行中に停止要求flagをpollしてbackendを停止する
+- [x] `ABORT`後はalarm状態にし、homed状態を無効化する
+- [x] `serial_send.py`の`Ctrl-C`時に`ABORT`を送ってからserial portを閉じる
+- [ ] 実機で長いXY移動中またはHOME中に`Ctrl-C`し、次回serial commandが応答することを確認する
 
 ---
 
@@ -1544,6 +1570,9 @@ Phase 6.9を実装してください。
 | 2026-06-06 | `PlotterConfig.h`へ日本語コメントを追加し、最大feed 5000mm/min、servo up/down角度config化、high-speed checkを追加 | Codex |
 | 2026-06-07 | timed segment実機描画で脱調対策を追加。加速度37.5mm/s^2、TMC通常電流850mA、hard limit継続時間判定、center shapes低速CSVを計画へ反映 | Codex |
 | 2026-06-07 | Serial Toolの起動ログ読み捨て時間を`--startup-drain`として`--timeout`から分離し、HOME完了待ちをexpect主体で短縮できる仕様を追加 | Codex |
+| 2026-06-07 | HOMEを扱うCSVで`ALARM_CLEAR`前に`ZERO`を入れ、脱調後に古い論理座標を破棄してから再homingする復旧順序へ統一 | Codex |
+| 2026-06-07 | HOME開始時のlimit raw ONを即Backoff条件に追加し、debounce未反映中にseek方向へ押し込む短時間移動を防止 | Codex |
+| 2026-06-07 | Serial Toolの`Ctrl-C`中断時に`ABORT`を送信し、ファームウェア側でmotion/homingを停止してalarmへ遷移する追加仕様を反映 | Codex |
 
 ---
 

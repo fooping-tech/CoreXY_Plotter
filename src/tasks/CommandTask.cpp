@@ -23,6 +23,13 @@ void commandTask(void*) {
           CommandMessage command = CommandDispatcher::parse(line);
           if (command.type == CommandType::INVALID) {
             logMessage("ERROR: %s", command.error);
+          } else if (command.type == CommandType::ABORT) {
+            requestMotionAbort();
+            if (xQueueSend(command_queue, &command, 0) != pdTRUE) {
+              logMessage("ACK ABORT requested");
+            } else {
+              logMessage("ACK QUEUED %s", command.name);
+            }
           } else if (isLedCommand(command.type) &&
                      xQueueSend(led_command_queue, &command.led, 0) != pdTRUE) {
             logMessage("ERROR: LedCommandQueue full");

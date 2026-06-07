@@ -26,8 +26,22 @@ void invalidateHomed(const char* reason) {
   logMessage("HOMED invalidated: %s", reason);
 }
 
+bool stopForAbort(const char* context) {
+  if (!isMotionAbortRequested()) return false;
+  clearMotionAbort();
+  stepper_backend.stop();
+  safety_manager.setAlarm("abort requested");
+  machine_state.alarmed = true;
+  invalidateHomed("abort requested");
+  logMessage("%s: abort requested", context);
+  return true;
+}
+
 bool waitForMotionOrLimit() {
   while (stepper_backend.isRunning()) {
+    if (stopForAbort("Motion stopped")) {
+      return false;
+    }
     safety_manager.poll();
     if (safety_manager.isAlarmed()) {
       stepper_backend.stop();
@@ -41,6 +55,9 @@ bool waitForMotionOrLimit() {
 
 bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start) {
   for (;;) {
+    if (stopForAbort("Motion stopped while queueing segment")) {
+      return false;
+    }
     const StepperBackend::TimedSegmentResult result =
         stepper_backend.queueTimedSegment(segment, start);
     if (result == StepperBackend::TimedSegmentResult::QUEUED) return true;
@@ -57,18 +74,29 @@ bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start) {
 }
 
 bool executeTimedSegments(SegmentQueue& queue) {
+  if (stopForAbort("Motion stopped before timed segment start")) {
+    return false;
+  }
   MotionSegment segment{};
   if (!queue.dequeue(segment)) return false;
   if (!queueTimedSegmentWithRetry(segment, false)) return false;
   if (!stepper_backend.startTimedSegments()) return false;
 
   while (queue.dequeue(segment)) {
+    if (stopForAbort("Motion stopped during timed segment queueing")) {
+      return false;
+    }
     if (!queueTimedSegmentWithRetry(segment, true)) return false;
   }
   return waitForMotionOrLimit();
 }
 
 void handleXY(const CommandMessage& command) {
+  if (stopForAbort("XY rejected before planning")) {
+    logMessage("NACK_XY target=(%.3f,%.3f) reason=abort",
+               command.x_mm, command.y_mm);
+    return;
+  }
   float feed_mm_min = command.feed_mm_min;
   if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=rejected",
@@ -154,7 +182,9 @@ void handleSingleMotor(bool motor_a, int32_t steps) {
     logMessage("ERROR: backend rejected TEST_%c", motor_a ? 'A' : 'B');
     return;
   }
-  stepper_backend.waitUntilIdle();
+  if (!waitForMotionOrLimit()) {
+    logMessage("ERROR: TEST_%c stopped", motor_a ? 'A' : 'B');
+  }
 #endif
 }
 }
@@ -233,6 +263,14 @@ void motionTask(void*) {
         safety_manager.clearAlarm();
         machine_state.alarmed = false;
         logMessage("ALARM_CLEAR complete");
+        break;
+      case CommandType::ABORT:
+        clearMotionAbort();
+        stepper_backend.stop();
+        safety_manager.setAlarm("abort requested");
+        machine_state.alarmed = true;
+        invalidateHomed("abort requested");
+        logMessage("ABORT complete");
         break;
       case CommandType::MELODY:
         motor_melody_controller.play(stepper_backend, tmc_manager,

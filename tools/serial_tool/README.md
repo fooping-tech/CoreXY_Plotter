@@ -85,6 +85,7 @@ python tools/serial_tool/serial_send.py \
 | [CoreXY Check](docs/corexy-check.md) | CoreXY変換ログと短いXY移動 | `examples/corexy_check.csv` |
 | [Limit Check](docs/limit-check.md) | X/Y limit switch入力のpin、極性、debounce確認 | `examples/limit_check.csv` |
 | [Homing Check](docs/homing-check.md) | X/Y limitを使った二段階homingとhomed状態 | `examples/homing_check.csv` |
+| [Abort Check](docs/abort-check.md) | ABORTと中断後のalarm復旧確認 | `examples/abort_check.csv` |
 | [Trapezoid Check](docs/trapezoid-check.md) | MotionBlockの台形/三角加減速計画ログ | `examples/trapezoid_check.csv` |
 | [Timed Segment Check](docs/timed-segment-check.md) | DDA timed segment生成とFastAccelStepper `moveTimed()`投入 | `examples/timed_segment_check.csv` |
 | [High-Speed Check](docs/high-speed-check.md) | homing後の通常XY移動を上限feed付近で確認 | `examples/high_speed_check.csv`, `examples/high_speed_sweep_check.csv` |
@@ -116,6 +117,10 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。
 XY移動はmotion側で受理されると`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`も返します。
 拒否されたXY移動は`NACK_XY ...`を返します。
+
+実行中に`Ctrl-C`で中断した場合、ツールはserial portを閉じる前に`ABORT`を送信します。
+ファームウェア側は実行中のmotion/homingを停止し、alarm状態にしてhomed状態を無効化します。
+中断後に復旧する場合は、現在位置を信用せず`ZERO -> ALARM_CLEAR -> HOME`の順に実行してください。
 
 例:
 
