@@ -23,4 +23,4 @@ python tools/serial_tool/serial_send.py \
 `SegmentGenerator` converts the planned `MotionBlock` into short timed A/B segments using cumulative DDA rounding.
 `StepperBackendFastAccel` submits each segment through FastAccelStepper `moveTimed()`.
 
-At this phase, look-ahead and junction deviation are still not implemented.
+Phase 10以降では、連続XYが短いバッチとして`PlannerQueue`へ入り、`JunctionPlanner`がentry/exit speedを設定してからtimed segmentへ変換されます。

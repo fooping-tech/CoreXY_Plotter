@@ -9,6 +9,9 @@ class PlannerQueue {
   bool enqueue(const MotionBlock& block);
   bool dequeue(MotionBlock& block);
   const MotionBlock* peekNext() const;
+  MotionBlock* at(size_t index);
+  const MotionBlock* at(size_t index) const;
+  void clear();
   bool isEmpty() const;
   bool isFull() const;
   size_t count() const;

@@ -88,6 +88,7 @@ python tools/serial_tool/serial_send.py \
 | [Abort Check](docs/abort-check.md) | ABORTと中断後のalarm復旧確認 | `examples/abort_check.csv` |
 | [Trapezoid Check](docs/trapezoid-check.md) | MotionBlockの台形/三角加減速計画ログ | `examples/trapezoid_check.csv` |
 | [Timed Segment Check](docs/timed-segment-check.md) | DDA timed segment生成とFastAccelStepper `moveTimed()`投入 | `examples/timed_segment_check.csv` |
+| [Look-ahead Check](docs/lookahead-check.md) | JunctionPlanner、junction deviation、連続XYバッチの確認 | `examples/lookahead_check.csv` |
 | [High-Speed Check](docs/high-speed-check.md) | homing後の通常XY移動を上限feed付近で確認 | `examples/high_speed_check.csv`, `examples/high_speed_sweep_check.csv` |
 | [Concentric Squares Check](docs/concentric-squares-check.md) | 動き出し・動き終わりの線歪みを5重正方形で調査 | `examples/concentric_squares_check.csv`, `examples/concentric_squares_clockwise_check.csv`, `examples/concentric_squares_high_speed_check.csv` |
 | [Diagnostic AB_TIMED Square Draw](docs/diagnostic-ab-timed-square-draw.md) | `AB_TIMED`でA/Bを直接timed実行して四角の歪みを比較 | `examples/diagnostic_ab_timed_square_draw.csv` |
@@ -115,6 +116,10 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 
 `delay_ms`は各コマンド送信後の最小読み取り時間です。`expect`がある場合は、`delay_ms`経過後に`expect`を受信し、受信が短時間idleになると次の行へ進みます。
 最大待ち時間は`max(delay_ms, --timeout)`です。`HOME`のように完了時間が読みにくいコマンドは、CSV側の`delay_ms`を短くし、実行時の`--timeout`を長くしてください。
+
+各コマンドの開始時と終了時には`TIMING START`、`TIMING END`を表示します。
+`t=...s`は`--startup-delay`と`--startup-drain`後、最初のCSVコマンドを送る直前を0とした相対時刻です。
+`TIMING END`の`dt=...s`は、そのCSV行の開始から終了までの経過時間です。
 
 `--queue-mode`では、各行は`ACK QUEUED`を受信してから次の行へ進みます。
 `ERROR: CommandQueue full`を受信した場合は、同じ行を`--queue-retry-delay-ms`ごとに再送します。

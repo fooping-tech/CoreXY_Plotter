@@ -2,6 +2,7 @@
 #include "AppContext.h"
 #include "Core2PinMap.h"
 #include "CoreXYKinematics.h"
+#include "PlannerQueue.h"
 #include "PlotterConfig.h"
 #include "TaskConfig.h"
 
@@ -27,6 +28,10 @@ void Diagnostics::printConfig() {
   logMessage("MOTION steps_per_mm=%.3f default_feed=%.3f max_feed=%.3f accel=%.3f soft_limit X=[%.3f,%.3f] Y=[%.3f,%.3f]",
              STEPS_PER_MM, DEFAULT_FEED_MM_MIN, MAX_FEED_MM_MIN,
              DEFAULT_ACCEL_MM_S2, X_MIN_MM, X_MAX_MM, Y_MIN_MM, Y_MAX_MM);
+  logMessage("LOOKAHEAD junction_deviation=%.3f classic_jerk=%.3f batch_collect_ms=%lu planner_capacity=%u",
+             JUNCTION_DEVIATION_MM, CLASSIC_JERK_LIMIT_MM_S,
+             LOOKAHEAD_BATCH_COLLECT_MS,
+             static_cast<unsigned>(PlannerQueue::CAPACITY));
   logMessage("HOMING enabled=%u require_homed_xy=%u x_dir=%d y_dir=%d seek=%.3f slow=%.3f backoff=%.3f start_backoff=%.3f maxX=%.3f maxY=%.3f debounce=%lums active=%s",
              HOMING_ENABLED, HOMING_REQUIRE_HOMED_FOR_XY_MOVE, HOMING_X_DIR,
              HOMING_Y_DIR, HOMING_SEEK_FEED_MM_MIN, HOMING_SLOW_FEED_MM_MIN,

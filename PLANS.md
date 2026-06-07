@@ -46,7 +46,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 現在の想定フェーズ:
 
 ```text
-現在地: Phase 0〜6.9 完了。Phase 8 台形加減速、Phase 9 timed segment実装済み。実機bring-upで脱調対策を調整中
+現在地: Phase 0〜6.9 完了。Phase 8 台形加減速、Phase 9 timed segment、Phase 10 look-ahead / junction deviation実装済み。実機bring-upで脱調対策を調整中
 ```
 
 現在の状態:
@@ -67,8 +67,8 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | timed segment | `SegmentGenerator`とFastAccelStepper `moveTimed()`によるA/B同期実行を実装済み |
 | 脱調対策 | 描画用の保守的な速度/加速度/電流/ペン圧設定とcenter shapes実機確認を追加 |
 | G-code parser | 未実装予定 |
-| look-ahead | 未実装予定 |
-| junction deviation | 未実装予定 |
+| look-ahead | 実装済み、実機未確認 |
+| junction deviation | 実装済み、実機未確認 |
 
 現在の最優先作業:
 
@@ -97,7 +97,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 7 | 最小G-code | G0/G1/G90/G91/G20/G21/M3/M5/M114 | [ ] |
 | 8 | 台形加減速 | TrapezoidPlannerを実装 | [x] |
 | 9 | timed segment | SegmentGeneratorでA/B同期 | [x] |
-| 10 | look-ahead | JunctionPlanner、junction deviation | [ ] |
+| 10 | look-ahead | JunctionPlanner、junction deviation | [-] |
 | 11 | 高級機能 | homing、TMC診断、SD/WebUI、補正系 | [ ] |
 
 現在の実装対象:
@@ -107,7 +107,8 @@ Phase 9 timed segment実装後の実機描画安定化
 ```
 
 Phase 0〜6.9、Phase 8、Phase 9は完了済み。
-Phase 7、Phase 10以降は、実装範囲を確認してから着手する。
+Phase 10は実装済み、実機確認は未完了。
+Phase 7、Phase 11以降は、実装範囲を確認してから着手する。
 ただし、先々の設計を忘れないようチェックリストとして残しておく。
 
 ---
@@ -1093,19 +1094,25 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 
 # Phase 10: look-ahead / junction deviation
 
-Status: 将来。まだ実装しない。
+Status: 実装済み。実機確認は未完了。
 
 ## チェックリスト
 
-- [ ] `JunctionPlanner`を実装
-- [ ] junction speed計算
-- [ ] reverse pass
-- [ ] forward pass
-- [ ] junction deviation
-- [ ] classic jerk相当の制限を検討
-- [ ] CoreXY motor-space速度制限
-- [ ] PlannerQueue内の複数MotionBlockを対象にする
-- [ ] StepperBackendに実装しない
+- [x] `JunctionPlanner`を実装
+- [x] junction speed計算
+- [x] reverse pass
+- [x] forward pass
+- [x] junction deviation
+- [x] classic jerk相当の制限を検討
+- [x] CoreXY motor-space速度制限
+- [x] PlannerQueue内の複数MotionBlockを対象にする
+- [x] StepperBackendに実装しない
+- [x] `LOOKAHEAD_BATCH_COLLECT_MS`で連続XYを短いバッチへまとめる
+- [x] `CONFIG`にjunction deviation、classic jerk、batch collect時間、PlannerQueue容量を表示する
+- [x] `tools/serial_tool/examples/lookahead_check.csv`を追加する
+- [x] `tools/serial_tool/docs/lookahead-check.md`を追加する
+- [ ] 実機で`lookahead_check.csv`を`--queue-mode`で実行し、`LOOKAHEAD blocks>1`を確認する
+- [ ] 実機で角の丸まり、閉じズレ、脱調、温度上昇が増えないか確認する
 
 ---
 
@@ -1436,6 +1443,30 @@ python tools/serial_tool/serial_send.py \
 - [ ] 時計回りと反時計回りでズレ方向が変わる場合、A/B符号、方向反転、または片側モータの開始/停止タイミング差を疑う
 - [ ] 通常XYもAB_TIMEDも同じように歪む場合、backend以下の問題が濃厚。ソフト観点では`StepperBackendFastAccel`とFastAccelStepper設定を重点確認する
 
+## 12.7.3 Look-ahead / junction deviation確認
+
+Phase 10の連続XYバッチとjunction速度を確認する。
+
+```text
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --csv tools/serial_tool/examples/lookahead_check.csv \
+  --startup-delay 4 \
+  --startup-drain 1 \
+  --timeout 8 \
+  --queue-mode \
+  --echo
+```
+
+チェック:
+
+- [ ] `CONFIG`で`LOOKAHEAD junction_deviation=`を確認できる
+- [ ] 連続XYで`LOOKAHEAD blocks=`が2以上になる
+- [ ] `XY batch=`ログに`entry=`と`exit=`が出る
+- [ ] 各XYが`TRAPEZOID`、`SEGMENTS count=`、`ACK_XY`まで進む
+- [ ] 角で停止しないが、角の丸まりが許容範囲に収まる
+- [ ] 閉じズレ、脱調、温度上昇がPhase 9単独時より悪化しない
+
 ## 12.8 Serial Tool待ち時間仕様
 
 チェック:
@@ -1445,6 +1476,8 @@ python tools/serial_tool/serial_send.py \
 - [x] `--startup-delay 0 --timeout 60`でも、最初のコマンド送信前に60秒待たない
 - [x] `HOME`行はCSV `delay_ms`を短くし、`expect=HOME complete`と長めの`--timeout`で完了待ちできる
 - [x] high-speed / homing系CSVのHOME行を、固定長待ちからexpect主体の短い`delay_ms`へ整理する
+- [x] 各CSV行の実行開始時に、最初のコマンド開始を0とした`TIMING START`を表示する
+- [x] 各CSV行の実行終了時に、相対時刻、行内経過時間、status付きの`TIMING END`を表示する
 
 ## 12.9 脱調後の再homing復旧順序
 
@@ -1674,12 +1707,13 @@ Phase 6.9を実装してください。
 | R13 | [ ] | homing中の安全停止は現状backendの実行管理能力に依存する | bring-upでは短いincremental move反復で確認し、Phase 9以降でtimed segment停止へ置き換える |
 | R14 | [ ] | homed前の通常XY移動を許可するか運用方針が未確定 | 初期はconfigで切替可能にし、実機bring-up後に既定値を決める |
 | R15 | [ ] | 2回目の低速seek後にlimit debounced ONで安定するまでの待ち時間が未確定 | `../1stepper_test`同様にraw/debouncedをログ化し、必要ならsettle待ちまたはdebounce値を調整 |
-| R16 | [!] | uploadが`/dev/cu.usbserial-023591AC`で`termios.error: (22, 'Invalid argument')`により失敗 | USB/シリアルドライバ、port占有、接続状態、upload_speed設定を確認して再試行 |
+| R16 | [x] | uploadが`/dev/cu.usbserial-023591AC`で`termios.error: (22, 'Invalid argument')`により失敗 | 2026-06-07に同portで`pio run --target upload`成功 |
 | R17 | [ ] | 通常TMC電流を850mAへ上げたため、モータ/TMC2209/電源の発熱余裕が未確定 | center shapes連続実行後に温度を確認し、熱い場合は800mA以下へ下げる |
 | R18 | [ ] | 原点外でX limitが継続ACTIVEになる現象があり、脱調による座標ずれかlimit入力ノイズか未確定 | 低速・低加速度で再現性を確認し、limit配線、pull-up、機械干渉を切り分ける |
 | R19 | [ ] | `HARD_LIMIT_UNEXPECTED_ALARM_MS=500`は実機暫定値であり、安全停止遅延とノイズ耐性のバランスが未確定 | 実機でlimitを意図的に押して停止距離を確認し、必要なら値を短くする |
 | R20 | [ ] | 動き出し・動き終わりの歪み原因が、加減速設定、ペン圧、ベルト張り、機械ガタ、ステップ抜けのどれか未確定 | 反時計回り/時計回りの同心正方形CSVで方向、サイズ、始点/終点依存性を切り分ける |
 | R21 | [ ] | AB_TIMEDでも歪む場合、`StepperBackendFastAccel`の`moveTimed()`投入、A/B同期開始、duration指定、queue容量見積もりのどれが支配的か未確定 | `diagnostic_ab_timed_square_draw.csv`で小/大/連続/方向違いの結果を比較し、backendログと照合する |
+| R22 | [ ] | Phase 10のjunction deviation値、classic jerk上限、batch収集時間が実機で未調整 | `lookahead_check.csv`を`--queue-mode`で実行し、`LOOKAHEAD blocks>1`、角の丸まり、閉じズレ、脱調、温度を確認して調整する |
 
 ---
 
@@ -1712,6 +1746,9 @@ Phase 6.9を実装してください。
 | 2026-06-07 | 動き出し・動き終わりの歪み調査用に、同じ中心へ5個の正方形を重ねて描くSerial Tool CSVと手順書を追加 | Codex |
 | 2026-06-07 | 同心正方形の時計回り版CSVを追加し、反時計回り版との方向依存比較を手順書へ反映 | Codex |
 | 2026-06-07 | 診断専用`AB_TIMED`コマンドと、PENDOWNして四角を描く`diagnostic_ab_timed_square_draw.csv`を追加 | Codex |
+| 2026-06-07 | Phase 10 look-ahead / junction deviationを実装。JunctionPlanner、連続XYバッチ、CONFIG表示、lookahead check CSV/手順書を追加 | Codex |
+| 2026-06-07 | Phase 10実装後に`pio run`、`pio run --target upload`、Serial Toolの`CONFIG`/`POS`/`SELFTEST`/`TMC_INIT`/`TMC_STATUS`確認が成功 | Codex |
+| 2026-06-07 | Serial ToolへCSV各行の`TIMING START`/`TIMING END`ログを追加し、最初のコマンド開始を0とした相対時刻と行内経過時間を表示 | Codex |
 
 ---
 
@@ -1750,14 +1787,11 @@ M1: 実機homingとhard limit alarmの土台を作る
 未実装のままでよいもの:
 
 - [ ] G-code parser
-- [ ] look-ahead
-- [ ] junction deviation
-- [ ] timed segment
 - [ ] WebUI
 - [ ] SD execution
 - [ ] input shaping
 
 注意:
 
-上記の「未実装のままでよいもの」は、実装しないことが正しい状態である。  
+Phase 7とPhase 11以降は、実装範囲を確認してから着手する。  
 Codexは勝手に実装しないこと。

@@ -37,8 +37,6 @@ Motor driver: TMC2209 x2, STEP/DIR + UART shared bus
 - Klipper完全互換
 - G-code完全対応
 - G2/G3円弧補間
-- look-ahead
-- junction deviation
 - jerk-limited S字加減速
 - input shaping
 - SDカード実行
@@ -489,6 +487,13 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 - `--queue-mode`でも`HOME`、`HOME_X`、`HOME_Y`は後続motionを先に積まないよう、queue投入後に完了ログまで待つ
 - `Ctrl-C`で中断された場合、serial portを閉じる前に`ABORT`を送信して短時間応答を読む
 
+タイムスタンプ:
+
+- `--startup-delay`と`--startup-drain`完了後、最初のCSVコマンドを送る直前を`t=0.000s`とする
+- 各CSV行の送信処理開始時に`TIMING START`を表示する
+- 各CSV行の応答待ち終了時に`TIMING END`を表示する
+- `TIMING END`には、その行の開始から終了までの経過時間`dt`と`status`を表示する
+
 `--timeout`は`HOME`や長いXY移動の最大待ち時間として使う。
 起動ログ読み捨て時間には使わない。
 
@@ -693,9 +698,36 @@ FastAccelStepperは`StepperBackendFastAccel`のみが直接使用する。
 MotionBlock
   -> PlannerQueue
   -> TrapezoidPlanner
+  -> JunctionPlanner
   -> SegmentGenerator
   -> StepperBackendFastAccel moveTimed or low-level queue
 ```
+
+---
+
+## 20.1 Look-ahead / JunctionPlanner仕様
+
+Phase 10では、motionTaskが連続して受信できた`XY`を短いバッチとして`PlannerQueue`へ積み、`JunctionPlanner`が複数`MotionBlock`のentry/exit speedを設定する。
+
+設定値:
+
+| 項目 | 意味 |
+|---|---|
+| `JUNCTION_DEVIATION_MM` | junction deviation許容値。小さいほど角で減速する |
+| `CLASSIC_JERK_LIMIT_MM_S` | classic jerk相当の簡易上限。0以下なら無効 |
+| `LOOKAHEAD_BATCH_COLLECT_MS` | motionTaskが連続XYを待つ最大時間 |
+
+実装ルール:
+
+- `JunctionPlanner`は`StepperBackendFastAccel`やFastAccelStepperに依存しない
+- look-aheadは`PlannerQueue`内の複数`MotionBlock`だけを対象にする
+- reverse passとforward passで、各ブロック長と加速度から到達可能なentry/exit speedへ制限する
+- 最初のblock entry speedと最後のblock exit speedは0とする
+- CoreXY motor-space速度上限は、最終的な`SegmentGenerator`のtimed segment検査で守る
+- `PENUP`、`PENDOWN`、`HOME`などXY以外のコマンド順序を崩さない
+- `LOOKAHEAD_BATCH_COLLECT_MS`は実機確認用の暫定値であり、角の丸まり、閉じズレ、コマンド応答性を見て調整する
+
+`CONFIG`はjunction deviation、classic jerk、batch collect時間、PlannerQueue容量を表示する。
 
 ---
 

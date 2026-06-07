@@ -67,6 +67,18 @@ constexpr uint32_t DEFAULT_MOTOR_ACCEL_STEPS_S2 = static_cast<uint32_t>(
 // 現状はDEFAULT_ACCEL_MM_S2と同じ値。
 constexpr float MAX_ACCEL_MM_S2 = DEFAULT_ACCEL_MM_S2;
 
+// JunctionPlannerのlook-aheadで使う許容コーナー偏差 [mm]。
+// 小さいほど角で減速し、大きいほど角を速く通過する。実機で角の丸まりと脱調を確認する。
+constexpr float JUNCTION_DEVIATION_MM = 0.05f;
+
+// classic jerk相当の簡易上限 [mm/s]。0以下なら無効。
+// junction deviationだけで角が速すぎる場合の安全側制限として残す。
+constexpr float CLASSIC_JERK_LIMIT_MM_S = 80.0f;
+
+// motionTaskが連続XYをPlannerQueueへまとめるために待つ最大時間 [ms]。
+// 0にすると、その時点でCommandQueueに溜まっているXYだけをlook-ahead対象にする。
+constexpr uint32_t LOOKAHEAD_BATCH_COLLECT_MS = 15;
+
 static_assert(STEPS_PER_MM > 0.0f, "STEPS_PER_MM must be > 0");
 static_assert(COREXY_MAX_MOTOR_GAIN >= 1.4142f,
               "COREXY_MAX_MOTOR_GAIN must account for CoreXY diagonal motor speed");
@@ -89,6 +101,8 @@ static_assert(MAX_ACCEL_MM_S2 >= DEFAULT_ACCEL_MM_S2,
               "MAX_ACCEL_MM_S2 must be >= DEFAULT_ACCEL_MM_S2");
 static_assert(DEFAULT_MOTOR_ACCEL_STEPS_S2 > 0,
               "DEFAULT_MOTOR_ACCEL_STEPS_S2 must be > 0");
+static_assert(JUNCTION_DEVIATION_MM > 0.0f,
+              "JUNCTION_DEVIATION_MM must be > 0");
 
 // AB_TIMED診断コマンドで許可する最小duration [us]。
 // 短すぎるtimed moveはFastAccelStepper queueや機械側の切り分けに向かないため拒否する。

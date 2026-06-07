@@ -2,15 +2,21 @@
 #include "AppContext.h"
 #include "CoreXYKinematics.h"
 #include "Diagnostics.h"
+#include "JunctionPlanner.h"
 #include "PlotterConfig.h"
+#include "PlannerQueue.h"
 #include "SegmentGenerator.h"
 #include "SegmentQueue.h"
 #include "TrapezoidPlanner.h"
 
 namespace {
 TrapezoidPlanner trapezoid_planner;
+JunctionPlanner junction_planner;
 SegmentGenerator segment_generator;
 SegmentQueue segment_queue;
+PlannerQueue planner_queue;
+CommandMessage pending_command;
+bool has_pending_command = false;
 
 const char* timedSegmentResultName(StepperBackend::TimedSegmentResult result) {
   switch (result) {
@@ -103,24 +109,38 @@ bool executeTimedSegments(SegmentQueue& queue) {
   return waitForMotionOrLimit();
 }
 
-void handleXY(const CommandMessage& command) {
+void stashPendingCommand(const CommandMessage& command) {
+  pending_command = command;
+  has_pending_command = true;
+}
+
+bool receiveNextCommand(CommandMessage& command, TickType_t ticks_to_wait) {
+  if (has_pending_command) {
+    command = pending_command;
+    has_pending_command = false;
+    return true;
+  }
+  return xQueueReceive(command_queue, &command, ticks_to_wait) == pdTRUE;
+}
+
+bool buildXYBlock(const CommandMessage& command, float start_x_mm,
+                  float start_y_mm, MotionBlock& block) {
   if (stopForAbort("XY rejected before planning")) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=abort",
                command.x_mm, command.y_mm);
-    return;
+    return false;
   }
   float feed_mm_min = command.feed_mm_min;
   if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=rejected",
                command.x_mm, command.y_mm);
-    return;
+    return false;
   }
   const CoreXYDelta delta = CoreXYKinematics::xyMoveToABSteps(
-      machine_state.x_mm, machine_state.y_mm, command.x_mm, command.y_mm,
-      STEPS_PER_MM);
-  MotionBlock block{};
-  block.start_x_mm = machine_state.x_mm;
-  block.start_y_mm = machine_state.y_mm;
+      start_x_mm, start_y_mm, command.x_mm, command.y_mm, STEPS_PER_MM);
+  block = MotionBlock{};
+  block.start_x_mm = start_x_mm;
+  block.start_y_mm = start_y_mm;
   block.target_x_mm = command.x_mm;
   block.target_y_mm = command.y_mm;
   block.dx_mm = delta.dx_mm;
@@ -132,16 +152,33 @@ void handleXY(const CommandMessage& command) {
   block.a_steps = delta.a_steps;
   block.b_steps = delta.b_steps;
   block.pen_down = machine_state.pen_down;
-  if (!trapezoid_planner.plan(block)) {
-    logMessage("ERROR: trapezoid planner rejected XY move");
-    logMessage("NACK_XY target=(%.3f,%.3f) reason=planner",
-               command.x_mm, command.y_mm);
-    return;
+  return true;
+}
+
+bool planQueuedBlocks() {
+  if (!junction_planner.plan(planner_queue)) {
+    logMessage("ERROR: junction planner rejected XY batch");
+    return false;
   }
-  logMessage("XY current=(%.3f,%.3f) target=(%.3f,%.3f) dx=%.3f dy=%.3f A=%ld B=%ld F=%.3f",
-             machine_state.x_mm, machine_state.y_mm, command.x_mm, command.y_mm,
-             delta.dx_mm, delta.dy_mm, delta.a_steps, delta.b_steps,
-             feed_mm_min);
+  for (size_t index = 0; index < planner_queue.count(); ++index) {
+    MotionBlock* block = planner_queue.at(index);
+    if (block == nullptr || !trapezoid_planner.plan(*block)) {
+      logMessage("ERROR: trapezoid planner rejected XY batch index=%u",
+                 static_cast<unsigned>(index));
+      return false;
+    }
+  }
+  return true;
+}
+
+bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
+  logMessage("XY batch=%u/%u current=(%.3f,%.3f) target=(%.3f,%.3f) dx=%.3f dy=%.3f A=%ld B=%ld F=%.3f entry=%.3f exit=%.3f",
+             static_cast<unsigned>(index + 1), static_cast<unsigned>(count),
+             block.start_x_mm, block.start_y_mm, block.target_x_mm,
+             block.target_y_mm, block.dx_mm, block.dy_mm, block.a_steps,
+             block.b_steps,
+             block.nominal_speed_mm_min, block.entry_speed_mm_min,
+             block.exit_speed_mm_min);
   logMessage("TRAPEZOID profile=%s length=%.3f accel=%.3f peak=%.3f accel_d=%.3f cruise_d=%.3f decel_d=%.3f t=%.3f",
              block.triangular_profile ? "TRIANGULAR" : "TRAPEZOID",
              block.length_mm, block.acceleration_mm_s2, block.peak_speed_mm_s,
@@ -152,8 +189,8 @@ void handleXY(const CommandMessage& command) {
   if (!segment_generator.generate(block, segment_queue)) {
     logMessage("ERROR: segment generator rejected XY move");
     logMessage("NACK_XY target=(%.3f,%.3f) reason=segment",
-               command.x_mm, command.y_mm);
-    return;
+               block.target_x_mm, block.target_y_mm);
+    return false;
   }
   logMessage("SEGMENTS count=%u duration=%.3f dda=YES",
              static_cast<unsigned>(segment_queue.count()),
@@ -162,24 +199,83 @@ void handleXY(const CommandMessage& command) {
 #if SIMULATION_MODE
   logMessage("SIMULATION_MODE: no motor output");
   logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
-             command.x_mm, command.y_mm, delta.a_steps, delta.b_steps,
-             feed_mm_min);
+             block.target_x_mm, block.target_y_mm, block.a_steps,
+             block.b_steps, block.nominal_speed_mm_min);
 #else
   if (!executeTimedSegments(segment_queue)) {
     logMessage("ERROR: backend rejected timed XY move");
     logMessage("NACK_XY target=(%.3f,%.3f) reason=backend",
-               command.x_mm, command.y_mm);
-    return;
+               block.target_x_mm, block.target_y_mm);
+    return false;
   }
   logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
-             command.x_mm, command.y_mm, delta.a_steps, delta.b_steps,
-             feed_mm_min);
+             block.target_x_mm, block.target_y_mm, block.a_steps,
+             block.b_steps, block.nominal_speed_mm_min);
 #endif
-  machine_state.x_mm = command.x_mm;
-  machine_state.y_mm = command.y_mm;
-  machine_state.a_steps += delta.a_steps;
-  machine_state.b_steps += delta.b_steps;
-  machine_state.feed_mm_min = feed_mm_min;
+  machine_state.x_mm = block.target_x_mm;
+  machine_state.y_mm = block.target_y_mm;
+  machine_state.a_steps += block.a_steps;
+  machine_state.b_steps += block.b_steps;
+  machine_state.feed_mm_min = block.nominal_speed_mm_min;
+  return true;
+}
+
+void handleXYBatch(const CommandMessage& first_command) {
+  planner_queue.clear();
+  float planned_x_mm = machine_state.x_mm;
+  float planned_y_mm = machine_state.y_mm;
+
+  MotionBlock block{};
+  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm, block)) return;
+  if (!planner_queue.enqueue(block)) {
+    logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
+               first_command.x_mm, first_command.y_mm);
+    return;
+  }
+  planned_x_mm = first_command.x_mm;
+  planned_y_mm = first_command.y_mm;
+
+  CommandMessage next_command;
+  while (!planner_queue.isFull() &&
+         receiveNextCommand(next_command,
+                            pdMS_TO_TICKS(LOOKAHEAD_BATCH_COLLECT_MS))) {
+    if (next_command.type != CommandType::XY) {
+      stashPendingCommand(next_command);
+      break;
+    }
+    MotionBlock next_block{};
+    if (!buildXYBlock(next_command, planned_x_mm, planned_y_mm, next_block)) {
+      return;
+    }
+    if (!planner_queue.enqueue(next_block)) {
+      logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
+                 next_command.x_mm, next_command.y_mm);
+      return;
+    }
+    planned_x_mm = next_command.x_mm;
+    planned_y_mm = next_command.y_mm;
+  }
+
+  if (!planQueuedBlocks()) {
+    const MotionBlock* failed = planner_queue.peekNext();
+    logMessage("NACK_XY target=(%.3f,%.3f) reason=planner",
+               failed != nullptr ? failed->target_x_mm : first_command.x_mm,
+               failed != nullptr ? failed->target_y_mm : first_command.y_mm);
+    return;
+  }
+
+  logMessage("LOOKAHEAD blocks=%u junction_deviation=%.3f classic_jerk=%.3f",
+             static_cast<unsigned>(planner_queue.count()),
+             JUNCTION_DEVIATION_MM, CLASSIC_JERK_LIMIT_MM_S);
+
+  const size_t planned_count = planner_queue.count();
+  for (size_t index = 0; index < planned_count; ++index) {
+    MotionBlock* planned_block = planner_queue.at(index);
+    if (planned_block == nullptr ||
+        !executePlannedBlock(*planned_block, index, planned_count)) {
+      return;
+    }
+  }
 }
 
 void handleABTimed(const CommandMessage& command) {
@@ -289,7 +385,7 @@ void handleSingleMotor(bool motor_a, int32_t steps) {
 void motionTask(void*) {
   CommandMessage command;
   for (;;) {
-    if (xQueueReceive(command_queue, &command, portMAX_DELAY) != pdTRUE) continue;
+    if (!receiveNextCommand(command, portMAX_DELAY)) continue;
     switch (command.type) {
       case CommandType::HELP:
         Diagnostics::printHelp();
@@ -319,7 +415,7 @@ void motionTask(void*) {
         handleABTimed(command);
         break;
       case CommandType::XY:
-        handleXY(command);
+        handleXYBatch(command);
         break;
       case CommandType::PEN_UP:
         pen_controller.penUp();

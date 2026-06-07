@@ -361,6 +361,32 @@ def print_response(response: str) -> None:
         print(response, end="" if response.endswith("\n") else "\n", flush=True)
 
 
+def elapsed_s(origin_s: float) -> float:
+    return time.monotonic() - origin_s
+
+
+def print_command_timing(
+    event: str,
+    run_started_at_s: float,
+    index: int,
+    row: CommandRow,
+    command_started_at_s: float | None = None,
+    status: str | None = None,
+) -> None:
+    parts = [
+        f"TIMING {event}",
+        f"t={elapsed_s(run_started_at_s):.3f}s",
+        f"index={index:03d}",
+        f"line={row.line_number}",
+    ]
+    if command_started_at_s is not None:
+        parts.append(f"dt={time.monotonic() - command_started_at_s:.3f}s")
+    if status is not None:
+        parts.append(f"status={status}")
+    parts.append(f"command={row.command!r}")
+    print(" ".join(parts), flush=True)
+
+
 def queue_completion_pattern(row: CommandRow) -> str:
     if row.expect:
         return row.expect
@@ -502,11 +528,24 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
         if startup_text:
             print(startup_text, end="" if startup_text.endswith("\n") else "\n", flush=True)
 
+        run_started_at_s = time.monotonic()
         for index, row in enumerate(rows, start=1):
+            command_started_at_s = time.monotonic()
+            print_command_timing(
+                "START", run_started_at_s, index, row, command_started_at_s
+            )
             if args.queue_mode:
                 result = send_row_queue_mode(serial_port, args, index, row)
             else:
                 result = send_row_standard_mode(serial_port, args, index, row)
+            print_command_timing(
+                "END",
+                run_started_at_s,
+                index,
+                row,
+                command_started_at_s,
+                "OK" if result == 0 else "ERROR",
+            )
             if result:
                 failures += 1
                 if not args.continue_on_error:
