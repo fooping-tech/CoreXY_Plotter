@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Send firmware commands from a CSV file over USB serial."""
+"""Send firmware commands from CSV or G-code files over USB serial."""
 
 from __future__ import annotations
 
@@ -32,11 +32,13 @@ SYNC_COMPLETION_BY_COMMAND = {
     "HOME": "HOME complete",
     "HOME_X": "HOME_X set zero",
     "HOME_Y": "HOME_Y set zero",
+    "G28": "HOME complete",
 }
 SYNC_COMPLETION_TIMEOUT_S_BY_COMMAND = {
     "HOME": 30.0,
     "HOME_X": 30.0,
     "HOME_Y": 30.0,
+    "G28": 30.0,
 }
 
 
@@ -51,13 +53,26 @@ class CommandRow:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Send CoreXY plotter firmware commands from a CSV file."
+        description="Send CoreXY plotter firmware commands from CSV or G-code files."
     )
-    parser.add_argument(
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
         "--csv",
-        required=True,
         type=Path,
         help="CSV file with command, delay_ms, expect, and comment columns.",
+    )
+    input_group.add_argument(
+        "--gcode",
+        type=Path,
+        help="G-code file to send one command line at a time.",
+    )
+    parser.add_argument(
+        "--preamble-csv",
+        type=Path,
+        help=(
+            "Optional CSV file to send before the main --csv or --gcode input. "
+            "Use this for safety checks, alarm clear, and homing."
+        ),
     )
     parser.add_argument(
         "--port",
@@ -231,6 +246,53 @@ def load_command_rows(csv_path: Path, default_delay_ms: int) -> list[CommandRow]
 
     if not rows:
         raise ValueError("CSV file does not contain any commands")
+    return rows
+
+
+def strip_gcode_line(raw_line: str) -> str:
+    line = raw_line.strip()
+    if line.startswith("\ufeff"):
+        line = line.removeprefix("\ufeff").strip()
+    if not line or line.startswith(";") or line == "%":
+        return ""
+    return line
+
+
+def load_gcode_rows(gcode_path: Path, default_delay_ms: int) -> list[CommandRow]:
+    if default_delay_ms < 0:
+        raise ValueError("--default-delay-ms must be >= 0")
+    if not gcode_path.exists():
+        raise FileNotFoundError(f"G-code file not found: {gcode_path}")
+
+    rows: list[CommandRow] = []
+    with gcode_path.open(encoding="utf-8") as gcode_file:
+        for line_number, raw_line in enumerate(gcode_file, start=1):
+            command = strip_gcode_line(raw_line)
+            if not command:
+                continue
+            rows.append(
+                CommandRow(
+                    line_number=line_number,
+                    command=command,
+                    delay_ms=default_delay_ms,
+                    expect="",
+                    comment="",
+                )
+            )
+
+    if not rows:
+        raise ValueError("G-code file does not contain any commands")
+    return rows
+
+
+def load_input_rows(args: argparse.Namespace) -> list[CommandRow]:
+    rows: list[CommandRow] = []
+    if args.preamble_csv is not None:
+        rows.extend(load_command_rows(args.preamble_csv, args.default_delay_ms))
+    if args.csv is not None:
+        rows.extend(load_command_rows(args.csv, args.default_delay_ms))
+    else:
+        rows.extend(load_gcode_rows(args.gcode, args.default_delay_ms))
     return rows
 
 
@@ -578,7 +640,7 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
 def main() -> int:
     args = parse_args()
     try:
-        rows = load_command_rows(args.csv, args.default_delay_ms)
+        rows = load_input_rows(args)
         if args.dry_run:
             print_plan(rows)
             return 0

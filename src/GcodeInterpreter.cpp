@@ -41,6 +41,11 @@ GcodeInterpreterResult GcodeInterpreter::interpret(const ParsedGcode& parsed,
       output.type = CommandType::HOME;
       snprintf(output.name, sizeof(output.name), "G28");
       return GcodeInterpreterResult::COMMAND;
+    case ParsedGcodeType::G4:
+      output.type = CommandType::DWELL;
+      output.dwell_ms = static_cast<uint32_t>(parsed.p_ms);
+      snprintf(output.name, sizeof(output.name), "G4");
+      return GcodeInterpreterResult::COMMAND;
     case ParsedGcodeType::M3:
       output.type = CommandType::PEN_DOWN;
       snprintf(output.name, sizeof(output.name), "M3");

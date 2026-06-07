@@ -38,3 +38,61 @@ def test_non_homing_queue_completion_timeout_uses_timeout_or_delay() -> None:
     )
 
     assert serial_send.queue_completion_timeout_s(row, make_args(timeout=2.0)) == 2.0
+
+
+def test_g28_queue_completion_uses_homing_floor() -> None:
+    row = serial_send.CommandRow(
+        line_number=4,
+        command="G28",
+        delay_ms=250,
+        expect="",
+        comment="home through gcode",
+    )
+
+    assert serial_send.queue_completion_pattern(row) == "HOME complete"
+    assert serial_send.queue_completion_timeout_s(row, make_args(timeout=2.0)) == 30.0
+
+
+def test_load_gcode_rows_skips_comments_and_blank_lines(tmp_path: Path) -> None:
+    gcode_path = tmp_path / "sample.gcode"
+    gcode_path.write_text(
+        "\n"
+        "; text: test\n"
+        "G21\n"
+        "G90\n"
+        "%\n"
+        "G0 X1 Y2 F3000 ; inline comment is firmware-safe\n",
+        encoding="utf-8",
+    )
+
+    rows = serial_send.load_gcode_rows(gcode_path, default_delay_ms=123)
+
+    assert [(row.line_number, row.command, row.delay_ms) for row in rows] == [
+        (3, "G21", 123),
+        (4, "G90", 123),
+        (6, "G0 X1 Y2 F3000 ; inline comment is firmware-safe", 123),
+    ]
+
+
+def test_load_input_rows_prepends_preamble_csv_to_gcode(tmp_path: Path) -> None:
+    preamble_path = tmp_path / "preamble.csv"
+    preamble_path.write_text(
+        "command,delay_ms,expect,comment\n"
+        "ZERO,500,ZERO,reset stale position\n"
+        "G28,500,HOME complete,home before drawing\n",
+        encoding="utf-8",
+    )
+    gcode_path = tmp_path / "drawing.gcode"
+    gcode_path.write_text("; drawing\nG21\nG90\n", encoding="utf-8")
+    args = argparse.Namespace(
+        preamble_csv=preamble_path,
+        csv=None,
+        gcode=gcode_path,
+        default_delay_ms=250,
+    )
+
+    rows = serial_send.load_input_rows(args)
+
+    assert [row.command for row in rows] == ["ZERO", "G28", "G21", "G90"]
+    assert rows[0].expect == "ZERO"
+    assert rows[1].expect == "HOME complete"

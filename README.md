@@ -52,12 +52,18 @@ M114
 `MELODY`は診断専用です。起動時には自動再生せず、通常motionがidleでTMC UARTが
 readyの場合だけ明示実行します。終了または中断時には通常TMC profileへ戻します。
 
+## Text to G-code
+
+日本語文字列を描画する場合は、ホスト側CLIの`tools/text_tool/kst32b_to_gcode.py`で
+KST32BストロークフォントデータからG-codeを生成します。InkscapeやHershey Textには
+依存しません。詳細は[tools/text_tool/README.md](tools/text_tool/README.md)を参照してください。
+
 ## Known limitations
 
 - TMC2209のMS1/MS2またはジャンパで、A/Bアドレスをそれぞれ`0`と`1`に設定する必要があります。
 - `TMC_STATUS`の診断値とメロディ用1200mA profileは実機条件に合わせた確認が必要です。
 - `TEST_A`/`TEST_B`の独立A/B moveはbring-up用で、厳密なXY線形補間を保証しません。
-- G-codeは最小対応です。`G0/G1/G20/G21/G28/G90/G91/M3/M5/M114`のみ対応し、arc、Z、checksum検証、完全なGRBL互換は未実装です。
+- G-codeは最小対応です。`G0/G1/G4/G20/G21/G28/G90/G91/M3/M5/M114`のみ対応し、arc、Z、checksum検証、完全なGRBL互換は未実装です。`G4`は`P`ミリ秒指定のみ対応します。
 - look-aheadとjunction deviationは実装済みですが、実機調整は未完了です。
 # CoreXY_Plotter
 # CoreXY_Plotter

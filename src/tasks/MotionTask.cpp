@@ -141,6 +141,9 @@ GcodeInterpreterResult translateGcodeCommand(const CommandMessage& command,
                translated.feed_mm_min,
                gcode_interpreter.absoluteMode() ? "ABS" : "REL",
                gcode_interpreter.unitsInches() ? "INCH" : "MM");
+  } else if (translated.type == CommandType::DWELL) {
+    logMessage("GCODE %s -> DWELL P=%lums", command.name,
+               static_cast<unsigned long>(translated.dwell_ms));
   } else {
     logMessage("GCODE %s -> command %s", command.name, translated.name);
   }
@@ -463,6 +466,10 @@ void motionTask(void*) {
         break;
       case CommandType::XY:
         handleXYBatch(command);
+        break;
+      case CommandType::DWELL:
+        logMessage("DWELL P=%lums", static_cast<unsigned long>(command.dwell_ms));
+        vTaskDelay(pdMS_TO_TICKS(command.dwell_ms));
         break;
       case CommandType::PEN_UP:
         pen_controller.penUp();

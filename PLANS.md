@@ -94,7 +94,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 6.7 | NEOPIXEL Status LED | GPIO33の外付けNEOPIXELを設定灯数で制御する | [x] |
 | 6.8 | Motor Melody Diagnostics | STEP周波数とTMC設定を一時変更して診断メロディを鳴らす | [x] |
 | 6.9 | Homing bring-up | X/Y原点復帰、hard limit、homed状態を実装する | [x] |
-| 7 | 最小G-code | G0/G1/G90/G91/G20/G21/G28/M3/M5/M114 | [x] |
+| 7 | 最小G-code | G0/G1/G4/G90/G91/G20/G21/G28/M3/M5/M114 | [x] |
 | 8 | 台形加減速 | TrapezoidPlannerを実装 | [x] |
 | 9 | timed segment | SegmentGeneratorでA/B同期 | [x] |
 | 10 | look-ahead | JunctionPlanner、junction deviation | [-] |
@@ -1510,6 +1510,30 @@ python tools/serial_tool/serial_send.py \
 - [x] `serial_send.py`の`Ctrl-C`時に`ABORT`を送ってからserial portを閉じる
 - [ ] 実機で長いXY移動中またはHOME中に`Ctrl-C`し、次回serial commandが応答することを確認する
 
+## 12.11 KST32B Text Tool / 日本語G-code生成
+
+目的:
+
+KST32Bストロークフォントデータをホスト側で読み、日本語文字列を既存プロッタ用の最小G-codeへ変換する。Inkscape GUI、Hershey Text、SVG変換、vpype連携には依存しない。
+
+チェック:
+
+- [x] `tools/text_tool/kst32b_to_gcode.py`を追加する
+- [x] `--font`でKST32B.TXTを指定できる
+- [x] `--text`と`--input-file`を排他入力にする
+- [x] `--x`、`--y`、`--size`、`--char-spacing`、`--line-spacing`、`--feed`、`--rapid-feed`、`--dwell-ms`、`--flip-y`、`-o/--output`を実装する
+- [x] CSF/1のX/Y move、draw、next-X命令をデコードし、30x32格子をmmへスケーリングする
+- [x] ペンアップ移動を`G0`、描画移動を`G1`、ペンダウンを`M3`、ペンアップを`M5`、dwellを`G4 P<ms>`で出力する
+- [x] 改行を扱い、次行へ進める
+- [x] 未対応文字は警告を出し、既定で代替四角形、`--missing-glyph skip`でスキップできる
+- [x] 短い線分を削除せず、線分簡略化や字形変更を行わない
+- [x] サンプル入力`text_robo.txt`、`text_konnichiwa.txt`、`text_dakuten.txt`を追加する
+- [x] サンプルG-codeを`tools/text_tool/examples/gcode/`へ追加する
+- [x] `G4 P<ms>`をファームウェアの最小G-codeとして追加し、Text Tool既定出力をそのまま送れるようにする
+- [x] `serial_send.py --gcode`で生成G-codeを直接送信できるようにする
+- [x] `serial_send.py --preamble-csv`で描画前のalarm clear、limit確認、homing確認CSVを前置できるようにする
+- [ ] 生成G-codeを実機へ送信し、濁点、半濁点、小さい文字、dwell、feedを調整する
+
 ---
 
 # 13. Codex用プロンプト
@@ -1719,6 +1743,7 @@ Phase 6.9を実装してください。
 | R22 | [ ] | Phase 10のjunction deviation値、classic jerk上限、batch収集時間が実機で未調整 | `lookahead_check.csv`を`--queue-mode`で実行し、`LOOKAHEAD blocks>1`、角の丸まり、閉じズレ、脱調、温度を確認して調整する |
 | R23 | [ ] | Phase 7最小G-codeはbuild確認のみで、実機での`G28`、相対移動、inch換算、pen動作確認が未完了 | `gcode_check.csv`を実行し、`ACK_XY`、`POS`、pen、limit/homing状態を確認する |
 | R24 | [ ] | 2026-06-07時点でCore2 USB serial portが見えず、`pio run --target upload`がBluetooth port自動検出で失敗 | Core2をUSB接続し、`/dev/cu.usbserial-*`等のportを指定してuploadとSerial Monitor確認を実行する |
+| R25 | [ ] | KST32B Text Toolの生成G-codeは実KST32Bデータで生成確認済みだが、実機での文字潰れ、dwell、feed、soft limit余裕が未確認 | 小さい文字や濁点を含むサンプルを低速から送信し、`--size`、`--dwell-ms`、feedを調整する |
 
 ---
 
@@ -1761,6 +1786,9 @@ Phase 6.9を実装してください。
 | 2026-06-07 | QR Toolの塗りつぶしを横run単位から上下左右接続成分単位の横方向ジグザグ連続パスへ変更 | Codex |
 | 2026-06-07 | Phase 7最小G-codeを実装。`GcodeParser`、`ParsedGcode`、`GcodeInterpreter`、`G0/G1/G20/G21/G28/G90/G91/M3/M5/M114`、gcode check CSV/手順書を追加 | Codex |
 | 2026-06-07 | Phase 7実装後に`pio run`成功、`gcode_check.csv --dry-run`成功、`test_serial_send.py`成功。Core2 USB port未検出のためuploadと実機Serial確認は未実行 | Codex |
+| 2026-06-07 | KST32B Text Toolを追加。CSF/1デコード、CLI、サンプル入力/生成G-code、README、`G4 P<ms>` dwell対応を追加 | Codex |
+| 2026-06-08 | Serial Toolへ`--gcode`入力を追加し、Text Tool生成G-codeを直接送信できるようにした | Codex |
+| 2026-06-08 | Serial Toolへ`--preamble-csv`と`gcode_preamble.csv`を追加し、Text Tool生成G-code送信前にalarm clear、limit確認、homing確認を前置できるようにした | Codex |
 
 ---
 

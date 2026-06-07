@@ -4,3 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 .venv/
+tools/text_tool/fonts/*
+!tools/text_tool/fonts/.gitkeep

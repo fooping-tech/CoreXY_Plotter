@@ -15,6 +15,7 @@ struct CommandMessage {
   int32_t a_steps = 0;
   int32_t b_steps = 0;
   uint32_t duration_us = 0;
+  uint32_t dwell_ms = 0;
   LedCommand led;
   ParsedGcode gcode;
   char error[96] = {};

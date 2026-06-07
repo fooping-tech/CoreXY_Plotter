@@ -740,6 +740,7 @@ Phase 7では、完全なG-code互換ではなく、既存のSerialコマンド�
 |---|---|
 | G0 | 既存`XY`経路を使うrapid相当移動 |
 | G1 | 既存`XY`経路を使うlinear feed移動 |
+| G4 | `P`ミリ秒のdwell |
 | G20 | X/Y入力単位をinchへ切替 |
 | G21 | X/Y入力単位をmmへ切替 |
 | G28 | 既存`HOME`経路へ接続 |
@@ -756,9 +757,31 @@ F値はmm/minとして扱う。
 - `GcodeParser`は文字列を`ParsedGcode`へ変換するだけで、motionを直接実行しない
 - `GcodeInterpreter`はmotion core側で`MachineState`を参照し、absolute/relativeと単位を解決する
 - `G0`/`G1`は既存`XY`コマンドへ変換し、SafetyManager、PlannerQueue、TrapezoidPlanner、JunctionPlanner、SegmentGeneratorを通る
+- `G4 P<ms>`はmotion taskで指定ミリ秒待つだけで、plannerやstepper backendへ入れない
 - `G20`はX/Y入力値だけをinchからmmへ変換し、`F`はmm/minのまま扱う
 - 1行に複数のG/Mコードは対応しない
-- Z軸、arc、checksum検証、modal motion continuation、完全なGRBL互換は対象外とする
+- Z軸、arc、checksum検証、modal motion continuation、`G4 S`秒指定、完全なGRBL互換は対象外とする
+
+---
+
+## 21.1 KST32B Text Tool仕様
+
+ホスト側ツール`tools/text_tool/kst32b_to_gcode.py`は、KST32BのCSF/1ストロークフォントデータを読み、文字列をプロッタ用G-codeへ変換する。
+
+実装ルール:
+
+- フォント本体はリポジトリへ同梱せず、`--font tools/text_tool/fonts/KST32B.TXT`で指定する
+- 入力は`--text`またはUTF-8の`--input-file`のどちらか一方とする
+- 出力は`G21`、`G90`、`G0`、`G1`、`M3`、`M5`、必要に応じて`G4 P<ms>`を使う
+- KST32Bの30x32格子座標を`--size`の文字高さmmへスケーリングする
+- ペンアップ移動は`G0`、描画移動は`G1`、ペンダウンは`M3`、ペンアップは`M5`で表す
+- 濁点、半濁点、小さい文字などの短い線分を削除しない
+- 線分簡略化、字形補正、SVG変換、vpype連携、G2/G3円弧補間は行わない
+- 未対応文字は警告を出し、既定では代替四角形、`--missing-glyph skip`ではスキップする
+- 生成したG-codeの実機品質はペン先径、紙質、ペン上下dwell、feed、機械剛性で調整する
+
+`tools/serial_tool/serial_send.py`は`--gcode`でG-codeファイルを直接送信できる。空行、`;`開始コメント行、`%`行は送信せず、その他の行を1行1コマンドとして扱う。
+描画前の準備手順は`--preamble-csv tools/serial_tool/examples/gcode_preamble.csv`で前置する。標準preambleは`HELP`、`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、alarm解除、limit状態、homing完了、`HOMED=YES`を確認する。
 
 ---
 
@@ -784,4 +807,4 @@ F値はmm/minとして扱う。
 - 動き出し・動き終わりの歪み調査用に、同一中心へ5個の正方形を重ねて描く反時計回り版`concentric_squares_check.csv`と時計回り版`concentric_squares_clockwise_check.csv`をSerial Toolから実行できる
 - 通常版完走後の速度依存性確認用に、feedを省略して`DEFAULT_FEED_MM_MIN`で実行する`concentric_squares_high_speed_check.csv`をSerial Toolから実行できる
 - `diagnostic_ab_timed_square_draw.csv`で、PENDOWNした四角描画を`AB_TIMED`直接実行経路で行い、通常XY描画CSVと比較できる
-- `G0/G1/G20/G21/G28/G90/G91/M3/M5/M114`の最小G-codeをSerialから受け、既存の安全なmotion/pen/status/homing経路へ接続できる
+- `G0/G1/G4/G20/G21/G28/G90/G91/M3/M5/M114`の最小G-codeをSerialから受け、既存の安全なmotion/pen/status/homing経路へ接続できる

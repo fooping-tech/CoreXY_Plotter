@@ -35,6 +35,19 @@ python tools/serial_tool/serial_send.py \
   --echo
 ```
 
+G-codeファイルを直接送る場合は`--gcode`を使います。空行、`;`で始まるコメント行、`%`行は送信しません。
+描画前にalarm clearとhomingが必要な場合は、`--preamble-csv`で準備CSVを前置します。
+
+```bash
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-0001 \
+  --preamble-csv tools/serial_tool/examples/gcode_preamble.csv \
+  --gcode tools/text_tool/examples/gcode/text_robo.gcode \
+  --startup-delay 4 \
+  --queue-mode \
+  --echo
+```
+
 macOSではポート名が環境ごとに異なります。以下のコマンドで確認してください。
 
 ```
@@ -166,6 +179,18 @@ SVG、画像、G-code風データなどから`PENUP`、`PENDOWN`、`XY <x_mm> <y
 
 Python側でCoreXYのA/B変換、soft limit判定、planner相当の補間を重複実装しないでください。
 それらはファームウェア側の`CoreXYKinematics`、`SafetyManager`、将来のplannerが担当します。
+
+## G-code File Format
+
+`.gcode`は1行1コマンドとして送信します。`serial_send.py`は以下の行をスキップします。
+
+- 空行
+- `;`で始まるコメント行
+- `%`だけの行
+
+インラインコメントはファームウェア側のG-code parserが`;`以降を無視するため、そのまま送ります。`--gcode`では`expect`列がないため、必要な事前確認やhomingは先にCSVで実行するか、`G28`をG-codeへ入れて`--queue-mode`で送信してください。
+
+描画前の標準準備には`tools/serial_tool/examples/gcode_preamble.csv`を使います。このCSVは`HELP`、`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、homing完了と`HOMED=YES`を確認します。
 
 ## Safety
 

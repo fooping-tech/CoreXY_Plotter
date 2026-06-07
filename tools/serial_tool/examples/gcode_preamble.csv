@@ -1,0 +1,8 @@
+command,delay_ms,expect,comment
+HELP,1500,G0/G1,Confirm firmware help includes minimal G-code support
+SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion before G-code moves
+ZERO,500,ZERO,Forget stale logical position before clearing alarm
+ALARM_CLEAR,500,ALARM_CLEAR complete,Clear any previous alarm before homing
+LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing
+G28,500,HOME complete,Home through G-code before drawing
+POS,500,HOMED=YES,Confirm homed state before drawing

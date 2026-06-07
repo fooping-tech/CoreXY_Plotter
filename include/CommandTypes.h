@@ -10,6 +10,7 @@ enum class CommandType {
   TEST_B,
   AB_TIMED,
   XY,
+  DWELL,
   PEN_UP,
   PEN_DOWN,
   SELFTEST,
