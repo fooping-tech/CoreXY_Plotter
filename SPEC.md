@@ -730,3 +730,4 @@ F値はmm/minとして扱う。
 - `MELODY`が通常motionと排他実行され、終了または中断後にTMC通常profileへ復元される
 - 台形加減速profileとtimed segmentによるA/B同期XY移動が実行できる
 - `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
+- 動き出し・動き終わりの歪み調査用に、同一中心へ5個の正方形を重ねて描く反時計回り版`concentric_squares_check.csv`と時計回り版`concentric_squares_clockwise_check.csv`をSerial Toolから実行できる

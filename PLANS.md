@@ -1045,6 +1045,16 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 - [x] `center_shapes.csv`が実機で最後まで完走し、最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認する
 - [ ] 脱調が再発しないか、同じCSVを複数回連続で実行して確認する
 
+### 9.1.4 動き出し・動き終わり歪み調査
+
+- [x] `tools/serial_tool/examples/concentric_squares_check.csv`を追加する
+- [x] 逆方向確認用に`tools/serial_tool/examples/concentric_squares_clockwise_check.csv`を追加する
+- [x] 同じ中心`(27.5, 27.5)`に辺長違いの正方形を5個重ねて描く
+- [x] 水平/垂直辺だけで構成し、各辺の始点・終点の歪みを目視確認しやすくする
+- [x] 手順書`tools/serial_tool/docs/concentric-squares-check.md`を追加する
+- [ ] 実機で実行し、各正方形の閉じ位置、角の丸まり、終点オーバーシュートを確認する
+- [ ] 歪みが再現する辺、描画方向、サイズ依存性を記録し、速度/加速度/ペン圧/ベルト張り/ガタのどれを優先調整するか決める
+
 ---
 
 # Phase 10: look-ahead / junction deviation
@@ -1305,6 +1315,41 @@ python tools/serial_tool/serial_send.py \
 - [ ] 実際の線が目視で大きくずれない
 - [ ] 連続実行後もモータ/TMC温度が許容範囲に収まる
 
+## 12.7.1 同心正方形描画 / 動き出し・動き終わり歪み確認
+
+```text
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --csv tools/serial_tool/examples/concentric_squares_check.csv \
+  --startup-delay 4 \
+  --startup-drain 1 \
+  --timeout 12 \
+  --echo
+```
+
+時計回り:
+
+```text
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --csv tools/serial_tool/examples/concentric_squares_clockwise_check.csv \
+  --startup-delay 4 \
+  --startup-drain 1 \
+  --timeout 12 \
+  --echo
+```
+
+チェック:
+
+- [ ] `HOME`が完了する
+- [ ] 5個の正方形描画コマンドが最後までACKされる
+- [ ] 各正方形の始点角に欠け、丸まり、ペン引っかかりがない
+- [ ] 各正方形の終点角に伸び、ずれ、オーバーシュートがない
+- [ ] 水平辺と垂直辺で歪みの出方に差があるか確認する
+- [ ] 反時計回りと時計回りで歪み位置が入れ替わるか確認する
+- [ ] サイズ違いで歪みの出方に差があるか確認する
+- [ ] 最終`POS`で`ALARM=NO`、`LIMIT_X=OPEN`、`LIMIT_Y=OPEN`を確認できる
+
 ## 12.8 Serial Tool待ち時間仕様
 
 チェック:
@@ -1547,6 +1592,7 @@ Phase 6.9を実装してください。
 | R17 | [ ] | 通常TMC電流を850mAへ上げたため、モータ/TMC2209/電源の発熱余裕が未確定 | center shapes連続実行後に温度を確認し、熱い場合は800mA以下へ下げる |
 | R18 | [ ] | 原点外でX limitが継続ACTIVEになる現象があり、脱調による座標ずれかlimit入力ノイズか未確定 | 低速・低加速度で再現性を確認し、limit配線、pull-up、機械干渉を切り分ける |
 | R19 | [ ] | `HARD_LIMIT_UNEXPECTED_ALARM_MS=500`は実機暫定値であり、安全停止遅延とノイズ耐性のバランスが未確定 | 実機でlimitを意図的に押して停止距離を確認し、必要なら値を短くする |
+| R20 | [ ] | 動き出し・動き終わりの歪み原因が、加減速設定、ペン圧、ベルト張り、機械ガタ、ステップ抜けのどれか未確定 | 反時計回り/時計回りの同心正方形CSVで方向、サイズ、始点/終点依存性を切り分ける |
 
 ---
 
@@ -1576,6 +1622,8 @@ Phase 6.9を実装してください。
 | 2026-06-07 | HOME開始時のlimit raw ONを即Backoff条件に追加し、debounce未反映中にseek方向へ押し込む短時間移動を防止 | Codex |
 | 2026-06-07 | Serial Toolの`Ctrl-C`中断時に`ABORT`を送信し、ファームウェア側でmotion/homingを停止してalarmへ遷移する追加仕様を反映 | Codex |
 | 2026-06-07 | Homingを短い固定距離move反復から長距離moveのlimit停止方式へ変更し、fast seek速度設定が実効速度へ反映されやすい構造に更新 | Codex |
+| 2026-06-07 | 動き出し・動き終わりの歪み調査用に、同じ中心へ5個の正方形を重ねて描くSerial Tool CSVと手順書を追加 | Codex |
+| 2026-06-07 | 同心正方形の時計回り版CSVを追加し、反時計回り版との方向依存比較を手順書へ反映 | Codex |
 
 ---
 
