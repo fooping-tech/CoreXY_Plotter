@@ -17,7 +17,9 @@ python tools/serial_tool/serial_send.py \
 ## G-code Job Mode
 
 正式G-code送信では、ホスト側preambleへ起動/終了処理を混ぜず、`--job-lifecycle`で`JOB_BEGIN`と`JOB_END`を前後に送ります。
-`JOB_BEGIN`はTMC未readyなら自動で`TMC_INIT`相当を実行します。初期実装では自動homingはしないため、事前に`G28`相当のbring-upが済んでいる状態で実行します。
+`JOB_BEGIN`はTMC未readyなら自動で`TMC_INIT`相当を実行します。
+`JOB_BEGIN_AUTO_HOME=false`では、事前に`G28`相当のbring-upが済んでいる状態で実行します。
+`JOB_BEGIN_AUTO_HOME=true`では、未homed時に`JOB_BEGIN`内でHOME相当を自動実行します。
 
 ```bash
 python tools/serial_tool/serial_send.py \
@@ -56,6 +58,7 @@ python tools/serial_tool/serial_send.py \
 
 - `JOB_BEGIN` requires idle motion queues, no alarm, and `HOMED=YES`.
 - `JOB_BEGIN` auto-runs TMC initialization when TMC is not ready.
-- `JOB_BEGIN` does not auto-home in the initial implementation.
+- `JOB_BEGIN_AUTO_HOME=false` rejects unhomed jobs with `not_homed`.
+- `JOB_BEGIN_AUTO_HOME=true` auto-runs HOME when unhomed. Use only after limit switch direction and E-stop behavior are verified.
 - `JOB_END` is explicit because firmware does not know the end of a streamed serial G-code file unless the host sends it.
 - `JOB_END` raises the pen, parks at `X=5mm, Y=Y_MAX_MM-5mm`, then plays a short original 8-bit-style two-motor chord jingle.

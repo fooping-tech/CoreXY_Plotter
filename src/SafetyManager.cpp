@@ -23,7 +23,9 @@ bool SafetyManager::validateMove(float target_x_mm, float target_y_mm,
     logMessage("REJECT: machine is alarmed reason=%s", alarm_reason_);
     return false;
   }
-  if (HOMING_REQUIRE_HOMED_FOR_XY_MOVE && !machine_state.homed) {
+  const bool has_homed_motion_reference =
+      machine_state.homed || job_controller.hasHomedJobMotionGrant();
+  if (HOMING_REQUIRE_HOMED_FOR_XY_MOVE && !has_homed_motion_reference) {
     logMessage("REJECT: machine is not homed");
     return false;
   }

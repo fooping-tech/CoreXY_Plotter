@@ -172,6 +172,47 @@ bool jobPreflightIdle(const JobPreflight& preflight) {
          preflight.backend_idle;
 }
 
+bool prepareJobBeginAutoHome() {
+  if (!JOB_BEGIN_AUTO_HOME || machine_state.homed) {
+    return true;
+  }
+  if (job_controller.state() != JobState::IDLE) {
+    return true;
+  }
+
+  const JobPreflight preflight = currentJobPreflight();
+  if (!jobPreflightIdle(preflight)) {
+    return true;
+  }
+
+  safety_manager.poll();
+  machine_state.alarmed = safety_manager.isAlarmed();
+  if (machine_state.alarmed) {
+    return true;
+  }
+
+  if (!machine_state.tmc_ready || !tmc_manager.isReady()) {
+    logMessage("JOB_BEGIN TMC_INIT auto");
+    machine_state.tmc_ready = tmc_manager.begin();
+  }
+  if (!machine_state.tmc_ready) {
+    job_controller.markFailed("tmc_not_ready");
+    logMessage("JOB_BEGIN rejected reason=tmc_not_ready");
+    return false;
+  }
+
+  logMessage("JOB_BEGIN AUTO_HOME start");
+  if (!homing_controller.runHome(stepper_backend, safety_manager,
+                                 machine_state)) {
+    machine_state.alarmed = safety_manager.isAlarmed();
+    job_controller.markFailed("auto_home_failed");
+    logMessage("JOB_BEGIN rejected reason=auto_home_failed");
+    return false;
+  }
+  logMessage("JOB_BEGIN AUTO_HOME OK");
+  return true;
+}
+
 bool rejectDisallowedJobCommand(const CommandMessage& command) {
   if (job_controller.allowCommand(command.type, command.from_gcode)) {
     return false;
@@ -681,7 +722,8 @@ void motionTask(void*) {
         logMessage("ABORT complete");
         break;
       case CommandType::JOB_BEGIN:
-        if (job_controller.beginJob(currentJobPreflight(), safety_manager,
+        if (prepareJobBeginAutoHome() &&
+            job_controller.beginJob(currentJobPreflight(), safety_manager,
                                     machine_state, pen_controller,
                                     tmc_manager)) {
           resetGcodeModalForJob();

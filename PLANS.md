@@ -1138,7 +1138,7 @@ Status: 実装済み。実機確認は未完了。
 
 # Phase 10.5: Job Lifecycle / G-code起動終了処理
 
-Status: 実装済み。`JOB_BEGIN`はTMC未ready時に`TMC_INIT`相当を自動実行する。`JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避し、A/B両モータの短い8-bit風和音ジングルを鳴らす。`pio run`、uploadは成功。TMC自動初期化追加後のSerial再確認と、motionを伴う`job_lifecycle_check.csv`実機確認は未完了。
+Status: 実装済み。`JOB_BEGIN`はTMC未ready時に`TMC_INIT`相当を自動実行し、`JOB_BEGIN_AUTO_HOME=true`なら未homed時にHOME相当を自動実行する。成功時のhomed検証結果はジョブ中のG-code由来XY移動ゲートに使う。`JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避し、A/B両モータの短い8-bit風和音ジングルを鳴らす。`JOB_BEGIN_AUTO_HOME`追加後の`pio run`、upload、`CONFIG`/`SELFTEST`/`TMC_STATUS`確認は成功。motionを伴う`job_lifecycle_check.csv`実機確認と、auto_home=trueの実機確認は未完了。
 
 ## 目的
 
@@ -1268,16 +1268,19 @@ G-code由来の`XY`と手入力`XY`は区別する。
 5. `safety_manager.poll()`でlimit raw/debouncedとalarm状態を更新する
 6. alarmがないことを確認する
 7. hard limitが通常移動禁止状態でactiveになっていないことを確認する
-8. TMC readyを確認する。未readyなら初期実装では拒否する
+8. TMC readyを確認する
 9. TMC未readyなら`TMC_INIT`相当を自動実行する。失敗した場合は`tmc_not_ready`で拒否する
-10. homed状態を確認する。未homedなら初期実装では拒否する
-11. penを上げ、`machine_state.pen_down=false`へ更新する
-12. `GcodeInterpreter`のmodal状態を`G21`、`G90`、既定feedへ初期化する
-13. job counters、last error、job resultを初期化する
-14. job状態を`RUNNING`へ遷移し、`JOB_BEGIN OK`をログする
+10. homed状態を確認する
+11. `JOB_BEGIN_AUTO_HOME=false`で未homedなら`not_homed`で拒否する
+12. `JOB_BEGIN_AUTO_HOME=true`で未homedなら、`MotionTask`が`HOME`相当を自動実行する。失敗した場合は`auto_home_failed`で拒否する
+13. `JOB_BEGIN`でhomed確認済みであることを`JobController`に保持し、`RUNNING`/`ENDING`中のG-code由来XY移動のhomedゲートに使う
+14. penを上げ、`machine_state.pen_down=false`へ更新する
+15. `GcodeInterpreter`のmodal状態を`G21`、`G90`、既定feedへ初期化する
+16. job counters、last error、job resultを初期化する
+17. job状態を`RUNNING`へ遷移し、`JOB_BEGIN OK`をログする
 
-初期実装では、`JOB_BEGIN`中に自動homingしない。
-自動homingを許可するかは実機安全確認後にconfigで切り替える。
+`JOB_BEGIN_AUTO_HOME`の初期値は安全側の`false`とする。
+`true`にする場合は、limit switch、homing方向、E-stop可能な作業状態を実機で確認してから有効化する。
 
 ## `JOB_END`処理順
 
@@ -1322,6 +1325,8 @@ G-code由来の`XY`と手入力`XY`は区別する。
 - [x] `JOB_BEGIN`でalarm、TMC ready、homed、pen up、queue emptyを確認する
 - [x] `JOB_BEGIN`でTMC未readyなら`TMC_INIT`相当を自動実行し、失敗時だけ拒否する
 - [x] `JOB_BEGIN`で未homedなら初期実装では拒否する
+- [x] `JOB_BEGIN_AUTO_HOME`を追加し、true時は未homedの`JOB_BEGIN`でHOME相当を自動実行する
+- [x] `JOB_BEGIN`で確認したhomed状態をJobControllerに保持し、ジョブ中のG-code由来XY移動のhomed判定に使う
 - [x] `JOB_BEGIN`でG-code modal状態をmm/absoluteなど既定値へ初期化する
 - [x] `JOB_END`でpen up、退避移動、終了ジングル、queue drain、status/log出力を行う
 - [x] `JOB_END_PARK_X_MM=5.0`、`JOB_END_PARK_Y_MM=Y_MAX_MM-5.0`をconfig化しsoft limit内にstatic_assertする
@@ -1345,7 +1350,7 @@ G-code由来の`XY`と手入力`XY`は区別する。
 ## 未解決判断
 
 - [x] `JOB_BEGIN`でTMC未ready時は自動`TMC_INIT`する。失敗時だけ拒否する
-- [ ] `JOB_BEGIN`で未homed時に自動`HOME`するか、拒否するかを実機安全確認後に決める
+- [x] `JOB_BEGIN`で未homed時に自動`HOME`するか、拒否するかは`JOB_BEGIN_AUTO_HOME`で切り替える。既定は安全側のfalse
 - [x] `JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避移動し、その後に終了ジングルを鳴らす
 - [x] `COMPLETE`からの復帰は、初期実装では`JOB_END OK`ログ後に自動で`IDLE`へ戻す
 - [ ] stream済みG-codeがalarm後にCommandQueueへ残る場合、Job Lifecycle側でflushする範囲を決める
@@ -1992,11 +1997,11 @@ Phase 6.9を実装してください。
 | R29 | [ ] | `NORMAL_MOVE_LIMIT_RELEASE_MM=8mm`はhoming直後のlimit release猶予として暫定値であり、実際のswitch戻り距離と高速G0時の停止余裕が未確認 | G28直後の最初のG0で`LIMIT_RELEASE_ALLOW`が出て、limitがOFFへ戻ることを低速から確認する。戻らない場合はswitch機構、配線、release距離を調整する |
 | R30 | [ ] | `--stream-gcode-motion`送信高速化後も、文字データに`M3/M5/G4`が多い場合はストローク間で停止する。これはmotionではなくpen/dwell由来の停止である | Text Toolの`--dwell-ms`を20ms、0msなどで比較し、ペン実機で線抜けが出ない最小値を決める |
 | R31 | [ ] | `--stream-xy-motion`はCSV由来の`XY`を先行投入するため、実機でのlook-ahead改善、CommandQueue full再送、非XY行との応答混在耐性は未確認 | `--csv ... --queue-mode --stream-xy-motion`で連続XY CSVを低速から送信し、`LOOKAHEAD blocks>1`、停止感、alarm、queue retryを確認する |
-| R32 | [-] | Job Lifecycleは実装済みだが、motionを伴う`JOB_BEGIN -> G-code -> JOB_END`実機確認が未完了 | `job_lifecycle_check.csv`を低速・E-stop可能な状態で実行し、job状態、pen up、G-code由来XY許可、手入力XY拒否を確認する |
+| R32 | [-] | Job Lifecycleは実装済みだが、motionを伴う`JOB_BEGIN -> G-code -> JOB_END`実機確認が未完了。`JOB_BEGIN OK homed=YES`後の最初のG-code移動で`machine is not homed`拒否が出たため、JOB_BEGIN時のhomed検証結果をジョブ中の移動ゲートにも使うよう修正した | `job_lifecycle_check.csv`を低速・E-stop可能な状態で実行し、job状態、pen up、G-code由来XY許可、手入力XY拒否、JOB_END park/jingleを確認する |
 | R33 | [ ] | `XY`を診断/bring-up用へ位置付けたが、既存CSVとQR Toolには`XY`出力が残る | 正式運用用ツールはG-code出力へ寄せ、`XY` CSVは診断手順としてREADME/手順書で明記する |
-| R34 | [-] | `JOB_BEGIN`はTMC未ready時に自動`TMC_INIT`するが、未homed時は拒否し自動`HOME`はしない | 実機運用で自動homingを許可するか、明示homing必須のままにするか決める |
+| R34 | [-] | `JOB_BEGIN_AUTO_HOME`で未homed時の自動HOMEを切り替えられるが、true時の実機安全確認は未完了 | limit switch方向、E-stop可能状態、HOME失敗時の`auto_home_failed`、成功時の`JOB_BEGIN OK`を低速で確認してから正式運用でtrueにする |
 | R35 | [ ] | `JOB_END`退避移動とA/B両モータ終了ジングルはbuild/upload済みだが、実機での脱調、音量、TMC温度、退避位置の機械干渉が未確認 | `job_lifecycle_check.csv`を低速・E-stop可能な状態で実行し、退避位置、ジングル音量、モータ/TMC温度を確認する |
-| R36 | [ ] | `JOB_BEGIN`のTMC自動初期化はbuild/upload済みだが、Serial再確認と未ready状態からの`JOB_BEGIN TMC_INIT auto`ログ確認が未完了 | `ZERO -> ALARM_CLEAR -> JOB_BEGIN`を安全状態で実行し、TMC自動初期化後に未homedで拒否されることを確認する |
+| R36 | [ ] | `JOB_BEGIN`のTMC自動初期化と`JOB_BEGIN_AUTO_HOME`はbuild/upload後のSerial再確認が未完了 | `JOB_BEGIN_AUTO_HOME=false`で未homedなら`not_homed`拒否、trueで未homedなら`JOB_BEGIN AUTO_HOME start`からHOME実行へ進むことを安全状態で確認する |
 
 ---
 
@@ -2056,6 +2061,8 @@ Phase 6.9を実装してください。
 | 2026-06-08 | Phase 10.5を実装。`JobController`、`JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`、G-code source判定、`serial_send.py --job-lifecycle`、job lifecycle check CSV/手順書を追加。`pio run`とupload、`CONFIG`/`POS`/`SELFTEST`/`TMC_INIT`/`TMC_STATUS`確認が成功 | Codex |
 | 2026-06-08 | `JOB_END`へpen up、`X=5mm, Y=Y_MAX_MM-5mm`退避、A/B両モータのオリジナル8-bit風和音終了ジングルを追加。`pio run`、upload、基本Serial確認が成功 | Codex |
 | 2026-06-08 | `JOB_BEGIN`へTMC未ready時の自動`TMC_INIT`を追加。初期化失敗時のみ`tmc_not_ready`で拒否する方針へ更新。`pio run`とuploadは成功、Serial再確認は権限付き実行の利用制限で未実行 | Codex |
+| 2026-06-09 | `JOB_BEGIN OK homed=YES`後のG-code移動が`machine is not homed`で拒否される実機ログを受け、JOB_BEGIN時のhomed検証結果をJobControllerに保持し、ジョブ中のG-code由来XY移動のhomed判定へ使うよう修正 | Codex |
+| 2026-06-09 | `JOB_BEGIN_AUTO_HOME` configを追加。既定はfalse。true時は`JOB_BEGIN`で未homedならTMC初期化後にHOME相当を自動実行し、失敗時は`auto_home_failed`で拒否する。`pio run`、upload、`CONFIG`/`SELFTEST`/`TMC_STATUS`確認は成功 | Codex |
 
 ---
 

@@ -796,7 +796,9 @@ F値はmm/minとして扱う。
 - bring-upでは`SELFTEST`、`TMC_INIT`、`ZERO`、`ALARM_CLEAR`、`HOME`などを明示実行してよい
 - 正式ジョブ開始時は、alarm、TMC ready、homed、pen状態、motion queue状態をファームウェア側で確認する
 - `JOB_BEGIN`はTMC未readyの場合に`TMC_INIT`相当を自動実行する。TMC初期化に失敗した場合だけ`tmc_not_ready`で拒否する
-- 初期実装では、homedでない場合は`JOB_BEGIN`を拒否し、自動homingは行わない
+- `JOB_BEGIN_AUTO_HOME=false`では、homedでない場合は`JOB_BEGIN`を`not_homed`で拒否し、自動homingは行わない
+- `JOB_BEGIN_AUTO_HOME=true`では、`JOB_BEGIN`時に未homedならTMC初期化後に`HOME`相当を自動実行する。HOME失敗時は`auto_home_failed`で拒否し、G-code本文は実行しない
+- `JOB_BEGIN`成功時は、その時点でhomed確認済みであることをJobControllerに保持し、`RUNNING`/`ENDING`中のG-code由来XY移動のhomedゲートにも使う。`JOB_ABORT`、`ABORT`、`FAILED`、`JOB_END`完了時はこの保持状態を破棄する
 - 正式ジョブ終了時は、pen up、`JOB_END_PARK_X_MM`/`JOB_END_PARK_Y_MM`への退避移動、終了ジングル、queue drain、status/log出力をファームウェア側で行う
 - G-code本文には描画内容に関係する`G0`/`G1`、`M3`/`M5`、`G4`などを残し、`SELFTEST`、`TMC_INIT`、`ALARM_CLEAR`、`LIMIT_STATUS`、`ZERO`、`CONFIG`は通常含めない
 - `RUNNING`中はG-code由来の`XY`、`DWELL`、`PENUP/PENDOWN`相当だけを許可し、Serial手入力の裸`XY`、`TEST_A/B`、`AB_TIMED`、`MELODY`、`ZERO`、`ALARM_CLEAR`、`TMC_INIT`、`HOME`は拒否する

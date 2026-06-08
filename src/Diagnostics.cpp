@@ -37,6 +37,7 @@ void Diagnostics::printConfig() {
   logMessage("JOB state=%s result=%s last_error=%s",
              job_controller.stateName(), job_controller.result(),
              job_controller.lastError());
+  logMessage("JOB_BEGIN auto_home=%u", JOB_BEGIN_AUTO_HOME);
   logMessage("JOB_END park_enabled=%u park=(%.3f,%.3f) park_feed=%.3f jingle_enabled=%u",
              JOB_END_PARK_ENABLED, JOB_END_PARK_X_MM, JOB_END_PARK_Y_MM,
              JOB_END_PARK_FEED_MM_MIN, JOB_END_JINGLE_ENABLED);

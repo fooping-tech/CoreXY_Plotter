@@ -122,6 +122,10 @@ constexpr float JOB_END_PARK_X_MM = 5.0f;
 constexpr float JOB_END_PARK_Y_MM = Y_MAX_MM - 5.0f;
 constexpr float JOB_END_PARK_FEED_MM_MIN = 1200.0f;
 
+// JOB_BEGIN時にhomedでない場合、自動でHOMEを実行するか。
+// trueにするとJOB_BEGINで実機が動くため、limit switchとE-stop確認後に有効化する。
+constexpr bool JOB_BEGIN_AUTO_HOME = false;
+
 static_assert(JOB_END_PARK_X_MM >= X_MIN_MM && JOB_END_PARK_X_MM <= X_MAX_MM,
               "JOB_END_PARK_X_MM must stay inside X soft limits");
 static_assert(JOB_END_PARK_Y_MM >= Y_MIN_MM && JOB_END_PARK_Y_MM <= Y_MAX_MM,

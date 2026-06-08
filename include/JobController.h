@@ -37,6 +37,10 @@ class JobController {
     return state_ == JobState::STARTING || state_ == JobState::RUNNING ||
            state_ == JobState::ENDING;
   }
+  bool hasHomedJobMotionGrant() const {
+    return homed_at_begin_ &&
+           (state_ == JobState::RUNNING || state_ == JobState::ENDING);
+  }
 
   bool beginJob(const JobPreflight& preflight, SafetyManager& safety,
                 MachineState& machine, PenController& pen,
@@ -59,4 +63,5 @@ class JobController {
   char result_[16] = "none";
   char last_error_[64] = "none";
   uint32_t job_sequence_ = 0;
+  bool homed_at_begin_ = false;
 };

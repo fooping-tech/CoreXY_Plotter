@@ -62,6 +62,7 @@ bool JobController::checkPreflightEmpty(const JobPreflight& preflight,
 bool JobController::beginJob(const JobPreflight& preflight, SafetyManager& safety,
                              MachineState& machine, PenController& pen,
                              TMC2209Manager& tmc) {
+  homed_at_begin_ = false;
   if (state_ == JobState::COMPLETE) {
     setState(JobState::IDLE);
   }
@@ -104,6 +105,7 @@ bool JobController::beginJob(const JobPreflight& preflight, SafetyManager& safet
     return reject("not_homed", "JOB_BEGIN");
   }
 
+  homed_at_begin_ = true;
   pen.penUp();
   machine.pen_down = false;
   ++job_sequence_;
@@ -126,6 +128,7 @@ bool JobController::endJob(const JobPreflight& preflight, SafetyManager& safety,
   copyText(result_, sizeof(result_), "ending");
 
   if (!checkPreflightEmpty(preflight, "JOB_END")) {
+    homed_at_begin_ = false;
     setState(JobState::FAILED);
     return false;
   }
@@ -137,6 +140,7 @@ bool JobController::endJob(const JobPreflight& preflight, SafetyManager& safety,
     machine.pen_down = false;
   }
   if (machine.alarmed) {
+    homed_at_begin_ = false;
     setState(JobState::FAILED);
     copyText(result_, sizeof(result_), "failed");
     copyText(last_error_, sizeof(last_error_), safety.alarmReason());
@@ -146,6 +150,7 @@ bool JobController::endJob(const JobPreflight& preflight, SafetyManager& safety,
 
   copyText(result_, sizeof(result_), "complete");
   copyText(last_error_, sizeof(last_error_), "none");
+  homed_at_begin_ = false;
   setState(JobState::COMPLETE);
   logMessage("JOB_END OK seq=%lu X=%.3f Y=%.3f HOMED=%s PEN=UP ALARM=NO TMC=%s LIMIT_X=%s LIMIT_Y=%s",
              static_cast<unsigned long>(job_sequence_), machine.x_mm,
@@ -170,6 +175,7 @@ void JobController::markAborted(const char* reason) {
   copyText(result_, sizeof(result_), "aborted");
   copyText(last_error_, sizeof(last_error_),
            reason != nullptr ? reason : "abort requested");
+  homed_at_begin_ = false;
   setState(JobState::ABORTED);
 }
 
@@ -178,6 +184,7 @@ void JobController::markFailed(const char* reason) {
   copyText(result_, sizeof(result_), "failed");
   copyText(last_error_, sizeof(last_error_),
            reason != nullptr ? reason : "failed");
+  homed_at_begin_ = false;
   setState(JobState::FAILED);
 }
 
