@@ -4,6 +4,7 @@
 #include "CommandMessage.h"
 #include "MachineState.h"
 #include "HomingController.h"
+#include "JobController.h"
 #include "LedPatternEngine.h"
 #include "NeoPixelController.h"
 #include "MotorMelodyController.h"
@@ -25,6 +26,7 @@ extern NeoPixelController neopixel_controller;
 extern LedPatternEngine led_pattern_engine;
 extern MotorMelodyController motor_melody_controller;
 extern HomingController homing_controller;
+extern JobController job_controller;
 
 void requestMotionAbort();
 bool isMotionAbortRequested();

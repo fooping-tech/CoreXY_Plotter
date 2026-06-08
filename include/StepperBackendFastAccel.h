@@ -19,6 +19,10 @@ class StepperBackendFastAccel : public StepperBackend {
   bool beginDiagnosticTone() override;
   DiagnosticPulseResult queueDiagnosticPulse(uint32_t frequency_hz) override;
   void endDiagnosticTone() override;
+  bool beginDiagnosticChord();
+  DiagnosticPulseResult queueDiagnosticPulseA(uint32_t frequency_hz);
+  DiagnosticPulseResult queueDiagnosticPulseB(uint32_t frequency_hz);
+  void endDiagnosticChord();
   void stop() override;
   bool isRunning() const override;
   void waitUntilIdle() override;
@@ -40,4 +44,5 @@ class StepperBackendFastAccel : public StepperBackend {
   FastAccelStepper* motor_b_ = nullptr;
   bool ready_ = false;
   bool diagnostic_direction_positive_ = true;
+  bool diagnostic_direction_positive_b_ = true;
 };

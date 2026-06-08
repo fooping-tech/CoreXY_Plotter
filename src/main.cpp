@@ -18,6 +18,7 @@ NeoPixelController neopixel_controller;
 LedPatternEngine led_pattern_engine;
 MotorMelodyController motor_melody_controller;
 HomingController homing_controller;
+JobController job_controller;
 volatile bool motion_abort_requested = false;
 
 void requestMotionAbort() { motion_abort_requested = true; }

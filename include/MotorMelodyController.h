@@ -8,6 +8,8 @@ class MotorMelodyController {
  public:
   bool play(StepperBackendFastAccel& backend, TMC2209Manager& tmc,
             SafetyManager& safety);
+  bool playJobEndJingle(StepperBackendFastAccel& backend, TMC2209Manager& tmc,
+                        SafetyManager& safety);
 
  private:
   bool shouldAbort(SafetyManager& safety) const;

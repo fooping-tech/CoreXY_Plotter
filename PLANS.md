@@ -66,7 +66,9 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 台形加減速 | `TrapezoidPlanner`でTRAPEZOID/TRIANGULAR profileを実装済み |
 | timed segment | `SegmentGenerator`とFastAccelStepper `moveTimed()`によるA/B同期実行を実装済み |
 | 脱調対策 | 描画用の保守的な速度/加速度/電流/ペン圧設定とcenter shapes実機確認を追加 |
+| 正式描画入力 | G-codeを基本とする方針へ整理。`XY`は診断/bring-up用として維持 |
 | G-code parser | Phase 7最小G-codeを実装済み、実機確認は未完了 |
+| Job Lifecycle | `JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`を実装済み、motionを伴う実機確認は未完了 |
 | look-ahead | 実装済み、実機未確認 |
 | junction deviation | 実装済み、実機未確認 |
 
@@ -98,17 +100,20 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | 8 | 台形加減速 | TrapezoidPlannerを実装 | [x] |
 | 9 | timed segment | SegmentGeneratorでA/B同期 | [x] |
 | 10 | look-ahead | JunctionPlanner、junction deviation | [-] |
+| 10.5 | Job Lifecycle | G-codeジョブの開始/終了処理をファーム側へ移す | [-] |
 | 11 | 高級機能 | homing、TMC診断、SD/WebUI、補正系 | [ ] |
 
 現在の実装対象:
 
 ```text
-Phase 7最小G-code実装後の実機確認と、timed segment実機描画安定化
+G-codeを正式描画入力として実機確認し、timed segment実機描画安定化とPhase 10.5 Job Lifecycle設計を進める
 ```
 
 Phase 0〜6.9、Phase 8、Phase 9は完了済み。
 Phase 10は実装済み、実機確認は未完了。
-Phase 7は最小G-code範囲で実装済み。Phase 11以降は、実装範囲を確認してから着手する。
+Phase 7は最小G-code範囲で実装済み。正式描画入力はG-codeを基本とし、`XY`は診断/bring-up用として扱う。
+Phase 10.5で、ホスト側`gcode_preamble.csv`へ寄っているジョブ開始/終了処理をファームウェア側へ移す。
+Phase 11以降は、実装範囲を確認してから着手する。
 ただし、先々の設計を忘れないようチェックリストとして残しておく。
 
 ---
@@ -960,7 +965,14 @@ G-codeの`G28`を実装する前に、Serialコマンドで原点復帰を検証
 
 # Phase 7: 最小G-code
 
-Status: 実装済み。`G0/G1`は既存`XY`経路へ、`G28`は既存`HOME`経路へ接続する。実機確認は未完了。
+Status: 実装済み。正式描画入力はG-codeを基本とする。`G0/G1`は内部実装として既存`XY`経路へ、`G28`は既存`HOME`経路へ接続する。実機確認は未完了。
+
+運用方針:
+
+- 通常描画ジョブの外部インターフェースはG-codeを基本にする
+- `XY`、`TEST_A`、`TEST_B`、`AB_TIMED`、`MELODY`は診断/bring-up用として維持する
+- Text Tool、QR Tool、将来のSD/Web/USB streamingはG-code出力/入力へ寄せる
+- `gcode_preamble.csv`は正式Job Lifecycle実装までの暫定bring-up手順として扱う
 
 ## チェックリスト
 
@@ -981,6 +993,7 @@ Status: 実装済み。`G0/G1`は既存`XY`経路へ、`G28`は既存`HOME`経�
 - [x] interpreterがMachineStateを扱う
 - [x] motionはSafetyManagerを通る
 - [x] F値はmm/minとして扱う
+- [x] 正式描画入力をG-code基本、`XY`を診断/bring-up用とする運用方針をSPEC/PLANSへ反映
 - [x] `tools/serial_tool/examples/gcode_check.csv`を追加
 - [x] `tools/serial_tool/docs/gcode-check.md`を追加
 - [ ] 実機で`gcode_check.csv`を実行し、`G28`、単位切替、相対移動、pen、`M114`を確認する
@@ -1123,6 +1136,222 @@ Status: 実装済み。実機確認は未完了。
 
 ---
 
+# Phase 10.5: Job Lifecycle / G-code起動終了処理
+
+Status: 実装済み。`JOB_BEGIN`はTMC未ready時に`TMC_INIT`相当を自動実行する。`JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避し、A/B両モータの短い8-bit風和音ジングルを鳴らす。`pio run`、uploadは成功。TMC自動初期化追加後のSerial再確認と、motionを伴う`job_lifecycle_check.csv`実機確認は未完了。
+
+## 目的
+
+正式描画入力をG-code基本にするため、G-codeファイル本文やホスト側`gcode_preamble.csv`に起動処理・終了処理を毎回書かせない。
+ファームウェア側にジョブ開始/終了の状態機械を持たせ、bring-up用コマンドと正式ジョブ経路を分離する。
+
+## 方針
+
+- 電源投入時は安全なidle状態へ初期化するだけにし、自動homing、自動移動、自動メロディは行わない
+- bring-upでは従来通り`SELFTEST`、`TMC_INIT`、`ZERO`、`ALARM_CLEAR`、`HOME`、`PENUP`を明示実行する
+- 正式ジョブでは、G-code本文の前後に`SELFTEST`、`TMC_INIT`、`ALARM_CLEAR`、`LIMIT_STATUS`、`ZERO`、`CONFIG`を入れない
+- ジョブ開始時の安全確認、ジョブ終了時のpen up、退避移動、終了ジングル、queue drainはファームウェア側で行う
+- `G0/G1/M3/M5/G4/G28/M114`など描画意味を持つG-codeはそのまま維持する
+- `XY`、`TEST_A`、`TEST_B`、`AB_TIMED`、`MELODY`は診断/bring-up用のままにする
+
+## 初期実装範囲
+
+最初はSerial経由の明示コマンドでJob Lifecycleを確認する。
+SD/Web/USB streaming統合はPhase 11以降に回す。
+
+追加候補コマンド:
+
+| コマンド | 内容 |
+|---|---|
+| `JOB_BEGIN` | 正式G-codeジョブ開始。開始前確認を行い、成功時だけjob runningへ遷移 |
+| `JOB_END` | 正式G-codeジョブ終了。pen up、退避移動、終了ジングル、queue drain、状態出力を行う |
+| `JOB_ABORT` | ジョブ文脈つき中断。既存`ABORT`と同じ停止経路を使い、job状態、job result、last errorをabortedへ遷移 |
+| `JOB_STATUS` | job状態、開始前確認結果、最後の終了理由を表示 |
+
+将来、`serial_send.py --gcode`は、正式運用では`JOB_BEGIN`を送ってからG-code本文を送り、最後に`JOB_END`を送る。
+bring-upでは引き続き`--preamble-csv`を使ってよい。
+
+`ABORT`と`JOB_ABORT`の使い分け:
+
+| コマンド | 位置付け | 主な用途 | 処理 |
+|---|---|---|---|
+| `ABORT` | 低レベル即時停止 | bring-up、手動操作、homing中、危険時の停止 | motion/homing/stepper停止、alarm遷移、homed無効化 |
+| `JOB_ABORT` | Job Lifecycle上の中断 | G-codeジョブ送信ツール、正式ジョブ中断 | `ABORT`と同じ停止経路を呼び、追加でjob状態を`ABORTED`、job result/last errorを中断扱いにする |
+
+`JOB_ABORT`は`ABORT`の代替ではなく、ジョブ管理層から見た中断ラッパーとする。
+ジョブ中に手動`ABORT`が来た場合も、停止経路は即時に実行し、JobControllerはjob状態を`ABORTED`へ寄せる。
+ジョブ外で`JOB_ABORT`が来た場合は、初期実装では`JOB_ABORT rejected reason=no_active_job`を返し、低レベル停止は行わない。
+
+## 実装配置
+
+`JOB_BEGIN`/`JOB_END`の本体はCore 1のmotion層に置く。
+Core 0の`CommandTask`、`CommandDispatcher`、`main.cpp`、`GcodeParser`には処理本体を書かない。
+
+配置方針:
+
+| ファイル | 責務 |
+|---|---|
+| `include/JobController.h` | Job state、開始/終了結果、開始前確認API、診断コマンド拒否判定を宣言 |
+| `src/JobController.cpp` | `JOB_BEGIN`/`JOB_END`の状態遷移、安全確認、pen up、ログ整形の中心実装 |
+| `include/CommandTypes.h` | `JOB_BEGIN`、`JOB_END`、`JOB_ABORT`、`JOB_STATUS`のenum追加 |
+| `src/CommandDispatcher.cpp` | 文字列を`CommandMessage`へ変換するだけ。Job処理はしない |
+| `include/AppContext.h` / `src/main.cpp` | `JobController job_controller`のextern/実体定義と初期化 |
+| `src/tasks/MotionTask.cpp` | `CommandType::JOB_*`を受け、MotionTask内ローカルqueueやG-code modal状態と`JobController`を接続 |
+| `src/Diagnostics.cpp` | `JOB_STATUS`または`CONFIG`向けの表示を追加 |
+| `tools/serial_tool/*` | job lifecycle付きG-code送信と検査CSV/手順書 |
+
+`MotionTask.cpp`に残す処理:
+
+- `CommandQueue`から`JOB_BEGIN`/`JOB_END`を受けるswitch case
+- `planner_queue`、`segment_queue`、`pending_command`などMotionTask内ローカル状態の空確認
+- `GcodeInterpreter`のmodal状態をjob開始時既定値へ戻す呼び出し
+- stream済みG-codeが残る場合のflush方針に沿ったqueue整理
+- `JobController`へ渡すpreflight結果の組み立て
+
+`JobController.cpp`へ移す処理:
+
+- job state machine
+- `JOB_BEGIN`の開始前確認順序
+- `JOB_END`の終了処理順序
+- `JOB_ABORT`時のjob状態遷移
+- `RUNNING`中に許可/拒否するコマンド種別判定
+- `JOB_BEGIN OK`、`JOB_END OK`、`JOB_BEGIN rejected reason=...`などのログ文言
+
+`JobController`はFastAccelStepperやTMCStepperを直接触らない。
+既存の抽象層である`StepperBackendFastAccel`、`TMC2209Manager`、`PenController`、`SafetyManager`、`MachineState`を受け取って処理する。
+Core 0のUIやLCDには触らず、状態表示は`MachineState`/`StatusQueue`/`Diagnostics`経由にする。
+
+## 状態設計
+
+`MachineState`または専用`JobState`で以下を追跡する。
+
+| 状態 | 意味 |
+|---|---|
+| `IDLE` | ジョブなし。手動/診断コマンドを受けられる |
+| `STARTING` | `JOB_BEGIN`処理中 |
+| `RUNNING` | G-codeジョブ実行中 |
+| `ENDING` | `JOB_END`処理中 |
+| `COMPLETE` | 正常終了直後 |
+| `ABORTED` | 中断停止後 |
+| `FAILED` | 開始前確認失敗、alarm、limit、queue異常など |
+
+状態遷移ルール:
+
+- `IDLE`以外で`JOB_BEGIN`された場合は拒否する
+- `RUNNING`中の`XY`、`TEST_A`、`TEST_B`、`AB_TIMED`、`MELODY`は拒否する
+- `RUNNING`中のG-code motion、pen、dwell、statusは許可する
+- alarm発生時は`FAILED`または`ABORTED`へ遷移し、後続motionを拒否する
+- `RUNNING`中に`JOB_ABORT`または`ABORT`を受けた場合は、共通停止経路を使いjob状態を`ABORTED`へ遷移する
+- `JOB_END`完了後は`COMPLETE`をログし、次の操作前に`IDLE`へ戻せる
+
+コマンド許可方針:
+
+| Job状態 | 許可 | 拒否 |
+|---|---|---|
+| `IDLE` | bring-up/診断コマンド、`JOB_BEGIN`、状態表示 | なし。ただしalarm中motionは従来通りSafetyManagerで拒否 |
+| `STARTING` | `ABORT`のみ | motion、pen、diagnostics変更系、追加`JOB_BEGIN` |
+| `RUNNING` | `GCODE`、G-code由来`XY`、`DWELL`、`PEN_UP`、`PEN_DOWN`、`POS`、`M114`相当、`JOB_END`、`JOB_ABORT`、`ABORT` | 手入力`XY`、`TEST_A/B`、`AB_TIMED`、`MELODY`、`ZERO`、`ALARM_CLEAR`、`TMC_INIT`、`HOME` |
+| `ENDING` | `ABORT`のみ | motion、pen、diagnostics変更系、追加`JOB_END` |
+| `COMPLETE` | `JOB_STATUS`、`POS`、次の`JOB_BEGIN`へ戻すためのidle遷移 | motion開始は一度`IDLE`へ戻してから |
+| `FAILED`/`ABORTED` | `JOB_STATUS`、`POS`、復旧用`ZERO -> ALARM_CLEAR -> HOME` | 新規`JOB_BEGIN`は復旧完了まで拒否 |
+
+G-code由来の`XY`と手入力`XY`は区別する。
+`GcodeInterpreter`から変換された`XY`には、`CommandMessage`内の既存情報または追加フラグで`source=GCODE`を保持する。
+初期実装でフラグ追加が重い場合は、`MotionTask`でG-code翻訳直後に直接`handleXYBatch()`へ渡す経路のみを`RUNNING`中許可し、Serial由来の裸`XY`は拒否する。
+
+## `JOB_BEGIN`処理順
+
+1. `JobController`が`IDLE`であることを確認する
+2. `MotionTask`内の`pending_command`が空であることを確認する
+3. `planner_queue`、`segment_queue`が空であることを確認する
+4. `stepper_backend.isRunning()`がfalseであることを確認する
+5. `safety_manager.poll()`でlimit raw/debouncedとalarm状態を更新する
+6. alarmがないことを確認する
+7. hard limitが通常移動禁止状態でactiveになっていないことを確認する
+8. TMC readyを確認する。未readyなら初期実装では拒否する
+9. TMC未readyなら`TMC_INIT`相当を自動実行する。失敗した場合は`tmc_not_ready`で拒否する
+10. homed状態を確認する。未homedなら初期実装では拒否する
+11. penを上げ、`machine_state.pen_down=false`へ更新する
+12. `GcodeInterpreter`のmodal状態を`G21`、`G90`、既定feedへ初期化する
+13. job counters、last error、job resultを初期化する
+14. job状態を`RUNNING`へ遷移し、`JOB_BEGIN OK`をログする
+
+初期実装では、`JOB_BEGIN`中に自動homingしない。
+自動homingを許可するかは実機安全確認後にconfigで切り替える。
+
+## `JOB_END`処理順
+
+1. `JobController`が`RUNNING`であることを確認する
+2. `MotionTask`が受信済みmotionを最後まで処理した状態であることを確認する
+3. `planner_queue`、`segment_queue`、`pending_command`が空であることを確認する
+4. `stepper_backend.isRunning()`がfalseになるまで待つ
+5. penを上げ、`machine_state.pen_down=false`へ更新する
+6. `JOB_END_PARK_ENABLED`なら、既存XY/planner/timed segment経路で`JOB_END_PARK_X_MM=5.0`、`JOB_END_PARK_Y_MM=Y_MAX_MM-5.0`へ移動する
+7. `JOB_END_JINGLE_ENABLED`なら、A/B両モータを使う短いオリジナル8-bit風和音ジングルを鳴らす
+8. `safety_manager.poll()`で終了時limit/alarm状態を更新する
+9. MachineState、limit、alarm、TMC ready、job resultをログする
+10. job状態を`COMPLETE`へ遷移し、`JOB_END OK`をログする
+11. 次の`JOB_BEGIN`を受ける前に`IDLE`へ戻す。初期実装では`JOB_END OK`ログ後に自動idle遷移する
+
+終了処理中にalarmまたはABORTが入った場合は、pen upを試行したうえで`FAILED`または`ABORTED`へ遷移する。
+退避移動または終了ジングルに失敗した場合は`JOB_END failed reason=park_failed`または`JOB_END failed reason=jingle_failed`を出し、job状態を`FAILED`へ遷移する。
+
+`JOB_END`はG-code streamの最後にホストから明示送信する。
+ファームウェアがG-codeファイル終端を直接知るわけではないため、Serial運用では「最後の行を送ったあとに`JOB_END`を送る」ことを正式手順とする。
+
+## Serial Tool計画
+
+- [x] `tools/serial_tool/examples/job_lifecycle_check.csv`を追加する
+- [x] `tools/serial_tool/docs/job-lifecycle-check.md`を追加する
+- [x] `tools/serial_tool/README.md`のCheck一覧へリンクを追加する
+- [x] `serial_send.py --gcode --job-lifecycle`を追加し、`JOB_BEGIN`と`JOB_END`を自動で前後送信できるようにする
+- [x] `--preamble-csv`はbring-up/暫定確認用として残す
+- [x] `JOB_BEGIN`失敗時はG-code本文を送らない
+- [x] G-code本文中のfailure検出時は後続行を送らず、`JOB_ABORT`または`ABORT`へつなぐ
+
+## チェックリスト
+
+- [x] `JobState`または同等の状態保持を追加する
+- [x] `CommandType::JOB_BEGIN`、`JOB_END`、`JOB_ABORT`、`JOB_STATUS`を追加する
+- [x] `CommandDispatcher`はjob commandをparseするだけで、motionを直接実行しない
+- [x] `JobController`を新設し、Job state machineと開始/終了処理を`MotionTask`から分離する
+- [x] `MotionTask`側でJob Lifecycleを処理する
+- [x] `MotionTask`にはqueue空確認、G-code modal reset、`JobController`呼び出しだけを残す
+- [x] Core 0からstepper、TMC、penを直接操作しない
+- [x] Core 1からLCDを直接描画しない
+- [x] `JOB_BEGIN`でalarm、TMC ready、homed、pen up、queue emptyを確認する
+- [x] `JOB_BEGIN`でTMC未readyなら`TMC_INIT`相当を自動実行し、失敗時だけ拒否する
+- [x] `JOB_BEGIN`で未homedなら初期実装では拒否する
+- [x] `JOB_BEGIN`でG-code modal状態をmm/absoluteなど既定値へ初期化する
+- [x] `JOB_END`でpen up、退避移動、終了ジングル、queue drain、status/log出力を行う
+- [x] `JOB_END_PARK_X_MM=5.0`、`JOB_END_PARK_Y_MM=Y_MAX_MM-5.0`をconfig化しsoft limit内にstatic_assertする
+- [x] 終了ジングルはA/B両モータの和音として実装し、既存曲そのものではない短い8-bit風オリジナル音列にする
+- [x] `RUNNING`中の診断コマンドを拒否する
+- [x] `RUNNING`中はG-code由来`XY`だけを許可し、Serial手入力の裸`XY`は拒否する
+- [x] `JOB_ABORT`は既存`ABORT`と同じ停止経路を使い、追加でjob状態/result/last errorを`ABORTED`へ遷移する
+- [x] `RUNNING`中に手動`ABORT`を受けた場合も、JobControllerがjob状態を`ABORTED`へ寄せる
+- [x] ジョブ外の`JOB_ABORT`は`no_active_job`として拒否し、低レベル停止は行わない
+- [x] alarm、limit、ABORT発生時にjob状態が失敗系へ遷移する
+- [x] `CONFIG`または`JOB_STATUS`でjob状態を確認できる
+- [x] `SPEC.md`へ確定したコマンド名、状態、応答ログを反映する
+- [x] `PLANS.md`のリスクと実機確認結果を更新する
+- [x] `pio run`を実行する
+- [x] `pio run --target upload`を実行する
+- [ ] 実機で`JOB_BEGIN -> 短いG-code -> JOB_END`を確認する
+- [ ] 実機で未homed時の`JOB_BEGIN`拒否を確認する
+- [ ] 実機でalarm中の`JOB_BEGIN`拒否を確認する
+- [ ] 実機でG-code中断時に`JOB_ABORT`または`ABORT`で安全停止することを確認する
+
+## 未解決判断
+
+- [x] `JOB_BEGIN`でTMC未ready時は自動`TMC_INIT`する。失敗時だけ拒否する
+- [ ] `JOB_BEGIN`で未homed時に自動`HOME`するか、拒否するかを実機安全確認後に決める
+- [x] `JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避移動し、その後に終了ジングルを鳴らす
+- [x] `COMPLETE`からの復帰は、初期実装では`JOB_END OK`ログ後に自動で`IDLE`へ戻す
+- [ ] stream済みG-codeがalarm後にCommandQueueへ残る場合、Job Lifecycle側でflushする範囲を決める
+
+---
+
 # Phase 11: 高級機能
 
 Status: 将来。まだ実装しない。
@@ -1153,6 +1382,7 @@ Status: 将来。まだ実装しない。
 - [ ] WebUI
 - [ ] USB G-code streaming
 - [ ] file pause/resume
+- [ ] Phase 10.5 Job LifecycleをSD/Web/USB streamingへ接続する
 
 ### 補正
 
@@ -1762,6 +1992,11 @@ Phase 6.9を実装してください。
 | R29 | [ ] | `NORMAL_MOVE_LIMIT_RELEASE_MM=8mm`はhoming直後のlimit release猶予として暫定値であり、実際のswitch戻り距離と高速G0時の停止余裕が未確認 | G28直後の最初のG0で`LIMIT_RELEASE_ALLOW`が出て、limitがOFFへ戻ることを低速から確認する。戻らない場合はswitch機構、配線、release距離を調整する |
 | R30 | [ ] | `--stream-gcode-motion`送信高速化後も、文字データに`M3/M5/G4`が多い場合はストローク間で停止する。これはmotionではなくpen/dwell由来の停止である | Text Toolの`--dwell-ms`を20ms、0msなどで比較し、ペン実機で線抜けが出ない最小値を決める |
 | R31 | [ ] | `--stream-xy-motion`はCSV由来の`XY`を先行投入するため、実機でのlook-ahead改善、CommandQueue full再送、非XY行との応答混在耐性は未確認 | `--csv ... --queue-mode --stream-xy-motion`で連続XY CSVを低速から送信し、`LOOKAHEAD blocks>1`、停止感、alarm、queue retryを確認する |
+| R32 | [-] | Job Lifecycleは実装済みだが、motionを伴う`JOB_BEGIN -> G-code -> JOB_END`実機確認が未完了 | `job_lifecycle_check.csv`を低速・E-stop可能な状態で実行し、job状態、pen up、G-code由来XY許可、手入力XY拒否を確認する |
+| R33 | [ ] | `XY`を診断/bring-up用へ位置付けたが、既存CSVとQR Toolには`XY`出力が残る | 正式運用用ツールはG-code出力へ寄せ、`XY` CSVは診断手順としてREADME/手順書で明記する |
+| R34 | [-] | `JOB_BEGIN`はTMC未ready時に自動`TMC_INIT`するが、未homed時は拒否し自動`HOME`はしない | 実機運用で自動homingを許可するか、明示homing必須のままにするか決める |
+| R35 | [ ] | `JOB_END`退避移動とA/B両モータ終了ジングルはbuild/upload済みだが、実機での脱調、音量、TMC温度、退避位置の機械干渉が未確認 | `job_lifecycle_check.csv`を低速・E-stop可能な状態で実行し、退避位置、ジングル音量、モータ/TMC温度を確認する |
+| R36 | [ ] | `JOB_BEGIN`のTMC自動初期化はbuild/upload済みだが、Serial再確認と未ready状態からの`JOB_BEGIN TMC_INIT auto`ログ確認が未完了 | `ZERO -> ALARM_CLEAR -> JOB_BEGIN`を安全状態で実行し、TMC自動初期化後に未homedで拒否されることを確認する |
 
 ---
 
@@ -1815,6 +2050,12 @@ Phase 6.9を実装してください。
 | 2026-06-08 | G28直後の原点limit ON状態から通常移動で離れる場合に、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範囲だけlimit releaseを許容し、戻らない場合はalarm停止するよう修正 | Codex |
 | 2026-06-08 | Serial Toolの`--stream-gcode-motion`で、G-code由来`G0/G1`のACK後serial idle待ちと成功時の行別ログを省き、CommandQueueへ連続XYを高速投入しやすくした | Codex |
 | 2026-06-08 | Serial Toolへ`--stream-xy-motion`を追加し、CSV由来`XY`もACK後serial idle待ちと成功時の行別ログを省いて先行投入できるようにした | Codex |
+| 2026-06-08 | 正式描画入力はG-code基本、`XY`は診断/bring-up用とする運用方針をSPEC/PLANSへ反映。起動/終了処理は将来Job Lifecycleとしてファームウェア側へ移す方針を追加 | Codex |
+| 2026-06-08 | Phase 10.5 Job Lifecycle計画を追加。`JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`、開始前確認、終了時pen up、Serial Tool検査、未解決判断を整理 | Codex |
+| 2026-06-08 | `ABORT`は低レベル即時停止、`JOB_ABORT`はJob Lifecycle上の中断ラッパーとして使い分ける方針をPhase 10.5へ追記 | Codex |
+| 2026-06-08 | Phase 10.5を実装。`JobController`、`JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`、G-code source判定、`serial_send.py --job-lifecycle`、job lifecycle check CSV/手順書を追加。`pio run`とupload、`CONFIG`/`POS`/`SELFTEST`/`TMC_INIT`/`TMC_STATUS`確認が成功 | Codex |
+| 2026-06-08 | `JOB_END`へpen up、`X=5mm, Y=Y_MAX_MM-5mm`退避、A/B両モータのオリジナル8-bit風和音終了ジングルを追加。`pio run`、upload、基本Serial確認が成功 | Codex |
+| 2026-06-08 | `JOB_BEGIN`へTMC未ready時の自動`TMC_INIT`を追加。初期化失敗時のみ`tmc_not_ready`で拒否する方針へ更新。`pio run`とuploadは成功、Serial再確認は権限付き実行の利用制限で未実行 | Codex |
 
 ---
 

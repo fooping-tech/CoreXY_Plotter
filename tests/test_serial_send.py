@@ -213,6 +213,13 @@ def test_stream_xy_motion_requires_queue_mode() -> None:
         )
 
 
+def test_job_lifecycle_requires_gcode() -> None:
+    with pytest.raises(ValueError, match="requires --gcode"):
+        serial_send.validate_args(
+            argparse.Namespace(job_lifecycle=True, gcode=None)
+        )
+
+
 def test_stream_gcode_motion_retries_command_queue_full() -> None:
     row = serial_send.CommandRow(
         line_number=7,
@@ -376,6 +383,25 @@ def test_load_input_rows_prepends_preamble_csv_to_gcode(tmp_path: Path) -> None:
     assert rows[0].expect == "ZERO"
     assert rows[1].expect == "HOME complete"
     assert rows[2].expect == "units=MM"
+
+
+def test_load_input_rows_wraps_gcode_with_job_lifecycle(tmp_path: Path) -> None:
+    gcode_path = tmp_path / "drawing.gcode"
+    gcode_path.write_text("; drawing\nG21\nG90\n", encoding="utf-8")
+    args = argparse.Namespace(
+        preamble_csv=None,
+        csv=None,
+        gcode=gcode_path,
+        default_delay_ms=250,
+        job_lifecycle=True,
+    )
+
+    rows = serial_send.load_input_rows(args)
+
+    assert [row.command for row in rows] == ["JOB_BEGIN", "G21", "G90", "JOB_END"]
+    assert rows[0].expect == "JOB_BEGIN OK"
+    assert rows[-1].expect == "JOB_END OK"
+    assert [row.source for row in rows] == ["job", "gcode", "gcode", "job"]
 
 
 def test_default_gcode_expect_for_drawing_commands() -> None:

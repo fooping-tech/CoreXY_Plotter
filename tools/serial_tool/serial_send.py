@@ -164,6 +164,14 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--job-lifecycle",
+        action="store_true",
+        help=(
+            "With --gcode, wrap the file with JOB_BEGIN and JOB_END. "
+            "If a G-code row fails, send JOB_ABORT before stopping."
+        ),
+    )
+    parser.add_argument(
         "--stream-xy-motion",
         action="store_true",
         help=(
@@ -319,11 +327,35 @@ def load_input_rows(args: argparse.Namespace) -> list[CommandRow]:
     if args.csv is not None:
         rows.extend(load_command_rows(args.csv, args.default_delay_ms))
     else:
+        if getattr(args, "job_lifecycle", False):
+            rows.append(
+                CommandRow(
+                    line_number=0,
+                    command="JOB_BEGIN",
+                    delay_ms=args.default_delay_ms,
+                    expect="JOB_BEGIN OK",
+                    comment="begin formal G-code job",
+                    source="job",
+                )
+            )
         rows.extend(load_gcode_rows(args.gcode, args.default_delay_ms))
+        if getattr(args, "job_lifecycle", False):
+            rows.append(
+                CommandRow(
+                    line_number=0,
+                    command="JOB_END",
+                    delay_ms=args.default_delay_ms,
+                    expect="JOB_END OK",
+                    comment="end formal G-code job",
+                    source="job",
+                )
+            )
     return rows
 
 
 def validate_args(args: argparse.Namespace) -> None:
+    if getattr(args, "job_lifecycle", False) and getattr(args, "gcode", None) is None:
+        raise ValueError("--job-lifecycle requires --gcode")
     if getattr(args, "stream_gcode_motion", False) and getattr(args, "gcode", None) is None:
         raise ValueError("--stream-gcode-motion requires --gcode")
     if getattr(args, "stream_gcode_motion", False) and not getattr(args, "queue_mode", False):
@@ -522,6 +554,25 @@ def send_abort_on_interrupt(serial_port) -> None:
         return
     if response:
         print(response, end="" if response.endswith("\n") else "\n", flush=True)
+
+
+def send_job_abort_on_failure(serial_port, args: argparse.Namespace) -> None:
+    if not getattr(args, "job_lifecycle", False) or not serial_port.is_open:
+        return
+    print("G-code job failed: sending JOB_ABORT.", file=sys.stderr, flush=True)
+    try:
+        serial_port.write(b"JOB_ABORT\n")
+        serial_port.flush()
+        response = read_response_text(
+            serial_port,
+            min_duration_s=0.2,
+            max_duration_s=max(args.timeout, 1.0),
+            stop_on=stop_patterns_with_failures(("JOB_ABORT complete", "JOB_ABORT requested")),
+        )
+    except Exception as exc:
+        print(f"WARNING: failed to send JOB_ABORT: {exc}", file=sys.stderr, flush=True)
+        return
+    print_response(response)
 
 
 def print_response(response: str) -> None:
@@ -762,6 +813,8 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
             if result:
                 failures += 1
                 if not args.continue_on_error:
+                    if row.source == "gcode":
+                        send_job_abort_on_failure(serial_port, args)
                     return 1
         return 1 if failures else 0
     except KeyboardInterrupt:

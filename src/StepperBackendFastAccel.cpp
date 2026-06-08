@@ -8,6 +8,30 @@
 namespace {
 FastAccelStepperEngine engine;
 constexpr uint8_t TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN = 2;
+
+StepperBackend::DiagnosticPulseResult queueDiagnosticPulseOnMotor(
+    FastAccelStepper* motor, bool& direction_positive, uint32_t frequency_hz) {
+  if (motor == nullptr || frequency_hz == 0 ||
+      frequency_hz > MAX_MOTOR_SPEED_STEPS_S) {
+    return StepperBackend::DiagnosticPulseResult::ERROR;
+  }
+  const uint32_t ticks = TICKS_PER_S / frequency_hz;
+  if (ticks == 0 || ticks > UINT16_MAX) {
+    return StepperBackend::DiagnosticPulseResult::ERROR;
+  }
+  const stepper_command_s command = {
+      .ticks = static_cast<uint16_t>(ticks),
+      .steps = 1,
+      .count_up = direction_positive,
+  };
+  const AqeResultCode result = motor->addQueueEntry(&command);
+  if (result == AQE_OK) {
+    direction_positive = !direction_positive;
+    return StepperBackend::DiagnosticPulseResult::QUEUED;
+  }
+  return aqeRetry(result) ? StepperBackend::DiagnosticPulseResult::RETRY
+                          : StepperBackend::DiagnosticPulseResult::ERROR;
+}
 }
 
 bool StepperBackendFastAccel::begin() {
@@ -160,24 +184,9 @@ StepperBackendFastAccel::queueDiagnosticPulse(uint32_t frequency_hz) {
   (void)frequency_hz;
   return DiagnosticPulseResult::QUEUED;
 #else
-  if (!ready_ || motor_a_ == nullptr || frequency_hz == 0 ||
-      frequency_hz > MAX_MOTOR_SPEED_STEPS_S) {
-    return DiagnosticPulseResult::ERROR;
-  }
-  const uint32_t ticks = TICKS_PER_S / frequency_hz;
-  if (ticks == 0 || ticks > UINT16_MAX) return DiagnosticPulseResult::ERROR;
-  const stepper_command_s command = {
-      .ticks = static_cast<uint16_t>(ticks),
-      .steps = 1,
-      .count_up = diagnostic_direction_positive_,
-  };
-  const AqeResultCode result = motor_a_->addQueueEntry(&command);
-  if (result == AQE_OK) {
-    diagnostic_direction_positive_ = !diagnostic_direction_positive_;
-    return DiagnosticPulseResult::QUEUED;
-  }
-  return aqeRetry(result) ? DiagnosticPulseResult::RETRY
-                          : DiagnosticPulseResult::ERROR;
+  if (!ready_) return DiagnosticPulseResult::ERROR;
+  return queueDiagnosticPulseOnMotor(motor_a_, diagnostic_direction_positive_,
+                                     frequency_hz);
 #endif
 }
 
@@ -185,6 +194,59 @@ void StepperBackendFastAccel::endDiagnosticTone() {
 #if !SIMULATION_MODE
   if (motor_a_ != nullptr) {
     motor_a_->setDirectionPin(MOTOR_A_DIR_PIN, MOTOR_A_DIRECTION_INVERTED,
+                              DIR_CHANGE_DELAY_US);
+  }
+#endif
+}
+
+bool StepperBackendFastAccel::beginDiagnosticChord() {
+#if SIMULATION_MODE
+  return true;
+#else
+  if (!ready_ || motor_a_ == nullptr || motor_b_ == nullptr ||
+      motor_a_->isRunning() || motor_b_->isRunning()) {
+    return false;
+  }
+  diagnostic_direction_positive_ = true;
+  diagnostic_direction_positive_b_ = true;
+  motor_a_->setDirectionPin(MOTOR_A_DIR_PIN, MOTOR_A_DIRECTION_INVERTED, 0);
+  motor_b_->setDirectionPin(MOTOR_B_DIR_PIN, MOTOR_B_DIRECTION_INVERTED, 0);
+  return true;
+#endif
+}
+
+StepperBackend::DiagnosticPulseResult
+StepperBackendFastAccel::queueDiagnosticPulseA(uint32_t frequency_hz) {
+#if SIMULATION_MODE
+  (void)frequency_hz;
+  return DiagnosticPulseResult::QUEUED;
+#else
+  if (!ready_) return DiagnosticPulseResult::ERROR;
+  return queueDiagnosticPulseOnMotor(motor_a_, diagnostic_direction_positive_,
+                                     frequency_hz);
+#endif
+}
+
+StepperBackend::DiagnosticPulseResult
+StepperBackendFastAccel::queueDiagnosticPulseB(uint32_t frequency_hz) {
+#if SIMULATION_MODE
+  (void)frequency_hz;
+  return DiagnosticPulseResult::QUEUED;
+#else
+  if (!ready_) return DiagnosticPulseResult::ERROR;
+  return queueDiagnosticPulseOnMotor(motor_b_, diagnostic_direction_positive_b_,
+                                     frequency_hz);
+#endif
+}
+
+void StepperBackendFastAccel::endDiagnosticChord() {
+#if !SIMULATION_MODE
+  if (motor_a_ != nullptr) {
+    motor_a_->setDirectionPin(MOTOR_A_DIR_PIN, MOTOR_A_DIRECTION_INVERTED,
+                              DIR_CHANGE_DELAY_US);
+  }
+  if (motor_b_ != nullptr) {
+    motor_b_->setDirectionPin(MOTOR_B_DIR_PIN, MOTOR_B_DIRECTION_INVERTED,
                               DIR_CHANGE_DELAY_US);
   }
 #endif

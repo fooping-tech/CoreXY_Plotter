@@ -115,6 +115,18 @@ constexpr float X_MAX_MM = 55.0f;
 constexpr float Y_MIN_MM = 0.0f;
 constexpr float Y_MAX_MM = 55.0f;
 
+// JOB_END時の退避位置 [mm]。
+// 描画物からペンを離し、次ジョブの準備状態を見やすくする。
+constexpr bool JOB_END_PARK_ENABLED = true;
+constexpr float JOB_END_PARK_X_MM = 5.0f;
+constexpr float JOB_END_PARK_Y_MM = Y_MAX_MM - 5.0f;
+constexpr float JOB_END_PARK_FEED_MM_MIN = 1200.0f;
+
+static_assert(JOB_END_PARK_X_MM >= X_MIN_MM && JOB_END_PARK_X_MM <= X_MAX_MM,
+              "JOB_END_PARK_X_MM must stay inside X soft limits");
+static_assert(JOB_END_PARK_Y_MM >= Y_MIN_MM && JOB_END_PARK_Y_MM <= Y_MAX_MM,
+              "JOB_END_PARK_Y_MM must stay inside Y soft limits");
+
 // ============================================================================
 // Serial / stepper electrical timing
 // ============================================================================
@@ -289,3 +301,7 @@ constexpr bool MOTOR_MELODY_SPREADCYCLE = true;
 
 // 音符間の隙間 [ms]。
 constexpr uint16_t MOTOR_MELODY_NOTE_GAP_MS = 25;
+
+// JOB_END時の終了ジングル。
+// 既存曲そのものではなく、短い8-bit風のオリジナル和音パターンを鳴らす。
+constexpr bool JOB_END_JINGLE_ENABLED = true;

@@ -53,6 +53,9 @@ bool stopForAbort(const char* context) {
   safety_manager.setAlarm("abort requested");
   machine_state.alarmed = true;
   invalidateHomed("abort requested");
+  if (job_controller.isActive() || job_controller.isRunning()) {
+    job_controller.markAborted("abort requested");
+  }
   logMessage("%s: abort requested", context);
   return true;
 }
@@ -149,6 +152,40 @@ bool receiveNextCommand(CommandMessage& command, TickType_t ticks_to_wait) {
   return xQueueReceive(command_queue, &command, ticks_to_wait) == pdTRUE;
 }
 
+bool commandQueueEmpty() {
+  return command_queue == nullptr || uxQueueMessagesWaiting(command_queue) == 0;
+}
+
+JobPreflight currentJobPreflight() {
+  JobPreflight preflight{};
+  preflight.pending_empty = !has_pending_command;
+  preflight.planner_empty = planner_queue.isEmpty();
+  preflight.segment_empty = segment_queue.isEmpty();
+  preflight.command_queue_empty = commandQueueEmpty();
+  preflight.backend_idle = !stepper_backend.isRunning();
+  return preflight;
+}
+
+bool jobPreflightIdle(const JobPreflight& preflight) {
+  return preflight.pending_empty && preflight.planner_empty &&
+         preflight.segment_empty && preflight.command_queue_empty &&
+         preflight.backend_idle;
+}
+
+bool rejectDisallowedJobCommand(const CommandMessage& command) {
+  if (job_controller.allowCommand(command.type, command.from_gcode)) {
+    return false;
+  }
+  if (command.type == CommandType::JOB_ABORT) {
+    logMessage("JOB_ABORT rejected reason=no_active_job");
+  } else {
+    logMessage("REJECT: command %s not allowed while job_state=%s source=%s",
+               command.name, job_controller.stateName(),
+               command.from_gcode ? "GCODE" : "SERIAL");
+  }
+  return true;
+}
+
 GcodeInterpreterResult translateGcodeCommand(const CommandMessage& command,
                                              const MachineState& reference,
                                              CommandMessage& translated) {
@@ -172,6 +209,13 @@ GcodeInterpreterResult translateGcodeCommand(const CommandMessage& command,
     logMessage("GCODE %s -> command %s", command.name, translated.name);
   }
   return result;
+}
+
+void resetGcodeModalForJob() {
+  gcode_interpreter.resetModalState();
+  machine_state.feed_mm_min = DEFAULT_FEED_MM_MIN;
+  logMessage("JOB modal reset units=MM distance=ABSOLUTE feed=%.3f",
+             DEFAULT_FEED_MM_MIN);
 }
 
 bool buildXYBlock(const CommandMessage& command, float start_x_mm,
@@ -290,18 +334,18 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
   return true;
 }
 
-void handleXYBatch(const CommandMessage& first_command) {
+bool handleXYBatch(const CommandMessage& first_command) {
   planner_queue.clear();
   float planned_x_mm = machine_state.x_mm;
   float planned_y_mm = machine_state.y_mm;
   float planned_feed_mm_min = machine_state.feed_mm_min;
 
   MotionBlock block{};
-  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm, block)) return;
+  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm, block)) return false;
   if (!planner_queue.enqueue(block)) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
                first_command.x_mm, first_command.y_mm);
-    return;
+    return false;
   }
   planned_x_mm = first_command.x_mm;
   planned_y_mm = first_command.y_mm;
@@ -311,6 +355,9 @@ void handleXYBatch(const CommandMessage& first_command) {
   while (!planner_queue.isFull() &&
          receiveNextCommand(next_command,
                             pdMS_TO_TICKS(LOOKAHEAD_BATCH_COLLECT_MS))) {
+    if (rejectDisallowedJobCommand(next_command)) {
+      continue;
+    }
     if (next_command.type == CommandType::GCODE) {
       MachineState planned_state = machine_state;
       planned_state.x_mm = planned_x_mm;
@@ -320,7 +367,7 @@ void handleXYBatch(const CommandMessage& first_command) {
       const GcodeInterpreterResult result =
           translateGcodeCommand(next_command, planned_state, translated);
       if (result == GcodeInterpreterResult::ERROR) {
-        return;
+        return false;
       }
       if (result == GcodeInterpreterResult::MODAL_UPDATE) {
         continue;
@@ -331,18 +378,21 @@ void handleXYBatch(const CommandMessage& first_command) {
       }
       next_command = translated;
     }
+    if (rejectDisallowedJobCommand(next_command)) {
+      continue;
+    }
     if (next_command.type != CommandType::XY) {
       stashPendingCommand(next_command);
       break;
     }
     MotionBlock next_block{};
     if (!buildXYBlock(next_command, planned_x_mm, planned_y_mm, next_block)) {
-      return;
+      return false;
     }
     if (!planner_queue.enqueue(next_block)) {
       logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
                  next_command.x_mm, next_command.y_mm);
-      return;
+      return false;
     }
     planned_x_mm = next_command.x_mm;
     planned_y_mm = next_command.y_mm;
@@ -354,7 +404,7 @@ void handleXYBatch(const CommandMessage& first_command) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=planner",
                failed != nullptr ? failed->target_x_mm : first_command.x_mm,
                failed != nullptr ? failed->target_y_mm : first_command.y_mm);
-    return;
+    return false;
   }
 
   logMessage("LOOKAHEAD blocks=%u junction_deviation=%.3f classic_jerk=%.3f",
@@ -366,9 +416,67 @@ void handleXYBatch(const CommandMessage& first_command) {
     MotionBlock* planned_block = planner_queue.at(index);
     if (planned_block == nullptr ||
         !executePlannedBlock(*planned_block, index, planned_count)) {
-      return;
+      return false;
     }
   }
+  planner_queue.clear();
+  segment_queue.clear();
+  return true;
+}
+
+bool moveToJobEndPark() {
+  if (!JOB_END_PARK_ENABLED) {
+    logMessage("JOB_END park skipped: disabled by config");
+    return true;
+  }
+  if (fabsf(machine_state.x_mm - JOB_END_PARK_X_MM) < 0.01f &&
+      fabsf(machine_state.y_mm - JOB_END_PARK_Y_MM) < 0.01f) {
+    logMessage("JOB_END park skipped: already at X=%.3f Y=%.3f",
+               JOB_END_PARK_X_MM, JOB_END_PARK_Y_MM);
+    return true;
+  }
+  CommandMessage park{};
+  park.type = CommandType::XY;
+  park.from_gcode = true;
+  snprintf(park.name, sizeof(park.name), "JOB_PARK");
+  park.x_mm = JOB_END_PARK_X_MM;
+  park.y_mm = JOB_END_PARK_Y_MM;
+  park.feed_mm_min = JOB_END_PARK_FEED_MM_MIN;
+  logMessage("JOB_END park target=(%.3f,%.3f) F=%.3f",
+             park.x_mm, park.y_mm, park.feed_mm_min);
+  return handleXYBatch(park);
+}
+
+void handleJobEnd() {
+  if (!job_controller.isRunning()) {
+    job_controller.endJob(currentJobPreflight(), safety_manager, machine_state,
+                          pen_controller);
+    return;
+  }
+
+  if (!jobPreflightIdle(currentJobPreflight())) {
+    job_controller.markFailed("job_end_queue_not_empty");
+    logMessage("JOB_END failed reason=queue_not_empty");
+    return;
+  }
+
+  pen_controller.penUp();
+  machine_state.pen_down = false;
+  logMessage("JOB_END pen up before park");
+
+  if (!moveToJobEndPark()) {
+    job_controller.markFailed("job_end_park_failed");
+    logMessage("JOB_END failed reason=park_failed");
+    return;
+  }
+  if (!motor_melody_controller.playJobEndJingle(stepper_backend, tmc_manager,
+                                                safety_manager)) {
+    job_controller.markFailed("job_end_jingle_failed");
+    logMessage("JOB_END failed reason=jingle_failed");
+    return;
+  }
+  job_controller.endJob(currentJobPreflight(), safety_manager, machine_state,
+                        pen_controller);
 }
 
 void handleABTimed(const CommandMessage& command) {
@@ -479,6 +587,10 @@ void motionTask(void*) {
   CommandMessage command;
   for (;;) {
     if (!receiveNextCommand(command, portMAX_DELAY)) continue;
+    if (rejectDisallowedJobCommand(command)) {
+      publishStatus();
+      continue;
+    }
     switch (command.type) {
       case CommandType::HELP:
         Diagnostics::printHelp();
@@ -563,7 +675,33 @@ void motionTask(void*) {
         safety_manager.setAlarm("abort requested");
         machine_state.alarmed = true;
         invalidateHomed("abort requested");
+        if (job_controller.isActive() || job_controller.isRunning()) {
+          job_controller.markAborted("abort requested");
+        }
         logMessage("ABORT complete");
+        break;
+      case CommandType::JOB_BEGIN:
+        if (job_controller.beginJob(currentJobPreflight(), safety_manager,
+                                    machine_state, pen_controller,
+                                    tmc_manager)) {
+          resetGcodeModalForJob();
+        }
+        break;
+      case CommandType::JOB_END:
+        handleJobEnd();
+        break;
+      case CommandType::JOB_ABORT:
+        if (job_controller.abortJob("job abort requested")) {
+          clearMotionAbort();
+          stepper_backend.stop();
+          safety_manager.setAlarm("job abort requested");
+          machine_state.alarmed = true;
+          invalidateHomed("job abort requested");
+          logMessage("JOB_ABORT complete");
+        }
+        break;
+      case CommandType::JOB_STATUS:
+        job_controller.printStatus();
         break;
       case CommandType::MELODY:
         motor_melody_controller.play(stepper_backend, tmc_manager,
@@ -575,6 +713,9 @@ void motionTask(void*) {
             translateGcodeCommand(command, machine_state, translated);
         if (result == GcodeInterpreterResult::ERROR ||
             result == GcodeInterpreterResult::MODAL_UPDATE) {
+          break;
+        }
+        if (rejectDisallowedJobCommand(translated)) {
           break;
         }
         if (translated.type == CommandType::XY) {
@@ -595,6 +736,10 @@ void motionTask(void*) {
         break;
     }
     machine_state.alarmed = safety_manager.isAlarmed();
+    if (machine_state.alarmed && (job_controller.isActive() ||
+                                  job_controller.isRunning())) {
+      job_controller.markFailed(safety_manager.alarmReason());
+    }
     publishStatus();
   }
 }

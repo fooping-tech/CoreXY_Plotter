@@ -19,6 +19,7 @@ class GcodeInterpreter {
 
   bool unitsInches() const { return units_inches_; }
   bool absoluteMode() const { return absolute_mode_; }
+  void resetModalState();
 
  private:
   bool units_inches_ = false;

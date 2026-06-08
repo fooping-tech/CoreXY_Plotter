@@ -430,7 +430,7 @@ Core 0へ表示するときはStatusQueueを通す。
 | `TEST_A <steps>` | Aモータ単独テスト |
 | `TEST_B <steps>` | Bモータ単独テスト |
 | `AB_TIMED <a_steps> <b_steps> <duration_us>` | 診断専用。XY/planner/segment生成をバイパスしA/B timed segmentを直接実行 |
-| `XY <x_mm> <y_mm> [feed_mm_min]` | XY移動またはsimulation。feed省略時は`DEFAULT_FEED_MM_MIN` |
+| `XY <x_mm> <y_mm> [feed_mm_min]` | 診断/bring-up用XY移動またはsimulation。feed省略時は`DEFAULT_FEED_MM_MIN` |
 | `PENUP` | ペン上げ |
 | `PENDOWN` | ペン下げ |
 | `SELFTEST` | CoreXY変換等の自己診断 |
@@ -443,6 +443,10 @@ Core 0へ表示するときはStatusQueueを通す。
 | `LIMIT_STATUS` | limit switch状態表示 |
 | `ALARM_CLEAR` | alarm解除 |
 | `ABORT` | 実行中motion/homingを停止し、alarmへ遷移 |
+| `JOB_BEGIN` | 正式G-codeジョブ開始。TMC自動初期化、開始前確認、pen up、G-code modal resetを行う |
+| `JOB_END` | 正式G-codeジョブ終了。pen up、退避移動、終了ジングル、queue drain確認、終了状態ログを行う |
+| `JOB_ABORT` | G-codeジョブ文脈つき中断。停止経路は`ABORT`と共通でjob状態を`ABORTED`へ遷移 |
+| `JOB_STATUS` | job状態、result、last error、sequenceを表示 |
 | `LED <r> <g> <b>` | 外付けNEOPIXEL全灯をRGB指定で点灯 |
 | `LED_PIXEL <index> <r> <g> <b>` | 指定indexのNEOPIXELをRGB指定で点灯 |
 | `LED_OFF` | 外付けNEOPIXELを消灯 |
@@ -452,6 +456,7 @@ Core 0へ表示するときはStatusQueueを通す。
 
 - parseに成功し、対象キューへ投入できたコマンドは`ACK QUEUED <command>`を返す。
 - `ABORT`はcommandTaskで即時停止要求flagを立てる。CommandQueueへ投入できない場合も`ACK ABORT requested`を返し、motion/homing側のpollで停止を試みる。
+- `JOB_ABORT`はjob中断用であり、job外では`JOB_ABORT rejected reason=no_active_job`を返し低レベル停止は行わない。
 - parse失敗またはキュー満杯の場合は`ERROR: ...`を返し、`ACK QUEUED`は返さない。
 - motion側で安全確認または実行投入に失敗した場合は`REJECT: ...`または`ERROR: ...`に加えて、XYでは`NACK_XY ...`を返す。
 - `AB_TIMED`は診断専用であり、`XY`、`CoreXYKinematics`、`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`をバイパスする。`a_steps`、`b_steps`、`duration_us`を直接`StepperBackendFastAccel`のtimed segment経路へ渡す。
@@ -470,6 +475,9 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 homing完了直後など、通常移動開始時に原点limitがONで、かつ移動方向がそのlimitから離れる方向の場合は、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範囲だけlimit ONを一時許容する。
 この範囲内にraw/debouncedがOFFへ戻れば通常移動を継続し、OFFへ戻らない場合は`X home limit did not release`または`Y home limit did not release`でalarm停止する。
 `ABORT`で停止した場合は実位置が論理座標と一致する保証がないため、homed状態を無効化しalarm状態にする。復旧は`ZERO -> ALARM_CLEAR -> HOME`の順に行う。
+
+正式な描画入力はG-codeを基本とする。`XY`、`TEST_A`、`TEST_B`、`AB_TIMED`、`MELODY`はbring-up、診断、切り分け用コマンドとして扱い、通常ジョブの外部インターフェースにはしない。
+内部実装として`G0`/`G1`が当面`XY`経路へ変換されることは許容するが、外部互換性はG-code側で維持する。
 
 ---
 
@@ -505,7 +513,10 @@ homing完了直後など、通常移動開始時に原点limitがONで、かつ�
 
 ---
 
-## 16. `XY`コマンド仕様
+## 16. `XY`診断コマンド仕様
+
+`XY`はCoreXY変換、SafetyManager、planner、segment、backendの切り分けに使う診断/bring-up用コマンドである。
+正式な描画ジョブはG-code入力を基本とし、`XY` CSVは実機調整や低レベル確認用として維持する。
 
 処理順:
 
@@ -743,6 +754,9 @@ Phase 10では、motionTaskが連続して受信できた`XY`を短いバッチ�
 Phase 7では、完全なG-code互換ではなく、既存のSerialコマンドへ安全に接続できる
 最小G-codeを実装する。
 
+正式な描画入力はG-codeを基本とする。Text Tool、QR Tool、将来のSD/Web/USB streamingは、最終的にG-codeをファームウェアへ渡す経路へ寄せる。
+`XY`などの独自Serialコマンドは、通常運用ではなく診断/bring-up用の低レベルAPIとして扱う。
+
 | G-code | 意味 |
 |---|---|
 | G0 | 既存`XY`経路を使うrapid相当移動 |
@@ -771,6 +785,28 @@ F値はmm/minとして扱う。
 
 ---
 
+## 21.0 Job Lifecycle仕様
+
+正式版では、G-codeファイル本文に毎回起動処理や終了処理を書かせない。
+描画ジョブの開始/終了処理はファームウェア側のJob Lifecycleで扱う。
+
+初期方針:
+
+- 電源投入時は安全なidle状態へ初期化するだけで、自動homingや自動移動は行わない
+- bring-upでは`SELFTEST`、`TMC_INIT`、`ZERO`、`ALARM_CLEAR`、`HOME`などを明示実行してよい
+- 正式ジョブ開始時は、alarm、TMC ready、homed、pen状態、motion queue状態をファームウェア側で確認する
+- `JOB_BEGIN`はTMC未readyの場合に`TMC_INIT`相当を自動実行する。TMC初期化に失敗した場合だけ`tmc_not_ready`で拒否する
+- 初期実装では、homedでない場合は`JOB_BEGIN`を拒否し、自動homingは行わない
+- 正式ジョブ終了時は、pen up、`JOB_END_PARK_X_MM`/`JOB_END_PARK_Y_MM`への退避移動、終了ジングル、queue drain、status/log出力をファームウェア側で行う
+- G-code本文には描画内容に関係する`G0`/`G1`、`M3`/`M5`、`G4`などを残し、`SELFTEST`、`TMC_INIT`、`ALARM_CLEAR`、`LIMIT_STATUS`、`ZERO`、`CONFIG`は通常含めない
+- `RUNNING`中はG-code由来の`XY`、`DWELL`、`PENUP/PENDOWN`相当だけを許可し、Serial手入力の裸`XY`、`TEST_A/B`、`AB_TIMED`、`MELODY`、`ZERO`、`ALARM_CLEAR`、`TMC_INIT`、`HOME`は拒否する
+- `JOB_END`はSerial G-code streamの最後にホストが明示送信する。ファームウェアはSerial上のG-codeファイル終端を自動検出しない
+- 初期退避位置は`X=5.0mm`、`Y=Y_MAX_MM - 5.0mm`とする。終了ジングルはA/B両モータを交互方向pulseで鳴らす短いオリジナル8-bit風和音であり、MachineStateの論理座標は更新しない
+
+`tools/serial_tool/examples/gcode_preamble.csv`は、正式Job Lifecycle実装までの暫定bring-up/実機確認手順として扱う。
+
+---
+
 ## 21.1 KST32B Text Tool仕様
 
 ホスト側ツール`tools/text_tool/kst32b_to_gcode.py`は、KST32BのCSF/1ストロークフォントデータを読み、文字列をプロッタ用G-codeへ変換する。
@@ -791,12 +827,13 @@ F値はmm/minとして扱う。
 - 生成したG-codeの実機品質はペン先径、紙質、ペン上下dwell、feed、機械剛性で調整する
 
 `tools/serial_tool/serial_send.py`は`--gcode`でG-codeファイルを直接送信できる。空行、`;`開始コメント行、`%`行は送信せず、その他の行を1行1コマンドとして扱う。
-描画前の準備手順は`--preamble-csv tools/serial_tool/examples/gcode_preamble.csv`で前置する。標準preambleは`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、alarm解除、limit状態、homing完了、`HOMED=YES`を確認する。
+描画前の暫定bring-up手順は`--preamble-csv tools/serial_tool/examples/gcode_preamble.csv`で前置できる。標準preambleは`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、alarm解除、limit状態、homing完了、`HOMED=YES`を確認する。正式版ではこの前置手順をホスト側G-code送信からファームウェア側Job Lifecycleへ移す。
 `--gcode`で読み込んだ行には、コマンド種別ごとの既定expectを付ける。`G0/G1`は`ACK_XY target=`、`G4`は`DWELL P=`、`M3/M5`は`PEN DOWN`/`PEN UP`などを待つ。
 `--gcode --queue-mode --stream-gcode-motion`では、G-codeファイル由来の`G0/G1`に限り、`ACK QUEUED`を確認した時点で次の行を送る。`ACK_XY target=`は後から流れる完了ログとして扱い、後続コマンドの完了判定には使わない。
 stream対象の`G0/G1`では、serial idle待ち、成功時の行別`TIMING START/END`、`--echo`表示、ACK表示を抑制し、CommandQueueへ連続XYを投入しやすくする。
 このstream modeでも`M3/M5`、`G4`、`G28`、`M114`、`G20/G21/G90/G91`は従来通り完了ログまたはmodalログを待つ。`ERROR:`、`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`は停止条件とする。
 Serial Toolは`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`を受信した場合、その行を失敗扱いにして、既定では後続行を送信しない。
+`--gcode --job-lifecycle`では、G-code本文の前に`JOB_BEGIN`、最後に`JOB_END`を送る。G-code本文中にfailureを検出した場合は、後続行を送らず`JOB_ABORT`を送る。
 
 ---
 

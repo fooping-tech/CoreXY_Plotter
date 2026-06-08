@@ -37,12 +37,24 @@ python tools/serial_tool/serial_send.py \
 
 G-codeファイルを直接送る場合は`--gcode`を使います。空行、`;`で始まるコメント行、`%`行は送信しません。
 描画前にalarm clearとhomingが必要な場合は、`--preamble-csv`で準備CSVを前置します。
+正式ジョブ運用では、事前bring-up後に`--job-lifecycle`を指定し、ファームウェア側の`JOB_BEGIN`/`JOB_END`で開始/終了処理を行います。
 
 ```bash
 python tools/serial_tool/serial_send.py \
   --port /dev/cu.usbserial-0001 \
   --preamble-csv tools/serial_tool/examples/gcode_preamble.csv \
   --gcode tools/text_tool/examples/gcode/text_robo.gcode \
+  --startup-delay 4 \
+  --queue-mode \
+  --stream-gcode-motion \
+  --echo
+```
+
+```bash
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-0001 \
+  --gcode tools/text_tool/examples/gcode/text_robo.gcode \
+  --job-lifecycle \
   --startup-delay 4 \
   --queue-mode \
   --stream-gcode-motion \
@@ -104,6 +116,7 @@ python tools/serial_tool/serial_send.py \
 | [Timed Segment Check](docs/timed-segment-check.md) | DDA timed segment生成とFastAccelStepper `moveTimed()`投入 | `examples/timed_segment_check.csv` |
 | [Look-ahead Check](docs/lookahead-check.md) | JunctionPlanner、junction deviation、連続XYバッチの確認 | `examples/lookahead_check.csv` |
 | [G-code Check](docs/gcode-check.md) | Phase 7の最小G-code parser/interpreter確認 | `examples/gcode_check.csv` |
+| [Job Lifecycle Check](docs/job-lifecycle-check.md) | Phase 10.5のG-codeジョブ開始/終了処理確認 | `examples/job_lifecycle_check.csv` |
 | [High-Speed Check](docs/high-speed-check.md) | homing後の通常XY移動を上限feed付近で確認 | `examples/high_speed_check.csv`, `examples/high_speed_sweep_check.csv` |
 | [Concentric Squares Check](docs/concentric-squares-check.md) | 動き出し・動き終わりの線歪みを5重正方形で調査 | `examples/concentric_squares_check.csv`, `examples/concentric_squares_clockwise_check.csv`, `examples/concentric_squares_high_speed_check.csv` |
 | [Diagnostic AB_TIMED Square Draw](docs/diagnostic-ab-timed-square-draw.md) | `AB_TIMED`でA/Bを直接timed実行して四角の歪みを比較 | `examples/diagnostic_ab_timed_square_draw.csv` |
@@ -151,6 +164,11 @@ CSV由来の`XY`は`ACK QUEUED`を見つけた時点でserial idleと`ACK_XY tar
 stream対象の`G0/G1`は、`ACK QUEUED`を見つけた時点でserial idleを待たずに次行へ進みます。また送信速度を落とさないため、成功時の`--echo`、`TIMING START/END`、ACK表示はstream対象行では抑制します。エラー、queue full、`M3/M5`、`G4`、`G28`などの非motion行は従来通り表示します。
 `M3/M5`、`G4`、`G28`、`M114`、`G20/G21/G90/G91`は従来通り、それぞれの完了ログやmodalログを待ちます。
 先行投入した`G0/G1`の`ACK_XY target=`は後続コマンドの応答読み取り中に流れてくる場合がありますが、後続コマンドの完了判定には使いません。
+
+`--gcode --job-lifecycle`を指定すると、G-code本文の前に`JOB_BEGIN`、最後に`JOB_END`を自動で送ります。
+G-code行の送信中に`NACK`、`REJECT:`、alarm、`ERROR:`を検出した場合は、後続行を止めて`JOB_ABORT`を送ります。
+`JOB_BEGIN`はファームウェア側でalarm、TMC ready、homed、pen up、motion queue idleを確認します。TMC未readyなら自動で`TMC_INIT`相当を実行します。初期実装では自動homingしません。
+`JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避し、A/B両モータで短い終了ジングルを鳴らします。
 
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。
 XY移動はmotion側で受理されると`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`も返します。
@@ -203,7 +221,7 @@ Python側でCoreXYのA/B変換、soft limit判定、planner相当の補間を重
 `--stream-gcode-motion`を併用した場合だけ、G-codeファイル由来の`G0/G1`はqueue投入確認で先へ進みます。ストローク間の停止が気になる場合は、Text Tool側の`--dwell-ms`も下げて調整してください。
 `NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`を受信した場合は、その行で失敗扱いにして停止します。
 
-描画前の標準準備には`tools/serial_tool/examples/gcode_preamble.csv`を使います。このCSVは`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、homing完了と`HOMED=YES`を確認します。
+描画前の暫定bring-up準備には`tools/serial_tool/examples/gcode_preamble.csv`を使えます。このCSVは`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、homing完了と`HOMED=YES`を確認します。正式ジョブでは`--job-lifecycle`へ移行します。
 
 ## Safety
 

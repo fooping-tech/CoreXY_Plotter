@@ -9,6 +9,7 @@
 void Diagnostics::printHelp() {
   logMessage("HELP CONFIG POS ZERO TEST_A <steps> TEST_B <steps> AB_TIMED <a_steps> <b_steps> <duration_us>");
   logMessage("XY <x_mm> <y_mm> [feed_mm_min] HOME HOME_X HOME_Y HOME_STATUS LIMIT_STATUS ALARM_CLEAR ABORT");
+  logMessage("JOB_BEGIN JOB_END JOB_ABORT JOB_STATUS");
   logMessage("PENUP PENDOWN SELFTEST TMC_INIT TMC_STATUS");
   logMessage("G0/G1 X Y F G4 P<ms> G20 G21 G28 G90 G91 M3 M5 M114");
   logMessage("LED <r> <g> <b> LED_PIXEL <index> <r> <g> <b> LED_OFF LED_STATUS");
@@ -33,6 +34,12 @@ void Diagnostics::printConfig() {
              JUNCTION_DEVIATION_MM, CLASSIC_JERK_LIMIT_MM_S,
              LOOKAHEAD_BATCH_COLLECT_MS,
              static_cast<unsigned>(PlannerQueue::CAPACITY));
+  logMessage("JOB state=%s result=%s last_error=%s",
+             job_controller.stateName(), job_controller.result(),
+             job_controller.lastError());
+  logMessage("JOB_END park_enabled=%u park=(%.3f,%.3f) park_feed=%.3f jingle_enabled=%u",
+             JOB_END_PARK_ENABLED, JOB_END_PARK_X_MM, JOB_END_PARK_Y_MM,
+             JOB_END_PARK_FEED_MM_MIN, JOB_END_JINGLE_ENABLED);
   logMessage("HOMING enabled=%u require_homed_xy=%u x_dir=%d y_dir=%d seek=%.3f slow=%.3f backoff=%.3f start_backoff=%.3f maxX=%.3f maxY=%.3f debounce=%lums hard_limit_ms=%lums release=%.3f active=%s",
              HOMING_ENABLED, HOMING_REQUIRE_HOMED_FOR_XY_MOVE, HOMING_X_DIR,
              HOMING_Y_DIR, HOMING_SEEK_FEED_MM_MIN, HOMING_SLOW_FEED_MM_MIN,
