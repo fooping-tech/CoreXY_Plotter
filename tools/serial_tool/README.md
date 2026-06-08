@@ -45,6 +45,7 @@ python tools/serial_tool/serial_send.py \
   --gcode tools/text_tool/examples/gcode/text_robo.gcode \
   --startup-delay 4 \
   --queue-mode \
+  --stream-gcode-motion \
   --echo
 ```
 
@@ -141,6 +142,16 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 これらのhomingコマンドはCSVの`delay_ms=0`でも既定で最大30秒まで完了ログを待ちます。
 このモードではCSVの`delay_ms=0`と空の`expect`を使って、固定待ちなしでCommandQueueへ詰められます。
 
+CSVの`XY`を連続して滑らかに描きたい場合は、`--queue-mode --stream-xy-motion`を使います。
+CSV由来の`XY`は`ACK QUEUED`を見つけた時点でserial idleと`ACK_XY target=`完了ログを待たずに次行へ進みます。
+送信速度を落とさないため、成功時の`--echo`、`TIMING START/END`、ACK表示はstream対象の`XY`では抑制します。`PENUP/PENDOWN`、`HOME`、`POS`、エラー、queue fullは従来通り表示します。
+
+`--gcode --queue-mode --stream-gcode-motion`を指定すると、G-codeファイル由来の`G0/G1`は`ACK QUEUED`だけを確認して次の行へ進み、`ACK_XY target=`の完了ログを待ちません。
+日本語テキストや細かい折れ線G-codeを滑らかに描きたい場合はこのモードを使ってください。従来の完了待ち送信では各線分の完了後に次行を送るため、ファームウェア側のlook-aheadへ連続XYが溜まりにくく、線分ごとに停止して見えることがあります。
+stream対象の`G0/G1`は、`ACK QUEUED`を見つけた時点でserial idleを待たずに次行へ進みます。また送信速度を落とさないため、成功時の`--echo`、`TIMING START/END`、ACK表示はstream対象行では抑制します。エラー、queue full、`M3/M5`、`G4`、`G28`などの非motion行は従来通り表示します。
+`M3/M5`、`G4`、`G28`、`M114`、`G20/G21/G90/G91`は従来通り、それぞれの完了ログやmodalログを待ちます。
+先行投入した`G0/G1`の`ACK_XY target=`は後続コマンドの応答読み取り中に流れてくる場合がありますが、後続コマンドの完了判定には使いません。
+
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。
 XY移動はmotion側で受理されると`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`も返します。
 `XY <x_mm> <y_mm>`はファームウェア側の`DEFAULT_FEED_MM_MIN`を使います。
@@ -189,9 +200,10 @@ Python側でCoreXYのA/B変換、soft limit判定、planner相当の補間を重
 - `%`だけの行
 
 インラインコメントはファームウェア側のG-code parserが`;`以降を無視するため、そのまま送ります。`--gcode`では、コマンド種別に応じて既定の確認ログを待ちます。`G0/G1`は`ACK_XY target=`、`M3/M5`は`PEN DOWN`/`PEN UP`、`G4`は`DWELL P=`を待ちます。
+`--stream-gcode-motion`を併用した場合だけ、G-codeファイル由来の`G0/G1`はqueue投入確認で先へ進みます。ストローク間の停止が気になる場合は、Text Tool側の`--dwell-ms`も下げて調整してください。
 `NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`を受信した場合は、その行で失敗扱いにして停止します。
 
-描画前の標準準備には`tools/serial_tool/examples/gcode_preamble.csv`を使います。このCSVは`HELP`、`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、homing完了と`HOMED=YES`を確認します。
+描画前の標準準備には`tools/serial_tool/examples/gcode_preamble.csv`を使います。このCSVは`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、homing完了と`HOMED=YES`を確認します。
 
 ## Safety
 

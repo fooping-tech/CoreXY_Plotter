@@ -55,6 +55,7 @@ class CommandRow:
     delay_ms: int
     expect: str
     comment: str
+    source: str = "csv"
 
 
 def parse_args() -> argparse.Namespace:
@@ -154,6 +155,24 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--stream-gcode-motion",
+        action="store_true",
+        help=(
+            "With --gcode and --queue-mode, advance G0/G1 after ACK QUEUED instead "
+            "of waiting for ACK_XY completion. Modal, pen, dwell, homing, and POS "
+            "commands still wait for their completion logs."
+        ),
+    )
+    parser.add_argument(
+        "--stream-xy-motion",
+        action="store_true",
+        help=(
+            "With --queue-mode, advance CSV XY commands after ACK QUEUED instead "
+            "of waiting for ACK_XY completion. Non-XY commands still wait for "
+            "their configured expect/completion logs."
+        ),
+    )
+    parser.add_argument(
         "--queue-retry-delay-ms",
         type=int,
         default=DEFAULT_QUEUE_RETRY_DELAY_MS,
@@ -247,6 +266,7 @@ def load_command_rows(csv_path: Path, default_delay_ms: int) -> list[CommandRow]
                     ),
                     expect=(raw_row.get("expect") or "").strip(),
                     comment=(raw_row.get("comment") or "").strip(),
+                    source="csv",
                 )
             )
 
@@ -283,6 +303,7 @@ def load_gcode_rows(gcode_path: Path, default_delay_ms: int) -> list[CommandRow]
                     delay_ms=default_delay_ms,
                     expect=default_gcode_expect(command),
                     comment="",
+                    source="gcode",
                 )
             )
 
@@ -300,6 +321,15 @@ def load_input_rows(args: argparse.Namespace) -> list[CommandRow]:
     else:
         rows.extend(load_gcode_rows(args.gcode, args.default_delay_ms))
     return rows
+
+
+def validate_args(args: argparse.Namespace) -> None:
+    if getattr(args, "stream_gcode_motion", False) and getattr(args, "gcode", None) is None:
+        raise ValueError("--stream-gcode-motion requires --gcode")
+    if getattr(args, "stream_gcode_motion", False) and not getattr(args, "queue_mode", False):
+        raise ValueError("--stream-gcode-motion requires --queue-mode")
+    if getattr(args, "stream_xy_motion", False) and not getattr(args, "queue_mode", False):
+        raise ValueError("--stream-xy-motion requires --queue-mode")
 
 
 def print_plan(rows: Iterable[CommandRow]) -> None:
@@ -338,6 +368,26 @@ def default_gcode_expect(command: str) -> str:
     if name == "M114":
         return "POS"
     return ""
+
+
+def is_gcode_motion_command(row: CommandRow) -> bool:
+    return row.source == "gcode" and command_name(row.command) in ("G0", "G1")
+
+
+def stream_gcode_motion_enabled(args: argparse.Namespace, row: CommandRow) -> bool:
+    return bool(getattr(args, "stream_gcode_motion", False)) and is_gcode_motion_command(row)
+
+
+def is_csv_xy_command(row: CommandRow) -> bool:
+    return row.source == "csv" and command_name(row.command) == "XY"
+
+
+def stream_xy_motion_enabled(args: argparse.Namespace, row: CommandRow) -> bool:
+    return bool(getattr(args, "stream_xy_motion", False)) and is_csv_xy_command(row)
+
+
+def stream_motion_enabled(args: argparse.Namespace, row: CommandRow) -> bool:
+    return stream_gcode_motion_enabled(args, row) or stream_xy_motion_enabled(args, row)
 
 
 def firmware_failure_line(response: str) -> str:
@@ -398,6 +448,7 @@ def read_response_text(
     min_duration_s: float,
     max_duration_s: float,
     stop_on: str | tuple[str, ...],
+    return_on_stop: bool = False,
 ) -> str:
     started_at = time.monotonic()
     deadline = started_at + max(max_duration_s, min_duration_s)
@@ -409,6 +460,8 @@ def read_response_text(
         text = b"".join(chunks).decode("utf-8", errors="replace")
         idle_s = None if last_rx_at is None else now - last_rx_at
         if elapsed_s >= min_duration_s:
+            if return_on_stop and contains_any(text, stop_on):
+                break
             if contains_any(text, stop_on) and idle_s is not None and idle_s >= READ_IDLE_S:
                 break
             if not has_stop_patterns(stop_on) and idle_s is not None and idle_s >= READ_IDLE_S:
@@ -502,7 +555,9 @@ def print_command_timing(
     print(" ".join(parts), flush=True)
 
 
-def queue_completion_pattern(row: CommandRow) -> str:
+def queue_completion_pattern(row: CommandRow, args: argparse.Namespace | None = None) -> str:
+    if args is not None and stream_motion_enabled(args, row):
+        return ""
     if row.expect:
         return row.expect
     return SYNC_COMPLETION_BY_COMMAND.get(command_name(row.command), "")
@@ -521,10 +576,11 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
     stop_on = QUEUE_ACK_PATTERNS + (QUEUE_FULL_PATTERN,) + stop_patterns_with_failures("")
     attempt = 0
     response = ""
+    stream_motion = stream_motion_enabled(args, row)
 
     while True:
         attempt += 1
-        if args.echo:
+        if args.echo and not stream_motion:
             suffix = f" retry={attempt}" if attempt > 1 else ""
             print(f">>> {index:03d}: {row.command}{suffix}", flush=True)
         serial_port.write((row.command + "\n").encode("utf-8"))
@@ -534,8 +590,10 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
             min_duration_s=0.0,
             max_duration_s=args.timeout,
             stop_on=stop_on,
+            return_on_stop=stream_motion,
         )
-        print_response(response)
+        if not stream_motion or QUEUE_FULL_PATTERN in response or firmware_failure_line(response):
+            print_response(response)
 
         if QUEUE_FULL_PATTERN in response:
             if time.monotonic() >= retry_deadline:
@@ -562,6 +620,8 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
             break
 
         if ERROR_PATTERN in response:
+            if stream_motion:
+                print_response(response)
             print(
                 f"ERROR: line {row.line_number}: firmware rejected command before queue ACK",
                 file=sys.stderr,
@@ -576,7 +636,7 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
         )
         return 1
 
-    completion = queue_completion_pattern(row)
+    completion = queue_completion_pattern(row, args)
     if completion and completion not in response:
         delay_s = row.delay_ms / 1000.0
         completion_response = read_response_text(
@@ -658,6 +718,7 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
         raise ValueError("--queue-retry-delay-ms must be >= 0")
     if args.queue_retry_timeout < 0:
         raise ValueError("--queue-retry-timeout must be >= 0")
+    validate_args(args)
 
     serial = import_serial_module()
     failures = 0
@@ -680,21 +741,24 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
         run_started_at_s = time.monotonic()
         for index, row in enumerate(rows, start=1):
             command_started_at_s = time.monotonic()
-            print_command_timing(
-                "START", run_started_at_s, index, row, command_started_at_s
-            )
+            show_timing = not stream_motion_enabled(args, row)
+            if show_timing:
+                print_command_timing(
+                    "START", run_started_at_s, index, row, command_started_at_s
+                )
             if args.queue_mode:
                 result = send_row_queue_mode(serial_port, args, index, row)
             else:
                 result = send_row_standard_mode(serial_port, args, index, row)
-            print_command_timing(
-                "END",
-                run_started_at_s,
-                index,
-                row,
-                command_started_at_s,
-                "OK" if result == 0 else "ERROR",
-            )
+            if show_timing or result:
+                print_command_timing(
+                    "END",
+                    run_started_at_s,
+                    index,
+                    row,
+                    command_started_at_s,
+                    "OK" if result == 0 else "ERROR",
+                )
             if result:
                 failures += 1
                 if not args.continue_on_error:
@@ -714,6 +778,7 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
 def main() -> int:
     args = parse_args()
     try:
+        validate_args(args)
         rows = load_input_rows(args)
         if args.dry_run:
             print_plan(rows)

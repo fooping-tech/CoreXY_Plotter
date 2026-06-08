@@ -1040,6 +1040,10 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 - [x] homing中ではない通常移動で、原点外のlimit activeが一定時間継続した場合だけalarmへ入れる
 - [x] 継続時間を`HARD_LIMIT_UNEXPECTED_ALARM_MS`として`PlotterConfig.h`から設定できる
 - [x] 瞬間的なlimitノイズでは即alarmにしない
+- [x] timed segment実行中にFastAccelStepperの現在A/B stepからMachineStateのX/Y概算位置を更新し、ブロック完了前にhard limit判定できるようにする
+- [x] `HARD_LIMIT_UNEXPECTED_ALARM_MS`を20msへ短縮し、limit ON継続時の停止遅れを減らす
+- [x] homing直後の通常移動で、原点limitがONかつ離れる方向へ動く場合は`NORMAL_MOVE_LIMIT_RELEASE_MM`だけlimit release猶予を与える
+- [x] release猶予距離を超えてもlimitがOFFにならない場合は`X/Y home limit did not release`でalarm停止する
 - [x] limitが継続ONの場合は従来通り安全停止できる構造にする
 - [ ] 実配線でX/Y limit入力のノイズ量を確認し、必要なら外付けpull-up、配線取り回し、RC filterを追加する
 
@@ -1535,6 +1539,11 @@ KST32Bストロークフォントデータをホスト側で読み、日本語�
 - [x] `--gcode`行に既定expectを付け、`NACK`、`REJECT:`、alarm、`ERROR:`受信時に停止する
 - [x] Text Toolで直前位置と同じ座標へのペンアップ`G0`を省略し、plannerのゼロ長XY拒否を避ける
 - [x] Text Toolで`--max-x`/`--max-y`範囲検査と`--auto-scale-to-fit`自動縮小を追加し、サンプルG-codeを55x55mm範囲内へ再生成する
+- [x] `serial_send.py --stream-gcode-motion`を追加し、G-code由来の`G0/G1`を`ACK QUEUED`確認で先行投入できるようにする
+- [x] stream対象の`G0/G1`は`ACK QUEUED`検出後のserial idle待ちを省き、行別`TIMING`、`--echo`、ACK表示を抑制して送信遅延を減らす
+- [x] stream modeでも`M3/M5`、`G4`、`G28`、`M114`、modal G-codeは従来通り完了ログを待つ
+- [x] `serial_send.py --stream-xy-motion`を追加し、CSV由来の`XY`も`ACK QUEUED`確認で先行投入できるようにする
+- [x] stream対象のCSV `XY`は`ACK QUEUED`検出後のserial idle待ちを省き、行別`TIMING`、`--echo`、ACK表示を抑制して送信遅延を減らす
 - [ ] 生成G-codeを実機へ送信し、濁点、半濁点、小さい文字、dwell、feedを調整する
 
 ---
@@ -1740,7 +1749,7 @@ Phase 6.9を実装してください。
 | R16 | [x] | uploadが`/dev/cu.usbserial-023591AC`で`termios.error: (22, 'Invalid argument')`により失敗 | 2026-06-07に同portで`pio run --target upload`成功 |
 | R17 | [ ] | 通常TMC電流を850mAへ上げたため、モータ/TMC2209/電源の発熱余裕が未確定 | center shapes連続実行後に温度を確認し、熱い場合は800mA以下へ下げる |
 | R18 | [ ] | 原点外でX limitが継続ACTIVEになる現象があり、脱調による座標ずれかlimit入力ノイズか未確定 | 低速・低加速度で再現性を確認し、limit配線、pull-up、機械干渉を切り分ける |
-| R19 | [ ] | `HARD_LIMIT_UNEXPECTED_ALARM_MS=500`は実機暫定値であり、安全停止遅延とノイズ耐性のバランスが未確定 | 実機でlimitを意図的に押して停止距離を確認し、必要なら値を短くする |
+| R19 | [ ] | `HARD_LIMIT_UNEXPECTED_ALARM_MS`は20msへ短縮済みだが、安全停止距離とlimit入力ノイズ耐性のバランスが未確定 | 実機でlimitを意図的に押して停止距離を確認し、誤検出が出る場合は配線、pull-up、debounce、値を再調整する |
 | R20 | [ ] | 動き出し・動き終わりの歪み原因が、加減速設定、ペン圧、ベルト張り、機械ガタ、ステップ抜けのどれか未確定 | 反時計回り/時計回りの同心正方形CSVで方向、サイズ、始点/終点依存性を切り分ける |
 | R21 | [ ] | AB_TIMEDでも歪む場合、`StepperBackendFastAccel`の`moveTimed()`投入、A/B同期開始、duration指定、queue容量見積もりのどれが支配的か未確定 | `diagnostic_ab_timed_square_draw.csv`で小/大/連続/方向違いの結果を比較し、backendログと照合する |
 | R22 | [ ] | Phase 10のjunction deviation値、classic jerk上限、batch収集時間が実機で未調整 | `lookahead_check.csv`を`--queue-mode`で実行し、`LOOKAHEAD blocks>1`、角の丸まり、閉じズレ、脱調、温度を確認して調整する |
@@ -1748,6 +1757,11 @@ Phase 6.9を実装してください。
 | R24 | [ ] | 2026-06-07時点でCore2 USB serial portが見えず、`pio run --target upload`がBluetooth port自動検出で失敗 | Core2をUSB接続し、`/dev/cu.usbserial-*`等のportを指定してuploadとSerial Monitor確認を実行する |
 | R25 | [ ] | KST32B Text Toolの生成G-codeは実KST32Bデータで生成確認済みだが、実機での文字潰れ、dwell、feed、soft limit余裕が未確認 | 小さい文字や濁点を含むサンプルを低速から送信し、`--size`、`--dwell-ms`、feedを調整する |
 | R26 | [ ] | Text Tool生成G-code実機送信で、homing後もlimitがACTIVEのまま残り、X方向戻りストロークで`NACK_XY`後にhard-limit alarmへ入った | homing後のlimit解放距離、switch機械位置、配線ノイズ、`HARD_LIMIT_UNEXPECTED_ALARM_MS`、描画開始位置を確認する |
+| R27 | [ ] | `--stream-gcode-motion`はG-code由来の`G0/G1`を先行投入するため、実機でのlook-ahead改善、CommandQueue full再送、後続pen/dwell応答とのログ混在耐性は未確認 | `--gcode --queue-mode --stream-gcode-motion`で短い線分の日本語サンプルを低速から送信し、停止感、alarm、queue retry、pen timingを確認する |
+| R28 | [ ] | hard limit停止中にstream済みの後続G-codeがCommandQueueへ残る場合、alarmで移動は拒否されるがログ上は後続行の`NACK_XY`が続く可能性がある | hard limit発生時のserial logを確認し、必要ならalarm発生時にCommandQueueをflushする設計を追加する |
+| R29 | [ ] | `NORMAL_MOVE_LIMIT_RELEASE_MM=8mm`はhoming直後のlimit release猶予として暫定値であり、実際のswitch戻り距離と高速G0時の停止余裕が未確認 | G28直後の最初のG0で`LIMIT_RELEASE_ALLOW`が出て、limitがOFFへ戻ることを低速から確認する。戻らない場合はswitch機構、配線、release距離を調整する |
+| R30 | [ ] | `--stream-gcode-motion`送信高速化後も、文字データに`M3/M5/G4`が多い場合はストローク間で停止する。これはmotionではなくpen/dwell由来の停止である | Text Toolの`--dwell-ms`を20ms、0msなどで比較し、ペン実機で線抜けが出ない最小値を決める |
+| R31 | [ ] | `--stream-xy-motion`はCSV由来の`XY`を先行投入するため、実機でのlook-ahead改善、CommandQueue full再送、非XY行との応答混在耐性は未確認 | `--csv ... --queue-mode --stream-xy-motion`で連続XY CSVを低速から送信し、`LOOKAHEAD blocks>1`、停止感、alarm、queue retryを確認する |
 
 ---
 
@@ -1796,6 +1810,11 @@ Phase 6.9を実装してください。
 | 2026-06-08 | Text Tool生成G-code実機ログの`NACK_XY`継続送信問題を受け、Serial ToolでG-code行の既定expectとfirmware failure検出を追加 | Codex |
 | 2026-06-08 | Text Tool生成G-code実機ログの`junction planner rejected XY batch`を受け、同一座標へのペンアップ`G0`を省略するよう修正し、サンプルG-codeを再生成 | Codex |
 | 2026-06-08 | Text Tool生成G-code実機ログのsoft limit超過を受け、`--max-x`/`--max-y`範囲検査と`--auto-scale-to-fit`を追加し、サンプルG-codeを55x55mm範囲内へ再生成 | Codex |
+| 2026-06-08 | Serial Toolへ`--stream-gcode-motion`を追加し、G-code由来の`G0/G1`を完了ACK待ちではなくqueue投入ACKで先行送信できるようにした | Codex |
+| 2026-06-08 | 通常XY/timed segment実行中にbackend現在stepからMachineStateのX/Y概算位置を更新し、hard limit継続判定をブロック完了前に効かせるよう修正。`HARD_LIMIT_UNEXPECTED_ALARM_MS`を20msへ短縮 | Codex |
+| 2026-06-08 | G28直後の原点limit ON状態から通常移動で離れる場合に、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範囲だけlimit releaseを許容し、戻らない場合はalarm停止するよう修正 | Codex |
+| 2026-06-08 | Serial Toolの`--stream-gcode-motion`で、G-code由来`G0/G1`のACK後serial idle待ちと成功時の行別ログを省き、CommandQueueへ連続XYを高速投入しやすくした | Codex |
+| 2026-06-08 | Serial Toolへ`--stream-xy-motion`を追加し、CSV由来`XY`もACK後serial idle待ちと成功時の行別ログを省いて先行投入できるようにした | Codex |
 
 ---
 

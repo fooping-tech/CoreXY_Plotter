@@ -78,6 +78,7 @@ python tools/serial_tool/serial_send.py \
   --gcode tools/text_tool/examples/gcode/text_robo.gcode \
   --startup-delay 4 \
   --queue-mode \
+  --stream-gcode-motion \
   --echo
 ```
 
@@ -89,5 +90,6 @@ python tools/serial_tool/serial_send.py \
 - 文字が上下反転する場合は`--flip-y`を付けてください。
 - 濁点、半濁点、小さい「ゃゅょっ」などの短いストロークは、実機ではペン先径や紙質で潰れやすいです。
 - ペン上下後の`--dwell-ms`を調整すると、インクの出始めや線の抜けが改善する場合があります。
+- 細かいG-codeが線分ごとに止まって見える場合は、Serial Toolの`--stream-gcode-motion`を使って`G0/G1`をqueue投入ACKで先行送信してください。stream対象行では送信速度を優先して成功時の行別ログが抑制されます。ストローク間の停止が気になる場合は`--dwell-ms`も下げて調整します。
 - 未対応文字は警告をstderrへ出し、既定では代替の四角形グリフを出力します。スキップしたい場合は`--missing-glyph skip`を使います。
 - 余計な線分簡略化や形状変更は行いません。

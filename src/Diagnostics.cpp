@@ -33,11 +33,12 @@ void Diagnostics::printConfig() {
              JUNCTION_DEVIATION_MM, CLASSIC_JERK_LIMIT_MM_S,
              LOOKAHEAD_BATCH_COLLECT_MS,
              static_cast<unsigned>(PlannerQueue::CAPACITY));
-  logMessage("HOMING enabled=%u require_homed_xy=%u x_dir=%d y_dir=%d seek=%.3f slow=%.3f backoff=%.3f start_backoff=%.3f maxX=%.3f maxY=%.3f debounce=%lums active=%s",
+  logMessage("HOMING enabled=%u require_homed_xy=%u x_dir=%d y_dir=%d seek=%.3f slow=%.3f backoff=%.3f start_backoff=%.3f maxX=%.3f maxY=%.3f debounce=%lums hard_limit_ms=%lums release=%.3f active=%s",
              HOMING_ENABLED, HOMING_REQUIRE_HOMED_FOR_XY_MOVE, HOMING_X_DIR,
              HOMING_Y_DIR, HOMING_SEEK_FEED_MM_MIN, HOMING_SLOW_FEED_MM_MIN,
              HOMING_BACKOFF_MM, HOMING_START_BACKOFF_MM, HOMING_MAX_TRAVEL_X_MM,
              HOMING_MAX_TRAVEL_Y_MM, HOMING_LIMIT_DEBOUNCE_MS,
+             HARD_LIMIT_UNEXPECTED_ALARM_MS, NORMAL_MOVE_LIMIT_RELEASE_MM,
              LIMIT_ACTIVE_LOW ? "LOW" : "HIGH");
   logMessage("M5_UI=%s LCD_SPI_MOSI=%u MOTOR_EN=HARDWIRED_GND",
              M5_UI_ENABLED ? "ENABLED" : "DISABLED", CORE2_LCD_SPI_MOSI_PIN);

@@ -18,6 +18,10 @@ class SafetyManager {
   void clearAlarm();
   const char* alarmReason() const;
   void setHomingActive(bool active);
+  void beginNormalMoveLimitReleaseAllowance(bool allow_x, bool allow_y,
+                                            float start_x_mm,
+                                            float start_y_mm);
+  void clearNormalMoveLimitReleaseAllowance();
   void poll();
 
  private:
@@ -35,5 +39,9 @@ class SafetyManager {
   uint32_t y_last_change_ms_ = 0;
   uint32_t x_unexpected_since_ms_ = 0;
   uint32_t y_unexpected_since_ms_ = 0;
+  bool x_release_allowed_ = false;
+  bool y_release_allowed_ = false;
+  float x_release_start_mm_ = 0.0f;
+  float y_release_start_mm_ = 0.0f;
   char alarm_reason_[64] = "none";
 };

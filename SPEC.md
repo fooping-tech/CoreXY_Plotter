@@ -465,6 +465,10 @@ BackoffからSeekSlowへ移る条件は、対象limitのrawとdebouncedの両方
 HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復ではなく、各フェーズの上限距離ぶんの長いmoveを開始し、limit条件成立時にbackendを停止する。
 これにより`HOMING_SEEK_FEED_MM_MIN`と`HOMING_SLOW_FEED_MM_MIN`は、加速距離が足りる範囲で実効速度へ反映される。
 停止後のMachineStateはFastAccelStepperのA/B現在ステップ差分から更新する。
+通常XY/timed segment実行中も、FastAccelStepperの現在A/Bステップ差分からMachineStateのX/Y概算位置を更新しながらSafetyManagerをpollする。
+これにより、ブロック完了前でも原点から離れた位置でlimit activeが継続した場合にhard limit alarmへ入れる。
+homing完了直後など、通常移動開始時に原点limitがONで、かつ移動方向がそのlimitから離れる方向の場合は、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範囲だけlimit ONを一時許容する。
+この範囲内にraw/debouncedがOFFへ戻れば通常移動を継続し、OFFへ戻らない場合は`X home limit did not release`または`Y home limit did not release`でalarm停止する。
 `ABORT`で停止した場合は実位置が論理座標と一致する保証がないため、homed状態を無効化しalarm状態にする。復旧は`ZERO -> ALARM_CLEAR -> HOME`の順に行う。
 
 ---
@@ -485,6 +489,7 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 - `--queue-mode`: 各行を送信後、`ACK QUEUED`または`ACK ABORT requested`を受信してから次行へ進む
 - `--queue-mode`中に`ERROR: CommandQueue full`を受信した場合は、同じ行を`--queue-retry-delay-ms`間隔で再送する
 - `--queue-mode`でも`HOME`、`HOME_X`、`HOME_Y`は後続motionを先に積まないよう、queue投入後に完了ログまで待つ
+- `--stream-xy-motion`: `--queue-mode`時、CSV由来の`XY`を`ACK QUEUED`確認だけで先行送信し、`ACK_XY target=`完了ログとserial idleを待たない
 - `Ctrl-C`で中断された場合、serial portを閉じる前に`ABORT`を送信して短時間応答を読む
 
 タイムスタンプ:
@@ -493,6 +498,7 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 - 各CSV行の送信処理開始時に`TIMING START`を表示する
 - 各CSV行の応答待ち終了時に`TIMING END`を表示する
 - `TIMING END`には、その行の開始から終了までの経過時間`dt`と`status`を表示する
+- `--stream-xy-motion`対象の`XY`は送信速度を優先し、成功時の`TIMING START/END`、`--echo`表示、ACK表示を抑制する
 
 `--timeout`は`HOME`や長いXY移動の最大待ち時間として使う。
 起動ログ読み捨て時間には使わない。
@@ -631,8 +637,9 @@ limit switch:
 GPIO35/36は内部pull-upに頼らず、外付けpull-upを前提とする。
 
 通常移動中、homing完了後の原点外位置でlimit activeが検出された場合はhard limit異常として扱う。
-ただし、瞬間的な入力ノイズで即alarmにしないため、`HARD_LIMIT_UNEXPECTED_ALARM_MS`で指定した時間だけ継続してactiveの場合にalarmへ入る。
-初期値は500msとし、安全停止遅延とノイズ耐性のバランスを実機で確認する。
+ただし、瞬間的な入力ノイズで即alarmにしないため、debounce後に`HARD_LIMIT_UNEXPECTED_ALARM_MS`で指定した時間だけ継続してactiveの場合にalarmへ入る。
+2026-06-08時点の暫定値は20msであり、停止距離とlimit入力ノイズ耐性は実機で再確認する。
+homing完了直後の退避移動では、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範囲でhome limit releaseを待つ。2026-06-08時点の暫定値は8mmである。
 
 ---
 
@@ -784,8 +791,11 @@ F値はmm/minとして扱う。
 - 生成したG-codeの実機品質はペン先径、紙質、ペン上下dwell、feed、機械剛性で調整する
 
 `tools/serial_tool/serial_send.py`は`--gcode`でG-codeファイルを直接送信できる。空行、`;`開始コメント行、`%`行は送信せず、その他の行を1行1コマンドとして扱う。
-描画前の準備手順は`--preamble-csv tools/serial_tool/examples/gcode_preamble.csv`で前置する。標準preambleは`HELP`、`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、alarm解除、limit状態、homing完了、`HOMED=YES`を確認する。
+描画前の準備手順は`--preamble-csv tools/serial_tool/examples/gcode_preamble.csv`で前置する。標準preambleは`SELFTEST`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`G28`、`POS`を送り、alarm解除、limit状態、homing完了、`HOMED=YES`を確認する。
 `--gcode`で読み込んだ行には、コマンド種別ごとの既定expectを付ける。`G0/G1`は`ACK_XY target=`、`G4`は`DWELL P=`、`M3/M5`は`PEN DOWN`/`PEN UP`などを待つ。
+`--gcode --queue-mode --stream-gcode-motion`では、G-codeファイル由来の`G0/G1`に限り、`ACK QUEUED`を確認した時点で次の行を送る。`ACK_XY target=`は後から流れる完了ログとして扱い、後続コマンドの完了判定には使わない。
+stream対象の`G0/G1`では、serial idle待ち、成功時の行別`TIMING START/END`、`--echo`表示、ACK表示を抑制し、CommandQueueへ連続XYを投入しやすくする。
+このstream modeでも`M3/M5`、`G4`、`G28`、`M114`、`G20/G21/G90/G91`は従来通り完了ログまたはmodalログを待つ。`ERROR:`、`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`は停止条件とする。
 Serial Toolは`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`を受信した場合、その行を失敗扱いにして、既定では後続行を送信しない。
 
 ---

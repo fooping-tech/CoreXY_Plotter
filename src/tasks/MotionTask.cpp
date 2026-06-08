@@ -57,11 +57,32 @@ bool stopForAbort(const char* context) {
   return true;
 }
 
+void updateMachinePositionEstimateFromBackend(int32_t start_backend_a_steps,
+                                              int32_t start_backend_b_steps,
+                                              float start_x_mm,
+                                              float start_y_mm) {
+  const int32_t delta_a_steps =
+      stepper_backend.currentASteps() - start_backend_a_steps;
+  const int32_t delta_b_steps =
+      stepper_backend.currentBSteps() - start_backend_b_steps;
+  const float delta_a_mm = static_cast<float>(delta_a_steps) / STEPS_PER_MM;
+  const float delta_b_mm = static_cast<float>(delta_b_steps) / STEPS_PER_MM;
+  machine_state.x_mm = start_x_mm + (delta_a_mm + delta_b_mm) * 0.5f;
+  machine_state.y_mm = start_y_mm + (delta_a_mm - delta_b_mm) * 0.5f;
+}
+
 bool waitForMotionOrLimit() {
+  const int32_t start_backend_a_steps = stepper_backend.currentASteps();
+  const int32_t start_backend_b_steps = stepper_backend.currentBSteps();
+  const float start_x_mm = machine_state.x_mm;
+  const float start_y_mm = machine_state.y_mm;
   while (stepper_backend.isRunning()) {
     if (stopForAbort("Motion stopped")) {
       return false;
     }
+    updateMachinePositionEstimateFromBackend(start_backend_a_steps,
+                                             start_backend_b_steps, start_x_mm,
+                                             start_y_mm);
     safety_manager.poll();
     if (safety_manager.isAlarmed()) {
       stepper_backend.stop();
@@ -70,6 +91,9 @@ bool waitForMotionOrLimit() {
     }
     vTaskDelay(pdMS_TO_TICKS(1));
   }
+  updateMachinePositionEstimateFromBackend(start_backend_a_steps,
+                                           start_backend_b_steps, start_x_mm,
+                                           start_y_mm);
   return true;
 }
 
@@ -157,6 +181,7 @@ bool buildXYBlock(const CommandMessage& command, float start_x_mm,
                command.x_mm, command.y_mm);
     return false;
   }
+  safety_manager.poll();
   float feed_mm_min = command.feed_mm_min;
   if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=rejected",
@@ -229,7 +254,25 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
              block.target_x_mm, block.target_y_mm, block.a_steps,
              block.b_steps, block.nominal_speed_mm_min);
 #else
-  if (!executeTimedSegments(segment_queue)) {
+  safety_manager.poll();
+  const bool allow_x_limit_release =
+      safety_manager.xLimitActive() &&
+      block.dx_mm * static_cast<float>(HOMING_X_DIR) < 0.0f;
+  const bool allow_y_limit_release =
+      safety_manager.yLimitActive() &&
+      block.dy_mm * static_cast<float>(HOMING_Y_DIR) < 0.0f;
+  if (allow_x_limit_release || allow_y_limit_release) {
+    logMessage("LIMIT_RELEASE_ALLOW X=%s Y=%s max=%.3f",
+               allow_x_limit_release ? "YES" : "NO",
+               allow_y_limit_release ? "YES" : "NO",
+               NORMAL_MOVE_LIMIT_RELEASE_MM);
+  }
+  safety_manager.beginNormalMoveLimitReleaseAllowance(
+      allow_x_limit_release, allow_y_limit_release, block.start_x_mm,
+      block.start_y_mm);
+  const bool executed = executeTimedSegments(segment_queue);
+  safety_manager.clearNormalMoveLimitReleaseAllowance();
+  if (!executed) {
     logMessage("ERROR: backend rejected timed XY move");
     logMessage("NACK_XY target=(%.3f,%.3f) reason=backend",
                block.target_x_mm, block.target_y_mm);

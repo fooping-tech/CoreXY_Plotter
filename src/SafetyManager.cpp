@@ -1,5 +1,6 @@
 #include "SafetyManager.h"
 #include <Arduino.h>
+#include <math.h>
 #include <string.h>
 #include "AppContext.h"
 #include "Core2PinMap.h"
@@ -96,6 +97,20 @@ void SafetyManager::setAlarm(const char* reason) {
 void SafetyManager::clearAlarm() { setAlarm(false); }
 const char* SafetyManager::alarmReason() const { return alarm_reason_; }
 void SafetyManager::setHomingActive(bool active) { homing_active_ = active; }
+void SafetyManager::beginNormalMoveLimitReleaseAllowance(bool allow_x,
+                                                         bool allow_y,
+                                                         float start_x_mm,
+                                                         float start_y_mm) {
+  x_release_allowed_ = allow_x;
+  y_release_allowed_ = allow_y;
+  x_release_start_mm_ = start_x_mm;
+  y_release_start_mm_ = start_y_mm;
+}
+
+void SafetyManager::clearNormalMoveLimitReleaseAllowance() {
+  x_release_allowed_ = false;
+  y_release_allowed_ = false;
+}
 
 bool SafetyManager::updateDebounced(bool raw_active, bool& last_raw,
                                     bool& debounced,
@@ -116,14 +131,34 @@ void SafetyManager::poll() {
                   x_last_change_ms_);
   updateDebounced(yLimitRawActive(), y_last_raw_, y_debounced_,
                   y_last_change_ms_);
+  if (x_release_allowed_ && !x_debounced_ && !xLimitRawActive()) {
+    x_release_allowed_ = false;
+    x_unexpected_since_ms_ = 0;
+  }
+  if (y_release_allowed_ && !y_debounced_ && !yLimitRawActive()) {
+    y_release_allowed_ = false;
+    y_unexpected_since_ms_ = 0;
+  }
   if (!homing_active_ && machine_state.homed) {
     const uint32_t now_ms = millis();
+    if (x_release_allowed_ && x_debounced_ &&
+        fabsf(machine_state.x_mm - x_release_start_mm_) >=
+            NORMAL_MOVE_LIMIT_RELEASE_MM) {
+      setAlarm("X home limit did not release");
+      return;
+    }
+    if (y_release_allowed_ && y_debounced_ &&
+        fabsf(machine_state.y_mm - y_release_start_mm_) >=
+            NORMAL_MOVE_LIMIT_RELEASE_MM) {
+      setAlarm("Y home limit did not release");
+      return;
+    }
     const bool x_unexpected =
-        x_debounced_ &&
+        x_debounced_ && !x_release_allowed_ &&
         ((HOMING_X_DIR < 0 && machine_state.x_mm > HOMING_SET_X_MM + 0.5f) ||
          (HOMING_X_DIR > 0 && machine_state.x_mm < HOMING_SET_X_MM - 0.5f));
     const bool y_unexpected =
-        y_debounced_ &&
+        y_debounced_ && !y_release_allowed_ &&
         ((HOMING_Y_DIR < 0 && machine_state.y_mm > HOMING_SET_Y_MM + 0.5f) ||
          (HOMING_Y_DIR > 0 && machine_state.y_mm < HOMING_SET_Y_MM - 0.5f));
     if (x_unexpected && x_unexpected_since_ms_ == 0) {

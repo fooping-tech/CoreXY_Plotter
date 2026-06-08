@@ -186,8 +186,14 @@ constexpr uint32_t HOMING_LIMIT_DEBOUNCE_MS = 30;
 
 // homing中ではない通常移動で、原点から離れた位置なのにlimitがONになった時に、
 // アラームへ入れるまでの継続時間 [ms]。
-// 決め方: 配線ノイズや瞬間的な接触では止めず、本当にlimitが押された時だけ止める。
-constexpr uint32_t HARD_LIMIT_UNEXPECTED_ALARM_MS = 500;
+// debounce後も継続するlimit ONは衝突または配線異常として速やかに止める。
+constexpr uint32_t HARD_LIMIT_UNEXPECTED_ALARM_MS = 20;
+
+// homing完了直後の通常移動で、原点limitがONのまま離れる方向へ動き出した時に、
+// limitがOFFへ戻るまで許す最大移動距離 [mm]。
+// これを超えてもOFFにならない場合はswitchが戻っていない、配線が短絡している、
+// または移動方向が想定と違う可能性があるためalarmにする。
+constexpr float NORMAL_MOVE_LIMIT_RELEASE_MM = 8.0f;
 
 // trueならhoming完了前の通常XY移動を拒否する。
 // 実機安全のためtrue推奨。ZEROはhoming扱いにしない。
