@@ -45,6 +45,8 @@ SYNC_COMPLETION_TIMEOUT_S_BY_COMMAND = {
     "HOME_X": 30.0,
     "HOME_Y": 30.0,
     "G28": 30.0,
+    "JOB_BEGIN": 60.0,
+    "JOB_END": 30.0,
 }
 
 
@@ -575,6 +577,15 @@ def send_job_abort_on_failure(serial_port, args: argparse.Namespace) -> None:
     print_response(response)
 
 
+def should_send_job_abort_on_failure(args: argparse.Namespace, row: CommandRow) -> bool:
+    if not getattr(args, "job_lifecycle", False):
+        return False
+    name = command_name(row.command)
+    if name in ("JOB_ABORT", "JOB_END"):
+        return False
+    return row.source in ("gcode", "job")
+
+
 def print_response(response: str) -> None:
     if response:
         print(response, end="" if response.endswith("\n") else "\n", flush=True)
@@ -813,7 +824,7 @@ def send_rows(args: argparse.Namespace, rows: list[CommandRow]) -> int:
             if result:
                 failures += 1
                 if not args.continue_on_error:
-                    if row.source == "gcode":
+                    if should_send_job_abort_on_failure(args, row):
                         send_job_abort_on_failure(serial_port, args)
                     return 1
         return 1 if failures else 0

@@ -20,6 +20,7 @@ python tools/serial_tool/serial_send.py \
 `JOB_BEGIN`はTMC未readyなら自動で`TMC_INIT`相当を実行します。
 `JOB_BEGIN_AUTO_HOME=false`では、事前に`G28`相当のbring-upが済んでいる状態で実行します。
 `JOB_BEGIN_AUTO_HOME=true`では、未homed時に`JOB_BEGIN`内でHOME相当を自動実行します。
+Serial Toolは`JOB_BEGIN`について、`--timeout`の既定値に関係なく最大60秒まで`JOB_BEGIN OK`を待ちます。
 
 ```bash
 python tools/serial_tool/serial_send.py \
@@ -60,5 +61,7 @@ python tools/serial_tool/serial_send.py \
 - `JOB_BEGIN` auto-runs TMC initialization when TMC is not ready.
 - `JOB_BEGIN_AUTO_HOME=false` rejects unhomed jobs with `not_homed`.
 - `JOB_BEGIN_AUTO_HOME=true` auto-runs HOME when unhomed. Use only after limit switch direction and E-stop behavior are verified.
+- `JOB_BEGIN` may take longer than normal commands because it can include AUTO_HOME; the serial tool waits up to 60 seconds for `JOB_BEGIN OK`.
+- Start-time rejects such as `not_homed` leave the job state retryable; the next `JOB_BEGIN` should not fail with `job_not_idle` unless a job is actually active or alarm recovery is still required.
 - `JOB_END` is explicit because firmware does not know the end of a streamed serial G-code file unless the host sends it.
 - `JOB_END` raises the pen, parks at `X=5mm, Y=Y_MAX_MM-5mm`, then plays a short original 8-bit-style two-motor chord jingle.

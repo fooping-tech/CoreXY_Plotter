@@ -66,14 +66,7 @@ bool JobController::beginJob(const JobPreflight& preflight, SafetyManager& safet
   if (state_ == JobState::COMPLETE) {
     setState(JobState::IDLE);
   }
-  if (state_ == JobState::FAILED || state_ == JobState::ABORTED) {
-    safety.poll();
-    machine.alarmed = safety.isAlarmed();
-    if (!machine.alarmed && machine.homed) {
-      logMessage("JOB recovery state=%s -> IDLE", stateName());
-      setState(JobState::IDLE);
-    }
-  }
+  recoverToIdleIfSafe(safety, machine);
   if (state_ != JobState::IDLE) {
     return reject("job_not_idle", "JOB_BEGIN");
   }
@@ -82,7 +75,7 @@ bool JobController::beginJob(const JobPreflight& preflight, SafetyManager& safet
   copyText(result_, sizeof(result_), "starting");
   copyText(last_error_, sizeof(last_error_), "none");
   if (!checkPreflightEmpty(preflight, "JOB_BEGIN")) {
-    setState(JobState::FAILED);
+    setState(JobState::IDLE);
     return false;
   }
 
@@ -97,11 +90,11 @@ bool JobController::beginJob(const JobPreflight& preflight, SafetyManager& safet
     machine.tmc_ready = tmc.begin();
   }
   if (!machine.tmc_ready) {
-    setState(JobState::FAILED);
+    setState(JobState::IDLE);
     return reject("tmc_not_ready", "JOB_BEGIN");
   }
   if (!machine.homed) {
-    setState(JobState::FAILED);
+    setState(JobState::IDLE);
     return reject("not_homed", "JOB_BEGIN");
   }
 
@@ -169,6 +162,19 @@ bool JobController::abortJob(const char* reason) {
   markAborted(reason != nullptr ? reason : "job abort requested");
   logMessage("JOB_ABORT requested reason=%s", last_error_);
   return true;
+}
+
+void JobController::recoverToIdleIfSafe(SafetyManager& safety,
+                                        MachineState& machine) {
+  if (state_ != JobState::FAILED && state_ != JobState::ABORTED) {
+    return;
+  }
+  safety.poll();
+  machine.alarmed = safety.isAlarmed();
+  if (!machine.alarmed) {
+    logMessage("JOB recovery state=%s -> IDLE", stateName());
+    setState(JobState::IDLE);
+  }
 }
 
 void JobController::markAborted(const char* reason) {

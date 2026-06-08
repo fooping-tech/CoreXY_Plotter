@@ -1233,7 +1233,7 @@ Core 0のUIやLCDには触らず、状態表示は`MachineState`/`StatusQueue`/`
 | `ENDING` | `JOB_END`処理中 |
 | `COMPLETE` | 正常終了直後 |
 | `ABORTED` | 中断停止後 |
-| `FAILED` | 開始前確認失敗、alarm、limit、queue異常など |
+| `FAILED` | job実行中または終了処理中のalarm、limit、queue異常など |
 
 状態遷移ルール:
 
@@ -1241,6 +1241,8 @@ Core 0のUIやLCDには触らず、状態表示は`MachineState`/`StatusQueue`/`
 - `RUNNING`中の`XY`、`TEST_A`、`TEST_B`、`AB_TIMED`、`MELODY`は拒否する
 - `RUNNING`中のG-code motion、pen、dwell、statusは許可する
 - alarm発生時は`FAILED`または`ABORTED`へ遷移し、後続motionを拒否する
+- `JOB_BEGIN`の開始前確認拒否はjob状態を`IDLE`へ戻し、`last_error`/`result`で拒否理由を残す
+- `FAILED`/`ABORTED`に残っていても、alarmが解除済みなら次の`JOB_BEGIN`前に`IDLE`へ復帰できる
 - `RUNNING`中に`JOB_ABORT`または`ABORT`を受けた場合は、共通停止経路を使いjob状態を`ABORTED`へ遷移する
 - `JOB_END`完了後は`COMPLETE`をログし、次の操作前に`IDLE`へ戻せる
 
@@ -1253,7 +1255,7 @@ Core 0のUIやLCDには触らず、状態表示は`MachineState`/`StatusQueue`/`
 | `RUNNING` | `GCODE`、G-code由来`XY`、`DWELL`、`PEN_UP`、`PEN_DOWN`、`POS`、`M114`相当、`JOB_END`、`JOB_ABORT`、`ABORT` | 手入力`XY`、`TEST_A/B`、`AB_TIMED`、`MELODY`、`ZERO`、`ALARM_CLEAR`、`TMC_INIT`、`HOME` |
 | `ENDING` | `ABORT`のみ | motion、pen、diagnostics変更系、追加`JOB_END` |
 | `COMPLETE` | `JOB_STATUS`、`POS`、次の`JOB_BEGIN`へ戻すためのidle遷移 | motion開始は一度`IDLE`へ戻してから |
-| `FAILED`/`ABORTED` | `JOB_STATUS`、`POS`、復旧用`ZERO -> ALARM_CLEAR -> HOME` | 新規`JOB_BEGIN`は復旧完了まで拒否 |
+| `FAILED`/`ABORTED` | `JOB_STATUS`、`POS`、復旧用`ZERO -> ALARM_CLEAR -> HOME` | alarm中の新規`JOB_BEGIN`。alarm解除済みなら次の`JOB_BEGIN`前に`IDLE`復帰可 |
 
 G-code由来の`XY`と手入力`XY`は区別する。
 `GcodeInterpreter`から変換された`XY`には、`CommandMessage`内の既存情報または追加フラグで`source=GCODE`を保持する。
@@ -1271,7 +1273,7 @@ G-code由来の`XY`と手入力`XY`は区別する。
 8. TMC readyを確認する
 9. TMC未readyなら`TMC_INIT`相当を自動実行する。失敗した場合は`tmc_not_ready`で拒否する
 10. homed状態を確認する
-11. `JOB_BEGIN_AUTO_HOME=false`で未homedなら`not_homed`で拒否する
+11. `JOB_BEGIN_AUTO_HOME=false`で未homedなら`not_homed`で拒否し、job状態は`IDLE`へ戻す
 12. `JOB_BEGIN_AUTO_HOME=true`で未homedなら、`MotionTask`が`HOME`相当を自動実行する。失敗した場合は`auto_home_failed`で拒否する
 13. `JOB_BEGIN`でhomed確認済みであることを`JobController`に保持し、`RUNNING`/`ENDING`中のG-code由来XY移動のhomedゲートに使う
 14. penを上げ、`machine_state.pen_down=false`へ更新する
@@ -1326,6 +1328,7 @@ G-code由来の`XY`と手入力`XY`は区別する。
 - [x] `JOB_BEGIN`でTMC未readyなら`TMC_INIT`相当を自動実行し、失敗時だけ拒否する
 - [x] `JOB_BEGIN`で未homedなら初期実装では拒否する
 - [x] `JOB_BEGIN_AUTO_HOME`を追加し、true時は未homedの`JOB_BEGIN`でHOME相当を自動実行する
+- [x] `JOB_BEGIN`の開始前拒否は`FAILED`に残さず`IDLE`へ戻し、次の`JOB_BEGIN`を再試行可能にする
 - [x] `JOB_BEGIN`で確認したhomed状態をJobControllerに保持し、ジョブ中のG-code由来XY移動のhomed判定に使う
 - [x] `JOB_BEGIN`でG-code modal状態をmm/absoluteなど既定値へ初期化する
 - [x] `JOB_END`でpen up、退避移動、終了ジングル、queue drain、status/log出力を行う
@@ -2063,6 +2066,9 @@ Phase 6.9を実装してください。
 | 2026-06-08 | `JOB_BEGIN`へTMC未ready時の自動`TMC_INIT`を追加。初期化失敗時のみ`tmc_not_ready`で拒否する方針へ更新。`pio run`とuploadは成功、Serial再確認は権限付き実行の利用制限で未実行 | Codex |
 | 2026-06-09 | `JOB_BEGIN OK homed=YES`後のG-code移動が`machine is not homed`で拒否される実機ログを受け、JOB_BEGIN時のhomed検証結果をJobControllerに保持し、ジョブ中のG-code由来XY移動のhomed判定へ使うよう修正 | Codex |
 | 2026-06-09 | `JOB_BEGIN_AUTO_HOME` configを追加。既定はfalse。true時は`JOB_BEGIN`で未homedならTMC初期化後にHOME相当を自動実行し、失敗時は`auto_home_failed`で拒否する。`pio run`、upload、`CONFIG`/`SELFTEST`/`TMC_STATUS`確認は成功 | Codex |
+| 2026-06-09 | 前回`JOB_BEGIN`拒否後の次回`JOB_BEGIN`が`job_not_idle`で拒否される実機ログを受け、開始前拒否は`IDLE`へ戻し、`FAILED`/`ABORTED`もalarm解除済みなら次回`JOB_BEGIN`前に`IDLE`復帰できるよう修正。`pio run`とuploadは成功。`JOB_BEGIN_AUTO_HOME=true`状態で未homed `JOB_BEGIN`がAUTO_HOMEへ入ることを確認し、安全のため`ABORT`した | Codex |
+| 2026-06-09 | ホスト側失敗後にjob状態が`RUNNING`へ残った実機ログを受け、Serial Toolは`--job-lifecycle`の`JOB_BEGIN`/G-code本文失敗時にも`JOB_ABORT`を送るよう修正。ファーム側は`JOB_ABORT`受信時点でmotion abort flagを立て、homing中にも停止要求が届くよう修正。`pio run`、upload、`CONFIG`/`SELFTEST`/`TMC_STATUS`確認は成功 | Codex |
+| 2026-06-09 | `JOB_BEGIN_AUTO_HOME=true`でHOME中にSerial Toolが既定timeout 2秒で`JOB_BEGIN OK`未検出と判断し`JOB_ABORT`する実機ログを受け、Serial Toolの`JOB_BEGIN`完了待ちを60秒、`JOB_END`完了待ちを30秒へ延長。`py_compile`確認は成功 | Codex |
 
 ---
 

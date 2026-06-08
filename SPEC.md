@@ -798,6 +798,9 @@ F値はmm/minとして扱う。
 - `JOB_BEGIN`はTMC未readyの場合に`TMC_INIT`相当を自動実行する。TMC初期化に失敗した場合だけ`tmc_not_ready`で拒否する
 - `JOB_BEGIN_AUTO_HOME=false`では、homedでない場合は`JOB_BEGIN`を`not_homed`で拒否し、自動homingは行わない
 - `JOB_BEGIN_AUTO_HOME=true`では、`JOB_BEGIN`時に未homedならTMC初期化後に`HOME`相当を自動実行する。HOME失敗時は`auto_home_failed`で拒否し、G-code本文は実行しない
+- `JOB_BEGIN`の開始前確認で`not_homed`、`tmc_not_ready`、queue not empty等を拒否した場合、job状態は`IDLE`へ戻し、次の`JOB_BEGIN`を再試行できるようにする
+- `FAILED`/`ABORTED`に残っている場合でも、alarmが解除済みなら次の`JOB_BEGIN`前に`IDLE`へ復帰できる。alarm中は復帰しない
+- `JOB_ABORT`はCommandTask受信時点でmotion abort flagを立て、homing中や長いmotion処理中でも停止要求を伝える。motionTaskでjob状態を`ABORTED`へ遷移し、homedを無効化する
 - `JOB_BEGIN`成功時は、その時点でhomed確認済みであることをJobControllerに保持し、`RUNNING`/`ENDING`中のG-code由来XY移動のhomedゲートにも使う。`JOB_ABORT`、`ABORT`、`FAILED`、`JOB_END`完了時はこの保持状態を破棄する
 - 正式ジョブ終了時は、pen up、`JOB_END_PARK_X_MM`/`JOB_END_PARK_Y_MM`への退避移動、終了ジングル、queue drain、status/log出力をファームウェア側で行う
 - G-code本文には描画内容に関係する`G0`/`G1`、`M3`/`M5`、`G4`などを残し、`SELFTEST`、`TMC_INIT`、`ALARM_CLEAR`、`LIMIT_STATUS`、`ZERO`、`CONFIG`は通常含めない

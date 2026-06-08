@@ -23,10 +23,11 @@ void commandTask(void*) {
           CommandMessage command = CommandDispatcher::parse(line);
           if (command.type == CommandType::INVALID) {
             logMessage("ERROR: %s", command.error);
-          } else if (command.type == CommandType::ABORT) {
+          } else if (command.type == CommandType::ABORT ||
+                     command.type == CommandType::JOB_ABORT) {
             requestMotionAbort();
             if (xQueueSend(command_queue, &command, 0) != pdTRUE) {
-              logMessage("ACK ABORT requested");
+              logMessage("ACK %s requested", command.name);
             } else {
               logMessage("ACK QUEUED %s", command.name);
             }

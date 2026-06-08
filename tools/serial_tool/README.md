@@ -168,6 +168,7 @@ stream対象の`G0/G1`は、`ACK QUEUED`を見つけた時点でserial idleを�
 `--gcode --job-lifecycle`を指定すると、G-code本文の前に`JOB_BEGIN`、最後に`JOB_END`を自動で送ります。
 G-code行の送信中に`NACK`、`REJECT:`、alarm、`ERROR:`を検出した場合は、後続行を止めて`JOB_ABORT`を送ります。
 `JOB_BEGIN`はファームウェア側でalarm、TMC ready、homed、pen up、motion queue idleを確認します。TMC未readyなら自動で`TMC_INIT`相当を実行します。`JOB_BEGIN_AUTO_HOME=false`では未homed時に拒否し、`JOB_BEGIN_AUTO_HOME=true`では未homed時にHOME相当を自動実行します。
+`JOB_BEGIN`は自動HOMEを含む場合があるため、`--timeout`の既定値に関係なく最大60秒まで`JOB_BEGIN OK`を待ちます。
 `JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避し、A/B両モータで短い終了ジングルを鳴らします。
 
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。

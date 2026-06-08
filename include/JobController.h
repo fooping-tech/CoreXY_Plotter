@@ -48,6 +48,7 @@ class JobController {
   bool endJob(const JobPreflight& preflight, SafetyManager& safety,
               MachineState& machine, PenController& pen);
   bool abortJob(const char* reason);
+  void recoverToIdleIfSafe(SafetyManager& safety, MachineState& machine);
   void markAborted(const char* reason);
   void markFailed(const char* reason);
   void resetToIdleIfComplete();

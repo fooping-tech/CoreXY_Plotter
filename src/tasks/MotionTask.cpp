@@ -176,6 +176,7 @@ bool prepareJobBeginAutoHome() {
   if (!JOB_BEGIN_AUTO_HOME || machine_state.homed) {
     return true;
   }
+  job_controller.recoverToIdleIfSafe(safety_manager, machine_state);
   if (job_controller.state() != JobState::IDLE) {
     return true;
   }
@@ -218,6 +219,7 @@ bool rejectDisallowedJobCommand(const CommandMessage& command) {
     return false;
   }
   if (command.type == CommandType::JOB_ABORT) {
+    clearMotionAbort();
     logMessage("JOB_ABORT rejected reason=no_active_job");
   } else {
     logMessage("REJECT: command %s not allowed while job_state=%s source=%s",
