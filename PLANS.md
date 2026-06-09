@@ -630,7 +630,23 @@ Core2内蔵LCDに機械状態を表示し、Serial接続なしでもbring-upと�
 - [x] 低頻度の定期更新で表示を再同期する
 - [x] LCD描画でmotion、safety、stepper処理をブロックしない
 - [x] 変更箇所のみ更新する、またはちらつきを抑える描画方式にする
-- [x] Touch/Button操作画面は将来拡張として分離する
+- [x] `M5Canvas`へ描画してから`pushSprite()`することで、全画面再描画時のちらつきを抑える
+- [x] canvas確保失敗時は直接LCD描画へフォールバックする
+
+### 6.6.5 Touch/Button操作UI
+
+- [x] 下部タブで`Status` / `Control` / `Detail`ページを切り替える
+- [x] 左右フリックでページ送りする
+- [x] Core2物理A/Cボタンで前後ページへ移動する
+- [x] `Status`ページに大きな安全状態、X/Y、pen、TMC、home状態を表示する
+- [x] `Control`ページに`HOME`、`ALARM_CLEAR`、上下左右jog、`PENUP`、`PENDOWN`を配置する
+- [x] `Detail`ページにhoming、feed、A/B step、limit debounced/raw状態を表示する
+- [x] UI操作は既存`CommandMessage`を`command_queue`へ投入し、MotionTaskの安全経路を通す
+- [x] `HOME`はhoming中でなければUIから実行できる
+- [x] `ALARM_CLEAR`はalarm中だけUIから実行できる
+- [x] jogとpen上下はhome完了済み、alarmなし、homing中でない時だけ有効にする
+- [x] jogは現在座標から±1mmの絶対`XY`へ変換し、soft limit内へclampする
+- [x] queue満杯、soft limit、home未完了などの拒否理由を短いnoticeとして表示する
 
 ## Phase 6.6 完了条件
 
@@ -2069,6 +2085,7 @@ Phase 6.9を実装してください。
 | 2026-06-09 | 前回`JOB_BEGIN`拒否後の次回`JOB_BEGIN`が`job_not_idle`で拒否される実機ログを受け、開始前拒否は`IDLE`へ戻し、`FAILED`/`ABORTED`もalarm解除済みなら次回`JOB_BEGIN`前に`IDLE`復帰できるよう修正。`pio run`とuploadは成功。`JOB_BEGIN_AUTO_HOME=true`状態で未homed `JOB_BEGIN`がAUTO_HOMEへ入ることを確認し、安全のため`ABORT`した | Codex |
 | 2026-06-09 | ホスト側失敗後にjob状態が`RUNNING`へ残った実機ログを受け、Serial Toolは`--job-lifecycle`の`JOB_BEGIN`/G-code本文失敗時にも`JOB_ABORT`を送るよう修正。ファーム側は`JOB_ABORT`受信時点でmotion abort flagを立て、homing中にも停止要求が届くよう修正。`pio run`、upload、`CONFIG`/`SELFTEST`/`TMC_STATUS`確認は成功 | Codex |
 | 2026-06-09 | `JOB_BEGIN_AUTO_HOME=true`でHOME中にSerial Toolが既定timeout 2秒で`JOB_BEGIN OK`未検出と判断し`JOB_ABORT`する実機ログを受け、Serial Toolの`JOB_BEGIN`完了待ちを60秒、`JOB_END`完了待ちを30秒へ延長。`py_compile`確認は成功 | Codex |
+| 2026-06-09 | Core2 LCD UIを3ページ構成へ拡張。下部タブ、左右フリック、物理A/Cボタンでページ切替し、Status/Control/Detail表示、UIからの`HOME`、`ALARM_CLEAR`、home完了後のjogとpen上下を追加。ちらつき対策として`M5Canvas` + `pushSprite()`描画へ変更し、`pio run`とuploadは成功 | Codex |
 
 ---
 

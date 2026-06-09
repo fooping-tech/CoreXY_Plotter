@@ -158,6 +158,37 @@ Core 0はユーザーインタフェース側を担当する。
 - `commandTask`
 - `logTask`
 
+### Core2 LCD / Touch UI
+
+Core2内蔵LCDは、Serial未接続でも機械状態と安全状態を確認し、bring-up操作を行えるローカルUIとして使う。
+
+UIは黒基調のタッチ向け画面とし、下部タブ、左右フリック、Core2物理A/Cボタンでページを切り替える。
+
+ページ構成:
+
+| ページ | 内容 |
+|---|---|
+| Status | `READY` / `ALARM` / `NEED HOME` / `HOMING`、X/Y座標、pen、TMC、home状態 |
+| Control | `HOME`、`ALARM_CLEAR`、上下左右1mm jog、`PENUP`、`PENDOWN` |
+| Detail | homing詳細、feed、A/B step、limit debounced/raw状態 |
+
+操作ルール:
+
+- UI入力は既存の`CommandMessage`を`command_queue`へ投入し、MotionTaskの既存安全経路を通す
+- `HOME`はhoming中でなければUIから実行できる
+- `ALARM_CLEAR`はalarm中だけUIから実行できる
+- 上下左右jog、`PENUP`、`PENDOWN`は`homed == true`、`alarmed == false`、`homing_active == false`の時だけ有効
+- jogは現在座標からの相対操作をUI側で絶対`XY`コマンドに変換し、soft limit内へclampする
+- UI操作がqueue満杯、soft limit、home未完了などで実行できない場合は短いnoticeを表示する
+
+描画ルール:
+
+- LCD描画はCore 0の`uiTask`に閉じ込め、Core 1からLCD APIを直接呼ばない
+- 状態表示はCore 1から`StatusQueue`で受け取った`StatusMessage`を使う
+- LCD更新でmotion、safety、stepper処理をブロックしない
+- ちらつき抑制のため、可能な場合は全画面`M5Canvas`へ描画してから`pushSprite()`でLCDへ転送する
+- canvas確保に失敗した場合は直接LCD描画へフォールバックする
+
 ### Core 1
 
 Core 1はモーション制御側を担当する。
