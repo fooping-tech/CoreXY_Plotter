@@ -1,0 +1,444 @@
+#!/usr/bin/env python3
+"""Host WebUI bridge for the CoreXY plotter.
+
+This server intentionally delegates serial command delivery to
+tools/serial_tool/serial_send.py so ACK handling, queue retry, and job lifecycle
+behavior stay in one place.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import glob
+import json
+import os
+import queue
+import re
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from http import HTTPStatus
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+WEB_ROOT = Path(__file__).resolve().parent / "static"
+SERIAL_SEND = REPO_ROOT / "tools" / "serial_tool" / "serial_send.py"
+DEFAULT_BAUD = 115200
+MAX_GCODE_BYTES = 2 * 1024 * 1024
+
+
+log_queue: "queue.Queue[dict[str, object]]" = queue.Queue()
+state_lock = threading.Lock()
+state: dict[str, object] = {
+    "connected": False,
+    "port": "",
+    "baud": DEFAULT_BAUD,
+    "jobRunning": False,
+    "lastExitCode": None,
+    "machine": {
+        "state": "UNKNOWN",
+        "x": None,
+        "y": None,
+        "pen": "UNKNOWN",
+        "homed": False,
+        "alarmed": False,
+        "homing": False,
+        "limits": {"x": "UNKNOWN", "y": "UNKNOWN"},
+        "tmc": "UNKNOWN",
+    },
+}
+job_process: subprocess.Popen[str] | None = None
+job_process_lock = threading.Lock()
+
+
+POS_RE = re.compile(
+    r"X=?(?P<x>-?\d+(?:\.\d+)?)\s+Y=?(?P<y>-?\d+(?:\.\d+)?)|"
+    r"pos:\s*X\s*(?P<x2>-?\d+(?:\.\d+)?)\s*Y\s*(?P<y2>-?\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+HOMED_RE = re.compile(r"HOMED=(YES|NO)|home:\s*(YES|NO)", re.IGNORECASE)
+ALARM_RE = re.compile(r"ALARM=(YES|NO)|safety:\s*(ALARM|READY)", re.IGNORECASE)
+PEN_RE = re.compile(r"PEN=(UP|DOWN)|pen:\s*(UP|DOWN)|PEN\s+(UP|DOWN)", re.IGNORECASE)
+LIMIT_RE = re.compile(r"LIMIT_X=(OPEN|ACTIVE|ON|OFF).*LIMIT_Y=(OPEN|ACTIVE|ON|OFF)", re.IGNORECASE)
+TMC_RE = re.compile(r"TMC[:=]\s*(READY|NOT READY|OFF)", re.IGNORECASE)
+
+
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def emit(kind: str, message: str, **extra: object) -> None:
+    event = {"time": now_ms(), "kind": kind, "message": message, **extra}
+    log_queue.put(event)
+    update_state_from_log(message)
+
+
+def classify_line(line: str) -> str:
+    if "NACK" in line or "REJECT:" in line or "ERROR:" in line or "ALARM=YES" in line:
+        return "error"
+    if "ACK" in line or " OK" in line or "complete" in line:
+        return "ack"
+    if line.startswith(">") or "TIMING START" in line:
+        return "sent"
+    return "firmware"
+
+
+def machine_state_from_flags(machine: dict[str, object]) -> str:
+    if machine.get("alarmed"):
+        return "ALARM"
+    if machine.get("homing"):
+        return "HOMING"
+    if not machine.get("homed"):
+        return "NEED HOME"
+    return "READY"
+
+
+def update_state_from_log(line: str) -> None:
+    with state_lock:
+        machine = dict(state["machine"])  # shallow copy
+        limits = dict(machine.get("limits", {}))
+
+        pos_match = POS_RE.search(line)
+        if pos_match:
+            x = pos_match.group("x") or pos_match.group("x2")
+            y = pos_match.group("y") or pos_match.group("y2")
+            machine["x"] = float(x)
+            machine["y"] = float(y)
+
+        homed_match = HOMED_RE.search(line)
+        if homed_match:
+            value = (homed_match.group(1) or homed_match.group(2) or "").upper()
+            machine["homed"] = value == "YES"
+
+        alarm_match = ALARM_RE.search(line)
+        if alarm_match:
+            value = (alarm_match.group(1) or alarm_match.group(2) or "").upper()
+            machine["alarmed"] = value in {"YES", "ALARM"}
+
+        pen_match = PEN_RE.search(line)
+        if pen_match:
+            machine["pen"] = next(group for group in pen_match.groups() if group).upper()
+
+        limit_match = LIMIT_RE.search(line)
+        if limit_match:
+            limits["x"] = limit_match.group(1).upper()
+            limits["y"] = limit_match.group(2).upper()
+            machine["limits"] = limits
+
+        tmc_match = TMC_RE.search(line)
+        if tmc_match:
+            machine["tmc"] = tmc_match.group(1).upper()
+
+        if "HOME complete" in line:
+            machine["homed"] = True
+            machine["homing"] = False
+        elif "HOME" in line and ("ACK QUEUED" in line or "AUTO_HOME start" in line):
+            machine["homing"] = True
+        elif "ALARM_CLEAR complete" in line:
+            machine["alarmed"] = False
+        elif "ABORT complete" in line or "JOB_ABORT complete" in line:
+            machine["alarmed"] = True
+            machine["homed"] = False
+            machine["homing"] = False
+
+        machine["state"] = machine_state_from_flags(machine)
+        state["machine"] = machine
+
+
+def list_ports() -> list[str]:
+    patterns = ["/dev/cu.*", "/dev/ttyUSB*", "/dev/ttyACM*", "/dev/serial/by-id/*"]
+    ports: list[str] = []
+    for pattern in patterns:
+        ports.extend(glob.glob(pattern))
+    return sorted(set(ports))
+
+
+def run_serial_send(args: list[str], *, label: str) -> int:
+    cmd = [sys.executable, str(SERIAL_SEND), *args]
+    emit("host", f"Starting {label}: {' '.join(cmd)}")
+    process = subprocess.Popen(
+        cmd,
+        cwd=REPO_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    assert process.stdout is not None
+    for raw_line in process.stdout:
+        line = raw_line.rstrip("\n")
+        emit(classify_line(line), line)
+    exit_code = process.wait()
+    emit("host", f"{label} exited with code {exit_code}", exitCode=exit_code)
+    with state_lock:
+        state["lastExitCode"] = exit_code
+    return exit_code
+
+
+def write_command_csv(command: str) -> Path:
+    temp = tempfile.NamedTemporaryFile("w", newline="", suffix=".csv", delete=False)
+    with temp:
+        writer = csv.DictWriter(temp, fieldnames=["command", "delay_ms", "expect", "comment"])
+        writer.writeheader()
+        writer.writerow({"command": command, "delay_ms": "0", "expect": "", "comment": "webui"})
+    return Path(temp.name)
+
+
+def command_args(port: str, baud: int, csv_path: Path) -> list[str]:
+    return [
+        "--csv",
+        str(csv_path),
+        "--port",
+        port,
+        "--baud",
+        str(baud),
+        "--startup-delay",
+        "0",
+        "--startup-drain",
+        "0.1",
+        "--timeout",
+        "5",
+        "--queue-mode",
+        "--echo",
+    ]
+
+
+def job_args(port: str, baud: int, gcode_path: Path) -> list[str]:
+    return [
+        "--gcode",
+        str(gcode_path),
+        "--port",
+        port,
+        "--baud",
+        str(baud),
+        "--queue-mode",
+        "--stream-gcode-motion",
+        "--job-lifecycle",
+        "--startup-delay",
+        "0",
+        "--startup-drain",
+        "0.2",
+        "--echo",
+    ]
+
+
+def read_json(handler: SimpleHTTPRequestHandler) -> dict[str, object]:
+    length = int(handler.headers.get("Content-Length", "0"))
+    if length <= 0:
+        return {}
+    return json.loads(handler.rfile.read(length).decode("utf-8"))
+
+
+def send_json(handler: SimpleHTTPRequestHandler, payload: object, status: HTTPStatus = HTTPStatus.OK) -> None:
+    data = json.dumps(payload).encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Content-Length", str(len(data)))
+    handler.end_headers()
+    handler.wfile.write(data)
+
+
+def save_gcode(text: str) -> Path:
+    encoded = text.encode("utf-8")
+    if len(encoded) > MAX_GCODE_BYTES:
+        raise ValueError("G-code file is too large for the MVP WebUI")
+    temp = tempfile.NamedTemporaryFile("w", suffix=".gcode", delete=False, encoding="utf-8")
+    with temp:
+        temp.write(text)
+    return Path(temp.name)
+
+
+class WebUIHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
+
+    def log_message(self, format: str, *args: object) -> None:
+        emit("host", format % args)
+
+    def do_GET(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/ports":
+            send_json(self, {"ports": list_ports()})
+            return
+        if parsed.path == "/api/state":
+            with state_lock:
+                send_json(self, state)
+            return
+        if parsed.path == "/api/events":
+            self.handle_events()
+            return
+        if parsed.path == "/":
+            self.path = "/index.html"
+        super().do_GET()
+
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        try:
+            if parsed.path == "/api/connect":
+                self.handle_connect()
+            elif parsed.path == "/api/command":
+                self.handle_command()
+            elif parsed.path == "/api/job":
+                self.handle_job()
+            elif parsed.path == "/api/job/abort":
+                self.handle_abort()
+            else:
+                send_json(self, {"error": "not found"}, HTTPStatus.NOT_FOUND)
+        except Exception as exc:  # Keep UI failures visible without crashing the server.
+            emit("error", f"Host error: {exc}")
+            send_json(self, {"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+
+    def handle_connect(self) -> None:
+        body = read_json(self)
+        port = str(body.get("port", ""))
+        baud = int(body.get("baud", DEFAULT_BAUD))
+        if port and port not in list_ports():
+            emit("host", f"Using manually entered port: {port}")
+        with state_lock:
+            state["connected"] = bool(port)
+            state["port"] = port
+            state["baud"] = baud
+        emit("host", f"Serial target set to {port or 'disconnected'} @ {baud}")
+        send_json(self, {"ok": True})
+
+    def handle_command(self) -> None:
+        body = read_json(self)
+        command = str(body.get("command", "")).strip()
+        if not command:
+            raise ValueError("command is required")
+        with state_lock:
+            port = str(state.get("port", ""))
+            baud = int(state.get("baud", DEFAULT_BAUD))
+        if not port:
+            raise ValueError("serial port is not configured")
+        csv_path = write_command_csv(command)
+        threading.Thread(
+            target=run_serial_send,
+            args=(command_args(port, baud, csv_path),),
+            kwargs={"label": f"command {command}"},
+            daemon=True,
+        ).start()
+        send_json(self, {"ok": True})
+
+    def handle_job(self) -> None:
+        global job_process
+        body = read_json(self)
+        text = str(body.get("gcode", ""))
+        if not text.strip():
+            raise ValueError("gcode is required")
+        with state_lock:
+            port = str(state.get("port", ""))
+            baud = int(state.get("baud", DEFAULT_BAUD))
+        if not port:
+            raise ValueError("serial port is not configured")
+        with job_process_lock:
+            if job_process is not None and job_process.poll() is None:
+                raise ValueError("job is already running")
+        gcode_path = save_gcode(text)
+        thread = threading.Thread(
+            target=self.run_job_thread,
+            args=(job_args(port, baud, gcode_path),),
+            daemon=True,
+        )
+        thread.start()
+        send_json(self, {"ok": True})
+
+    def run_job_thread(self, args: list[str]) -> None:
+        global job_process
+        with state_lock:
+            state["jobRunning"] = True
+        cmd = [sys.executable, str(SERIAL_SEND), *args]
+        emit("host", f"Starting job: {' '.join(cmd)}")
+        process = subprocess.Popen(
+            cmd,
+            cwd=REPO_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        with job_process_lock:
+            job_process = process
+        assert process.stdout is not None
+        for raw_line in process.stdout:
+            line = raw_line.rstrip("\n")
+            emit(classify_line(line), line)
+        exit_code = process.wait()
+        emit("host", f"job exited with code {exit_code}", exitCode=exit_code)
+        with job_process_lock:
+            job_process = None
+        with state_lock:
+            state["jobRunning"] = False
+            state["lastExitCode"] = exit_code
+
+    def handle_abort(self) -> None:
+        with state_lock:
+            port = str(state.get("port", ""))
+            baud = int(state.get("baud", DEFAULT_BAUD))
+        if not port:
+            raise ValueError("serial port is not configured")
+        csv_path = write_command_csv("JOB_ABORT")
+        threading.Thread(
+            target=run_serial_send,
+            args=(command_args(port, baud, csv_path),),
+            kwargs={"label": "JOB_ABORT"},
+            daemon=True,
+        ).start()
+        send_json(self, {"ok": True})
+
+    def handle_events(self) -> None:
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+        emit("host", "Event stream connected")
+        while True:
+            try:
+                event = log_queue.get(timeout=20)
+            except queue.Empty:
+                event = {"time": now_ms(), "kind": "ping", "message": "ping"}
+            try:
+                self.wfile.write(f"data: {json.dumps(event)}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                break
+
+
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the CoreXY Host WebUI.")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8787)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if not SERIAL_SEND.exists():
+        print(f"serial_send.py not found: {SERIAL_SEND}", file=sys.stderr)
+        return 1
+    server = ReusableThreadingHTTPServer((args.host, args.port), WebUIHandler)
+    print(f"CoreXY Host WebUI: http://{args.host}:{args.port}", flush=True)
+    print("Press Ctrl-C to stop.", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping.")
+    finally:
+        server.server_close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

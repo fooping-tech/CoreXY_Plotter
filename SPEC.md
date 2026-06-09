@@ -759,6 +759,16 @@ Browser
 
 初期実装ではHost bridge serverがSerial port列挙、状態取得、ログ配信、ジョブ送信プロセス管理、G-code preview用解析を担当する。
 
+実装配置:
+
+| Path | 役割 |
+|---|---|
+| `tools/webui/server.py` | Python標準ライブラリベースのHost bridge server |
+| `tools/webui/static/index.html` | WebUI shell |
+| `tools/webui/static/styles.css` | Product Design方針に沿ったdark machine UI |
+| `tools/webui/static/app.js` | Client state、SSE log、manual command、G-code preview |
+| `tools/webui/README.md` | 起動手順とMVP範囲 |
+
 ### 20.1 画面構成
 
 | 画面 | 役割 |
@@ -793,7 +803,7 @@ WebUIから使う既定option:
 --job-lifecycle
 ```
 
-Host bridgeは`serial_send.py`のstdout/stderrをWebSocket等でBrowserへstreamし、`ACK`、`NACK`、`REJECT:`、`ERROR:`、`ALARM=YES`を色分け表示する。
+Host bridgeは`serial_send.py`のstdout/stderrをServer-Sent Events等でBrowserへstreamし、`ACK`、`NACK`、`REJECT:`、`ERROR:`、`ALARM=YES`を色分け表示する。
 送信ロジック、queue full retry、HOME/JOB_BEGIN/JOB_END timeout、failure時の`JOB_ABORT`送信は`serial_send.py`の責務として維持する。
 
 ### 20.4 G-code preview
