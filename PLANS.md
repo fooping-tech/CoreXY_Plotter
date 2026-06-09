@@ -630,7 +630,23 @@ Core2内蔵LCDに機械状態を表示し、Serial接続なしでもbring-upと�
 - [x] 低頻度の定期更新で表示を再同期する
 - [x] LCD描画でmotion、safety、stepper処理をブロックしない
 - [x] 変更箇所のみ更新する、またはちらつきを抑える描画方式にする
-- [x] Touch/Button操作画面は将来拡張として分離する
+- [x] `M5Canvas`へ描画してから`pushSprite()`することで、全画面再描画時のちらつきを抑える
+- [x] canvas確保失敗時は直接LCD描画へフォールバックする
+
+### 6.6.5 Touch/Button操作UI
+
+- [x] 下部タブで`Status` / `Control` / `Detail`ページを切り替える
+- [x] 左右フリックでページ送りする
+- [x] Core2物理A/Cボタンで前後ページへ移動する
+- [x] `Status`ページに大きな安全状態、X/Y、pen、TMC、home状態を表示する
+- [x] `Control`ページに`HOME`、`ALARM_CLEAR`、上下左右jog、`PENUP`、`PENDOWN`を配置する
+- [x] `Detail`ページにhoming、feed、A/B step、limit debounced/raw状態を表示する
+- [x] UI操作は既存`CommandMessage`を`command_queue`へ投入し、MotionTaskの安全経路を通す
+- [x] `HOME`はhoming中でなければUIから実行できる
+- [x] `ALARM_CLEAR`はalarm中だけUIから実行できる
+- [x] jogとpen上下はhome完了済み、alarmなし、homing中でない時だけ有効にする
+- [x] jogは現在座標から±1mmの絶対`XY`へ変換し、soft limit内へclampする
+- [x] queue満杯、soft limit、home未完了などの拒否理由を短いnoticeとして表示する
 
 ## Phase 6.6 完了条件
 
@@ -1362,7 +1378,7 @@ G-code由来の`XY`と手入力`XY`は区別する。
 
 # Phase 11: 高級機能
 
-Status: 将来。まだ実装しない。
+Status: 一部着手。Host WebUIはPC/Raspberry Pi側で動かし、M5Stack Core2本体にはWeb serverを載せない。
 
 ## チェックリスト
 
@@ -1387,10 +1403,68 @@ Status: 将来。まだ実装しない。
 ### 入出力
 
 - [ ] SD実行
-- [ ] WebUI
+- [-] WebUI
 - [ ] USB G-code streaming
 - [ ] file pause/resume
 - [ ] Phase 10.5 Job LifecycleをSD/Web/USB streamingへ接続する
+
+## Phase 11.1: Host WebUI
+
+Status: 設計開始。初期実装はPCからUSB SerialでM5Stack Core2へ送るHost WebUIとする。
+
+### 目的
+
+PC画面で状態、ログ、G-code preview、ジョブ送信を扱えるようにする。送信処理は既存`tools/serial_tool/serial_send.py`を再利用し、WebUI側でSerial送信・ACK待ち・queue retry・Job Lifecycleを再実装しない。
+
+### 11.1.1 Product / UX 方針
+
+- [ ] 黒基調で、状態と危険操作が明確に分かるUIにする
+- [ ] 画面上部に接続状態とmachine stateを常時表示する
+- [ ] `READY` / `ALARM` / `NEED HOME` / `HOMING`を大きく表示する
+- [ ] `ALARM`時は赤を主アクセントにし、通常操作より復旧操作を優先表示する
+- [ ] HOME未完了、状態不明、Serial切断時はjog、pen、job startをdisabledにする
+- [ ] Job実行中はmanual jogをdisabledにし、`JOB_ABORT`は常にアクセス可能にする
+
+### 11.1.2 画面
+
+- [ ] Dashboard: 接続port、state、X/Y、pen、homed、limit、TMC、直近log
+- [ ] Manual Control: `HOME`、`ALARM_CLEAR`、`PENUP`、`PENDOWN`、上下左右jog、jog step
+- [ ] Job: G-code file選択、preview、bounds、warning、send、abort
+- [ ] Console: firmware log、送信command、ACK/NACK/ERROR、手動command入力
+- [ ] Settings: serial port、baudrate、startup delay、queue mode、stream motion mode
+
+### 11.1.3 Host bridge
+
+- [ ] Host bridge serverを追加する
+- [ ] serial port一覧を取得する
+- [ ] Browserへ状態とログを配信する
+- [ ] `serial_send.py`をsubprocessで呼び出す
+- [ ] WebUIからのG-code送信では既定で`--gcode`、`--queue-mode`、`--stream-gcode-motion`、`--job-lifecycle`を使う
+- [ ] `serial_send.py`のstdout/stderrをBrowserへstreamする
+- [ ] `NACK`、`REJECT:`、`ERROR:`、`ALARM=YES`をfailure表示に分類する
+- [ ] Job失敗時の`JOB_ABORT`送信は`serial_send.py --job-lifecycle`へ委譲する
+
+### 11.1.4 G-code preview
+
+- [ ] `G0`/`G1`のXY直線をpreviewする
+- [ ] `G20`/`G21`、`G90`/`G91`を解釈する
+- [ ] `M3`/`M5`またはpen相当commandでpen down pathとtravelを色分けする
+- [ ] `G28`はhome markerとして表示し、pathには含めない
+- [ ] `G4`はdwell markerとして表示し、pathには含めない
+- [ ] soft limit矩形を表示する
+- [ ] file boundsを表示する
+- [ ] soft limit外segmentをwarning表示する
+- [ ] 未対応G-codeをwarning一覧へ出す
+
+### 11.1.5 初期完了条件
+
+- [ ] WebUIをPCで起動できる
+- [ ] Serial portを選択できる
+- [ ] G-code previewが表示される
+- [ ] WebUIから既存`serial_send.py`経由でG-code jobを送れる
+- [ ] Job中のlog、ACK/NACK/ERRORが画面へstreamされる
+- [ ] `JOB_ABORT`をWebUIから実行できる
+- [ ] `PLANS.md`と`SPEC.md`が実装内容に追従している
 
 ### 補正
 
@@ -2069,6 +2143,8 @@ Phase 6.9を実装してください。
 | 2026-06-09 | 前回`JOB_BEGIN`拒否後の次回`JOB_BEGIN`が`job_not_idle`で拒否される実機ログを受け、開始前拒否は`IDLE`へ戻し、`FAILED`/`ABORTED`もalarm解除済みなら次回`JOB_BEGIN`前に`IDLE`復帰できるよう修正。`pio run`とuploadは成功。`JOB_BEGIN_AUTO_HOME=true`状態で未homed `JOB_BEGIN`がAUTO_HOMEへ入ることを確認し、安全のため`ABORT`した | Codex |
 | 2026-06-09 | ホスト側失敗後にjob状態が`RUNNING`へ残った実機ログを受け、Serial Toolは`--job-lifecycle`の`JOB_BEGIN`/G-code本文失敗時にも`JOB_ABORT`を送るよう修正。ファーム側は`JOB_ABORT`受信時点でmotion abort flagを立て、homing中にも停止要求が届くよう修正。`pio run`、upload、`CONFIG`/`SELFTEST`/`TMC_STATUS`確認は成功 | Codex |
 | 2026-06-09 | `JOB_BEGIN_AUTO_HOME=true`でHOME中にSerial Toolが既定timeout 2秒で`JOB_BEGIN OK`未検出と判断し`JOB_ABORT`する実機ログを受け、Serial Toolの`JOB_BEGIN`完了待ちを60秒、`JOB_END`完了待ちを30秒へ延長。`py_compile`確認は成功 | Codex |
+| 2026-06-09 | Core2 LCD UIを3ページ構成へ拡張。下部タブ、左右フリック、物理A/Cボタンでページ切替し、Status/Control/Detail表示、UIからの`HOME`、`ALARM_CLEAR`、home完了後のjogとpen上下を追加。ちらつき対策として`M5Canvas` + `pushSprite()`描画へ変更し、`pio run`とuploadは成功 | Codex |
+| 2026-06-09 | Host WebUIの設計を開始。PC/Raspberry Pi側WebUIからUSB Serialで制御し、ジョブ送信は既存`tools/serial_tool/serial_send.py`をsubprocess再利用、G-code previewをMVPに含める方針をSPEC/PLANSへ追加。作業ブランチ`codex/webui-serial-preview`を作成 | Codex |
 
 ---
 
@@ -2110,7 +2186,7 @@ M1: 実機homing、timed segment、最小G-codeの土台を作る
 
 未実装のままでよいもの:
 
-- [ ] WebUI
+- [-] WebUI
 - [ ] SD execution
 - [ ] input shaping
 
