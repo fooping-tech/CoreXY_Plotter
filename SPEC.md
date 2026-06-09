@@ -158,6 +158,37 @@ Core 0はユーザーインタフェース側を担当する。
 - `commandTask`
 - `logTask`
 
+### Core2 LCD / Touch UI
+
+Core2内蔵LCDは、Serial未接続でも機械状態と安全状態を確認し、bring-up操作を行えるローカルUIとして使う。
+
+UIは黒基調のタッチ向け画面とし、下部タブ、左右フリック、Core2物理A/Cボタンでページを切り替える。
+
+ページ構成:
+
+| ページ | 内容 |
+|---|---|
+| Status | `READY` / `ALARM` / `NEED HOME` / `HOMING`、X/Y座標、pen、TMC、home状態 |
+| Control | `HOME`、`ALARM_CLEAR`、上下左右1mm jog、`PENUP`、`PENDOWN` |
+| Detail | homing詳細、feed、A/B step、limit debounced/raw状態 |
+
+操作ルール:
+
+- UI入力は既存の`CommandMessage`を`command_queue`へ投入し、MotionTaskの既存安全経路を通す
+- `HOME`はhoming中でなければUIから実行できる
+- `ALARM_CLEAR`はalarm中だけUIから実行できる
+- 上下左右jog、`PENUP`、`PENDOWN`は`homed == true`、`alarmed == false`、`homing_active == false`の時だけ有効
+- jogは現在座標からの相対操作をUI側で絶対`XY`コマンドに変換し、soft limit内へclampする
+- UI操作がqueue満杯、soft limit、home未完了などで実行できない場合は短いnoticeを表示する
+
+描画ルール:
+
+- LCD描画はCore 0の`uiTask`に閉じ込め、Core 1からLCD APIを直接呼ばない
+- 状態表示はCore 1から`StatusQueue`で受け取った`StatusMessage`を使う
+- LCD更新でmotion、safety、stepper処理をブロックしない
+- ちらつき抑制のため、可能な場合は全画面`M5Canvas`へ描画してから`pushSprite()`でLCDへ転送する
+- canvas確保に失敗した場合は直接LCD描画へフォールバックする
+
 ### Core 1
 
 Core 1はモーション制御側を担当する。
@@ -704,7 +735,93 @@ homing完了直後の退避移動では、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範�
 
 ---
 
-## 20. FastAccelStepper仕様
+## 20. Host WebUI仕様
+
+Host WebUIはPCまたはRaspberry Pi上で動作し、USB Serial経由でM5Stack Core2ファームウェアを制御する。
+ESP32上でHTTP serverやWebSocket serverを動かす方式は初期WebUIの対象外とする。
+
+目的:
+
+- Serial未接続のCore2 LCDだけでは見づらい状態、ログ、ジョブ操作をPC画面で確認する
+- G-code送信を既存`tools/serial_tool/serial_send.py`へ委譲し、送信・ACK待ち・Job Lifecycleの既存挙動を再利用する
+- G-code previewを送信前に表示し、soft limit超過や想定外のペン動作を事前確認しやすくする
+
+構成:
+
+```text
+Browser
+  -> Host WebUI client
+  -> Host bridge server
+  -> tools/serial_tool/serial_send.py
+  -> USB Serial
+  -> M5Stack Core2 firmware
+```
+
+初期実装ではHost bridge serverがSerial port列挙、状態取得、ログ配信、ジョブ送信プロセス管理、G-code preview用解析を担当する。
+
+### 20.1 画面構成
+
+| 画面 | 役割 |
+|---|---|
+| Dashboard | 接続状態、`READY` / `ALARM` / `NEED HOME` / `HOMING`、X/Y、pen、homed、limit、TMCを表示する |
+| Manual Control | `HOME`、`ALARM_CLEAR`、`PENUP`、`PENDOWN`、上下左右jogを提供する |
+| Job | G-codeファイル選択、G-code preview、`JOB_BEGIN`/送信/`JOB_END`、`JOB_ABORT`を提供する |
+| Console | firmware log、送信行、ACK/NACK/ERROR、手動command入力を表示する |
+| Settings | Serial port、baudrate、jog step、送信mode、startup delayなどを設定する |
+
+### 20.2 操作ルール
+
+- WebUIはM5Stack firmwareの安全判定を迂回しない
+- Manual jogとpen上下は、Host側表示状態でも`homed == true`、`alarmed == false`、`homing_active == false`の時だけ有効表示にする
+- `JOB_ABORT`はジョブ実行中に常に押せる位置へ置く
+- Job実行中はmanual jogをdisabledにする
+- Host側状態が不明、Serial切断、または状態取得失敗時はmotionを伴う操作をdisabledにする
+- 危険操作の最終判定はfirmware側の既存`CommandMessage`/`MotionTask`/`SafetyManager`に委ねる
+
+### 20.3 既存Serial Tool再利用
+
+Job送信は初期実装で`tools/serial_tool/serial_send.py`をsubprocessとして呼び出す。
+
+WebUIから使う既定option:
+
+```text
+--gcode <file>
+--port <serial_port>
+--baud 115200
+--queue-mode
+--stream-gcode-motion
+--job-lifecycle
+```
+
+Host bridgeは`serial_send.py`のstdout/stderrをWebSocket等でBrowserへstreamし、`ACK`、`NACK`、`REJECT:`、`ERROR:`、`ALARM=YES`を色分け表示する。
+送信ロジック、queue full retry、HOME/JOB_BEGIN/JOB_END timeout、failure時の`JOB_ABORT`送信は`serial_send.py`の責務として維持する。
+
+### 20.4 G-code preview
+
+G-code previewはMVPに含める。
+
+初期preview対象:
+
+- `G0` / `G1` のXY直線
+- `G20` / `G21` の単位切替
+- `G90` / `G91` のabsolute/relative切替
+- `M3` / `M5` または`PENDOWN` / `PENUP`相当のpen状態
+- `G28`はhome markerとして扱い、描画pathには含めない
+- `G4`はdwell markerとして扱い、描画pathには含めない
+
+preview表示:
+
+- soft limit矩形を表示する
+- pen down pathとpen up travelを色分けする
+- file boundsを表示する
+- soft limit外のsegmentを警告表示する
+- parserが未対応のG-codeを検出した場合は警告一覧へ出す
+
+previewは送信前確認用であり、firmware側plannerやsafety判定の代替にはしない。
+
+---
+
+## 21. FastAccelStepper仕様
 
 FastAccelStepperは`StepperBackendFastAccel`のみが直接使用する。
 
