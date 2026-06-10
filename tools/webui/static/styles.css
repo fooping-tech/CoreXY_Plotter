@@ -621,7 +621,7 @@ h2 {
 
 .layout-item {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: minmax(0, 1fr) 30px 30px 30px;
   gap: 6px;
   align-items: center;
   min-height: 38px;
@@ -638,13 +638,15 @@ h2 {
 }
 
 .layout-item strong {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .layout-item button {
-  width: 32px;
+  width: 30px;
+  min-width: 30px;
   min-height: 30px;
   padding: 0;
 }

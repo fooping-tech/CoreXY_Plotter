@@ -90,8 +90,8 @@ Manual jog commands from the WebUI use `900 mm/min` by default.
 
 The Job page can load multiple G-code files, place them in the preview, scale
 them, and choose the draw order. `SEND JOB` sends the combined G-code to the
-plotter. `SEND GCODE` saves the same combined G-code to a timestamped
-`.gcode` file. On browsers that support the File System Access API, `SEND GCODE`
+plotter. `SAVE G-CODE` saves the same combined G-code to a timestamped
+`.gcode` file. On browsers that support the File System Access API, `SAVE G-CODE`
 opens the OS save dialog. Other browsers fall back to a normal file download.
 
 Each loaded G-code item has order controls and a remove button. Use the up/down
