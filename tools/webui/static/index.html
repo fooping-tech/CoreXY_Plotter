@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CoreXY Plotter Host WebUI</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">CoreXY Plotter</div>
+        <div id="statePill" class="state-pill unknown">UNKNOWN</div>
+        <div class="top-readout"><span>X</span><strong id="topX">--</strong></div>
+        <div class="top-readout"><span>Y</span><strong id="topY">--</strong></div>
+        <div class="top-readout"><span>Pen</span><strong id="topPen">--</strong></div>
+        <div class="connection" id="connectionText">Disconnected</div>
+        <button id="topAbortBtn" class="danger hidden" type="button">JOB_ABORT</button>
+        <button class="icon-button" data-page="settings" type="button" aria-label="Settings">⚙</button>
+      </header>
+
+      <aside class="sidebar">
+        <button class="nav active" data-page="dashboard" type="button">Dashboard</button>
+        <button class="nav" data-page="control" type="button">Control</button>
+        <button class="nav" data-page="job" type="button">Job</button>
+        <button class="nav" data-page="console" type="button">Console <span id="errorCount">0</span></button>
+        <button class="nav" data-page="settings" type="button">Settings</button>
+      </aside>
+
+      <main class="content">
+        <section id="dashboard" class="page active">
+          <div class="dashboard-grid">
+            <article class="panel hero-state">
+              <div class="label">Machine State</div>
+              <div id="dashboardState" class="hero-value">UNKNOWN</div>
+              <div id="dashboardStateNote" class="muted">No trusted machine state</div>
+            </article>
+            <article class="panel position-panel">
+              <div class="label">Position</div>
+              <div class="position-row"><span>X</span><strong id="dashX">--</strong><small>mm</small></div>
+              <div class="position-row"><span>Y</span><strong id="dashY">--</strong><small>mm</small></div>
+            </article>
+          </div>
+          <div class="status-grid">
+            <article class="panel status-tile"><div class="label">Pen</div><strong id="tilePen">UNKNOWN</strong></article>
+            <article class="panel status-tile"><div class="label">Home</div><strong id="tileHome">UNKNOWN</strong></article>
+            <article class="panel status-tile"><div class="label">Limits</div><strong id="tileLimits">UNKNOWN</strong></article>
+            <article class="panel status-tile"><div class="label">TMC</div><strong id="tileTmc">UNKNOWN</strong></article>
+          </div>
+          <article class="panel log-panel">
+            <div class="panel-header">
+              <div>
+                <div class="label">Recent Log</div>
+                <h2>Firmware Stream</h2>
+              </div>
+              <button class="secondary" data-page="console" type="button">Open Console</button>
+            </div>
+            <div id="recentLog" class="log-list compact"></div>
+          </article>
+        </section>
+
+        <section id="control" class="page">
+          <div class="action-grid">
+            <button id="homeBtn" class="primary large" type="button">HOME</button>
+            <button id="clearAlarmBtn" class="danger large" type="button">CLEAR ALARM</button>
+          </div>
+          <div class="control-grid">
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <div class="label">Jog</div>
+                  <h2>Manual Move</h2>
+                </div>
+                <div class="segmented" id="stepControl">
+                  <button data-step="0.1" type="button">0.1</button>
+                  <button class="active" data-step="1" type="button">1</button>
+                  <button data-step="5" type="button">5</button>
+                </div>
+              </div>
+              <div class="jog-pad">
+                <button id="jogUp" class="jog" type="button">↑</button>
+                <button id="jogLeft" class="jog" type="button">←</button>
+                <div id="jogStepLabel" class="jog-center">1mm</div>
+                <button id="jogRight" class="jog" type="button">→</button>
+                <button id="jogDown" class="jog" type="button">↓</button>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="label">Pen</div>
+              <h2>Servo</h2>
+              <div class="stack">
+                <button id="penUpBtn" class="success" type="button">PEN UP</button>
+                <button id="penDownBtn" class="warning" type="button">PEN DOWN</button>
+              </div>
+            </article>
+          </div>
+          <article class="panel safety-note">
+            <div class="label">Safety Gate</div>
+            <div id="disabledReason">Connect serial port first</div>
+          </article>
+        </section>
+
+        <section id="job" class="page">
+          <div class="job-grid">
+            <article class="panel preview-panel">
+              <div class="panel-header">
+                <div>
+                  <div class="label">Preview</div>
+                  <h2>G-code Path</h2>
+                </div>
+                <button id="fitPreviewBtn" class="secondary" type="button">Fit</button>
+              </div>
+              <div id="preview" class="preview"></div>
+            </article>
+            <article class="panel job-panel">
+              <div class="label">Job</div>
+              <h2>Send G-code</h2>
+              <label class="file-drop">
+                <input id="gcodeFile" type="file" accept=".gcode,.nc,.txt" />
+                <span>Select G-code file</span>
+              </label>
+              <dl class="meta">
+                <dt>File</dt><dd id="fileName">none</dd>
+                <dt>Lines</dt><dd id="lineCount">0</dd>
+                <dt>Segments</dt><dd id="segmentCount">0</dd>
+                <dt>Bounds</dt><dd id="boundsText">--</dd>
+                <dt>Warnings</dt><dd id="warningCount">0</dd>
+              </dl>
+              <div class="stack">
+                <button id="sendJobBtn" class="primary" type="button">SEND JOB</button>
+                <button id="abortJobBtn" class="danger" type="button">JOB_ABORT</button>
+              </div>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="label">Warnings</div>
+            <div id="warnings" class="warnings">Select a G-code file to preview.</div>
+          </article>
+        </section>
+
+        <section id="console" class="page">
+          <article class="panel console-panel">
+            <div class="panel-header">
+              <div>
+                <div class="label">Console</div>
+                <h2>Serial Log</h2>
+              </div>
+              <div class="segmented" id="logFilter">
+                <button class="active" data-filter="all" type="button">All</button>
+                <button data-filter="error" type="button">Errors</button>
+                <button data-filter="sent" type="button">Sent</button>
+                <button data-filter="firmware" type="button">Firmware</button>
+              </div>
+            </div>
+            <div id="consoleLog" class="log-list"></div>
+          </article>
+          <form id="manualCommandForm" class="manual-command panel">
+            <input id="manualCommand" placeholder="Manual command, e.g. POS" autocomplete="off" />
+            <button class="primary" type="submit">Send</button>
+          </form>
+        </section>
+
+        <section id="settings" class="page">
+          <article class="panel settings-panel">
+            <div class="label">Serial</div>
+            <h2>Connection</h2>
+            <div class="form-grid">
+              <label>Port <select id="portSelect"></select></label>
+              <label>Manual port <input id="manualPort" placeholder="/dev/cu.usbserial-0001" /></label>
+              <label>Baud <input id="baudInput" type="number" value="115200" /></label>
+              <div class="button-row">
+                <button id="refreshPortsBtn" class="secondary" type="button">Refresh Ports</button>
+                <button id="connectBtn" class="primary" type="button">Connect</button>
+                <button id="disconnectBtn" class="secondary" type="button">Disconnect</button>
+              </div>
+            </div>
+          </article>
+          <article class="panel settings-panel">
+            <div class="label">Job Send</div>
+            <h2>serial_send.py Defaults</h2>
+            <div class="check-list">
+              <label><input type="checkbox" checked disabled /> queue mode</label>
+              <label><input type="checkbox" checked disabled /> stream G-code motion</label>
+              <label><input type="checkbox" checked disabled /> job lifecycle</label>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
