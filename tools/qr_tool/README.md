@@ -1,7 +1,7 @@
 # QR Tool
 
-QR文字列やURLから、既存のSerial Toolで送れるプロッタ用CSVと、同じハッチング線を表示する確認用SVGを生成します。
-ファームウェアにはQRエンコード処理を入れず、生成後のCSVは`PENUP`、`PENDOWN`、`XY`だけを使います。
+QR文字列やURLから、既存のSerial Toolで送れるプロッタ用CSV/G-codeと、同じハッチング線を表示する確認用SVGを生成します。
+ファームウェアにはQRエンコード処理を入れず、生成後のCSVは`PENUP`、`PENDOWN`、`XY`、G-codeは`G0`、`G1`、`M3`、`M5`、`G4`だけを使います。
 
 ## Setup
 
@@ -19,6 +19,7 @@ python -m pip install -r tools/qr_tool/requirements.txt
 python tools/qr_tool/qr_to_plot_csv.py \
   --text "HELLO COREXY" \
   --output tools/serial_tool/examples/qr_hello.csv \
+  --gcode-output tools/qr_tool/examples/gcode/qr_hello.gcode \
   --preview-svg tools/qr_tool/qr_hello.svg \
   --origin-x 10 \
   --origin-y 10 \
@@ -31,6 +32,7 @@ python tools/qr_tool/qr_to_plot_csv.py \
 
 `qrcode`のquiet zoneは4 modulesです。黒セルは上下左右につながる接続成分へ結合し、各成分をペンアップなしの横方向ジグザグで塗ります。CSVの最初と最後には`PENUP`が入ります。
 生成CSVの先頭には`CONFIG`、`SELFTEST`、`TMC_INIT`、`TMC_STATUS`、`PENUP`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`HOME`、`POS`のbring-up確認preambleが入ります。
+G-code出力にはbring-up preambleを入れません。正式ジョブとして送る場合はSerial Toolの`--job-lifecycle`を使って、ファームウェア側に`JOB_BEGIN`/`JOB_END`を送ってください。
 
 ## Send
 
@@ -39,6 +41,14 @@ python tools/qr_tool/qr_to_plot_csv.py \
 ```bash
 python tools/serial_tool/serial_send.py \
   --csv tools/serial_tool/examples/qr_hello.csv \
+  --dry-run
+```
+
+G-code出力を確認する場合:
+
+```bash
+python tools/serial_tool/serial_send.py \
+  --gcode tools/qr_tool/examples/gcode/qr_hello.gcode \
   --dry-run
 ```
 
@@ -80,6 +90,20 @@ python tools/serial_tool/serial_send.py \
   --echo
 ```
 
+G-codeジョブとして送る例:
+
+```bash
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --gcode tools/qr_tool/examples/gcode/qr_hello.gcode \
+  --startup-delay 4 \
+  --timeout 30 \
+  --queue-mode \
+  --stream-gcode-motion \
+  --job-lifecycle \
+  --echo
+```
+
 生成CSVの`XY`行には`expect=ACK_XY target=`が入ります。未homed、soft limit超過、alarm中などで`NACK_XY`になった場合は、Serial Toolがその行で停止します。
 
 ## Parameters
@@ -88,12 +112,14 @@ python tools/serial_tool/serial_send.py \
 |---|---|
 | `--text` | QRに入れる文字列またはURL |
 | `--output` | Serial Toolへ渡すCSV出力先 |
+| `--gcode-output` | Serial Toolの`--gcode`へ渡すG-code出力先 |
 | `--preview-svg` | 実際に出力されるハッチング線のSVG確認出力先 |
 | `--origin-x`, `--origin-y` | QR左上の原点位置mm |
 | `--module-mm` | 1 QR moduleの一辺mm。大きいほど読みやすいが描画範囲と時間が増える |
 | `--hatch-pitch-mm` | ハッチング線の間隔mm。小さいほど黒セルが濃くなるが行数が増える |
 | `--draw-feed` | ペンダウン描画時の`XY` feed mm/min |
 | `--travel-feed` | ペンアップ移動時の`XY` feed mm/min |
+| `--dwell-ms` | G-code出力で`M3`/`M5`後に入れる`G4`待ち時間ms |
 | `--error-correction` | QR誤り訂正レベル。`L`, `M`, `Q`, `H`から選択 |
 | `--version` | QR version 1-40固定。省略時は入力文字列に合わせて自動 |
 

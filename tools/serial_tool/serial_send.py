@@ -31,8 +31,14 @@ ERROR_PATTERN = "ERROR:"
 FIRMWARE_FAILURE_PATTERNS = (
     "NACK",
     "REJECT:",
+    "rejected reason=",
     "ALARM=YES",
     "machine is alarmed",
+)
+TRANSIENT_JOB_BEGIN_REJECT_REASONS = (
+    "planner_queue_not_empty",
+    "segment_queue_not_empty",
+    "backend_running",
 )
 SYNC_COMPLETION_BY_COMMAND = {
     "HOME": "HOME complete",
@@ -379,6 +385,21 @@ def command_name(command: str) -> str:
     return command.split(maxsplit=1)[0].upper() if command.strip() else ""
 
 
+def retryable_job_begin_reject(row: CommandRow, response: str) -> bool:
+    if command_name(row.command) != "JOB_BEGIN":
+        return False
+    if "JOB_BEGIN rejected reason=" not in response:
+        return False
+    return any(reason in response for reason in TRANSIENT_JOB_BEGIN_REJECT_REASONS)
+
+
+def benign_firmware_failure(row: CommandRow, response: str) -> bool:
+    return (
+        command_name(row.command) == "JOB_ABORT"
+        and "JOB_ABORT rejected reason=no_active_job" in response
+    )
+
+
 def default_gcode_expect(command: str) -> str:
     name = command_name(command)
     if name in ("G0", "G1"):
@@ -558,9 +579,38 @@ def send_abort_on_interrupt(serial_port) -> None:
         print(response, end="" if response.endswith("\n") else "\n", flush=True)
 
 
+def send_diagnostic_command_before_job_abort(
+    serial_port,
+    command: str,
+    args: argparse.Namespace,
+) -> None:
+    print(f"G-code job failed: diagnostic before JOB_ABORT: {command}", file=sys.stderr, flush=True)
+    try:
+        serial_port.write((command + "\n").encode("utf-8"))
+        serial_port.flush()
+        response = read_response_text(
+            serial_port,
+            min_duration_s=0.2,
+            max_duration_s=max(args.timeout, 1.0),
+            stop_on=stop_patterns_with_failures(command.split(maxsplit=1)[0]),
+        )
+    except Exception as exc:
+        print(f"WARNING: failed to send diagnostic {command}: {exc}", file=sys.stderr, flush=True)
+        return
+    print_response(response)
+
+
+def send_job_failure_diagnostics(serial_port, args: argparse.Namespace) -> None:
+    if not serial_port.is_open:
+        return
+    for command in ("POS", "LIMIT_STATUS", "JOB_STATUS"):
+        send_diagnostic_command_before_job_abort(serial_port, command, args)
+
+
 def send_job_abort_on_failure(serial_port, args: argparse.Namespace) -> None:
     if not getattr(args, "job_lifecycle", False) or not serial_port.is_open:
         return
+    send_job_failure_diagnostics(serial_port, args)
     print("G-code job failed: sending JOB_ABORT.", file=sys.stderr, flush=True)
     try:
         serial_port.write(b"JOB_ABORT\n")
@@ -633,8 +683,15 @@ def queue_completion_timeout_s(row: CommandRow, args: argparse.Namespace) -> flo
     )
 
 
-def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: CommandRow) -> int:
-    retry_deadline = time.monotonic() + args.queue_retry_timeout
+def send_row_queue_mode(
+    serial_port,
+    args: argparse.Namespace,
+    index: int,
+    row: CommandRow,
+    retry_deadline: float | None = None,
+) -> int:
+    if retry_deadline is None:
+        retry_deadline = time.monotonic() + args.queue_retry_timeout
     stop_on = QUEUE_ACK_PATTERNS + (QUEUE_FULL_PATTERN,) + stop_patterns_with_failures("")
     attempt = 0
     response = ""
@@ -671,6 +728,17 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
 
         failure = firmware_failure_line(response)
         if failure:
+            if benign_firmware_failure(row, response):
+                break
+            if retryable_job_begin_reject(row, response) and time.monotonic() < retry_deadline:
+                print(
+                    f"WARNING: line {row.line_number}: transient JOB_BEGIN rejection; "
+                    f"retrying in {args.queue_retry_delay_ms}ms: {failure}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                time.sleep(args.queue_retry_delay_ms / 1000.0)
+                continue
             print(
                 f"ERROR: line {row.line_number}: firmware failure: {failure}",
                 file=sys.stderr,
@@ -712,6 +780,17 @@ def send_row_queue_mode(serial_port, args: argparse.Namespace, index: int, row: 
 
     failure = firmware_failure_line(response)
     if failure:
+        if benign_firmware_failure(row, response):
+            return 0
+        if retryable_job_begin_reject(row, response) and time.monotonic() < retry_deadline:
+            print(
+                f"WARNING: line {row.line_number}: transient JOB_BEGIN rejection after ACK; "
+                f"retrying in {args.queue_retry_delay_ms}ms: {failure}",
+                file=sys.stderr,
+                flush=True,
+            )
+            time.sleep(args.queue_retry_delay_ms / 1000.0)
+            return send_row_queue_mode(serial_port, args, index, row, retry_deadline)
         print(
             f"ERROR: line {row.line_number}: firmware failure: {failure}",
             file=sys.stderr,
@@ -746,6 +825,8 @@ def send_row_standard_mode(serial_port, args: argparse.Namespace, index: int, ro
     print_response(response)
     failure = firmware_failure_line(response)
     if failure:
+        if benign_firmware_failure(row, response):
+            return 0
         print(
             f"ERROR: line {row.line_number}: firmware failure: {failure}",
             file=sys.stderr,

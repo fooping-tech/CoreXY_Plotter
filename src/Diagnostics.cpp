@@ -57,13 +57,14 @@ void Diagnostics::printConfig() {
 
 void Diagnostics::printPosition(const StatusMessage& status) {
   const MachineState& state = status.machine;
-  logMessage("POS X=%.3f Y=%.3f A=%ld B=%ld F=%.3f EN=HARDWIRED_ACTIVE HOMED=%s X_HOMED=%s Y_HOMED=%s HOMING=%s PEN=%s ALARM=%s TMC=%s LIMIT_X=%s LIMIT_Y=%s LIMIT_X_RAW=%s LIMIT_Y_RAW=%s",
+  logMessage("POS X=%.3f Y=%.3f A=%ld B=%ld F=%.3f EN=HARDWIRED_ACTIVE HOMED=%s X_HOMED=%s Y_HOMED=%s HOMING=%s PEN=%s ALARM=%s ALARM_REASON=\"%s\" TMC=%s LIMIT_X=%s LIMIT_Y=%s LIMIT_X_RAW=%s LIMIT_Y_RAW=%s",
              state.x_mm, state.y_mm, state.a_steps, state.b_steps,
              state.feed_mm_min, state.homed ? "YES" : "NO",
              state.x_homed ? "YES" : "NO", state.y_homed ? "YES" : "NO",
              state.homing_state,
              state.pen_down ? "DOWN" : "UP",
-             state.alarmed ? "YES" : "NO", state.tmc_ready ? "READY" : "NO",
+             state.alarmed ? "YES" : "NO", safety_manager.alarmReason(),
+             state.tmc_ready ? "READY" : "NO",
              status.x_limit_active ? "ACTIVE" : "OPEN",
              status.y_limit_active ? "ACTIVE" : "OPEN",
              status.x_limit_raw_active ? "ACTIVE" : "OPEN",

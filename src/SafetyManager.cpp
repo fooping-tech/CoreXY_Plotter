@@ -1,6 +1,7 @@
 #include "SafetyManager.h"
 #include <Arduino.h>
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 #include "AppContext.h"
 #include "Core2PinMap.h"
@@ -180,7 +181,13 @@ void SafetyManager::poll() {
         y_unexpected_since_ms_ != 0 &&
         now_ms - y_unexpected_since_ms_ >= HARD_LIMIT_UNEXPECTED_ALARM_MS;
     if (x_unexpected_persistent || y_unexpected_persistent) {
-      setAlarm("hard limit active away from home");
+      char reason[96];
+      snprintf(reason, sizeof(reason),
+               "hard limit active away from home x=%s y=%s x_raw=%s y_raw=%s",
+               x_debounced_ ? "ON" : "OFF", y_debounced_ ? "ON" : "OFF",
+               xLimitRawActive() ? "ON" : "OFF",
+               yLimitRawActive() ? "ON" : "OFF");
+      setAlarm(reason);
     }
   } else {
     x_unexpected_since_ms_ = 0;

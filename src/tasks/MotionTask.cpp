@@ -156,6 +156,15 @@ bool commandQueueEmpty() {
   return command_queue == nullptr || uxQueueMessagesWaiting(command_queue) == 0;
 }
 
+void clearMotionQueues(const char* reason) {
+  planner_queue.clear();
+  segment_queue.clear();
+  has_pending_command = false;
+  if (reason != nullptr) {
+    logMessage("MOTION_QUEUES cleared reason=%s", reason);
+  }
+}
+
 JobPreflight currentJobPreflight() {
   JobPreflight preflight{};
   preflight.pending_empty = !has_pending_command;
@@ -220,6 +229,7 @@ bool rejectDisallowedJobCommand(const CommandMessage& command) {
   }
   if (command.type == CommandType::JOB_ABORT) {
     clearMotionAbort();
+    clearMotionQueues("JOB_ABORT no active job");
     logMessage("JOB_ABORT rejected reason=no_active_job");
   } else {
     logMessage("REJECT: command %s not allowed while job_state=%s source=%s",
@@ -397,7 +407,10 @@ bool handleXYBatch(const CommandMessage& first_command) {
   float planned_feed_mm_min = machine_state.feed_mm_min;
 
   MotionBlock block{};
-  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm, block)) return false;
+  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm, block)) {
+    clearMotionQueues("XY build first failed");
+    return false;
+  }
   if (!planner_queue.enqueue(block)) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
                first_command.x_mm, first_command.y_mm);
@@ -423,6 +436,7 @@ bool handleXYBatch(const CommandMessage& first_command) {
       const GcodeInterpreterResult result =
           translateGcodeCommand(next_command, planned_state, translated);
       if (result == GcodeInterpreterResult::ERROR) {
+        clearMotionQueues("GCODE translate failed");
         return false;
       }
       if (result == GcodeInterpreterResult::MODAL_UPDATE) {
@@ -443,6 +457,7 @@ bool handleXYBatch(const CommandMessage& first_command) {
     }
     MotionBlock next_block{};
     if (!buildXYBlock(next_command, planned_x_mm, planned_y_mm, next_block)) {
+      clearMotionQueues("XY build batch failed");
       return false;
     }
     if (!planner_queue.enqueue(next_block)) {
@@ -460,6 +475,7 @@ bool handleXYBatch(const CommandMessage& first_command) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=planner",
                failed != nullptr ? failed->target_x_mm : first_command.x_mm,
                failed != nullptr ? failed->target_y_mm : first_command.y_mm);
+    clearMotionQueues("XY planning failed");
     return false;
   }
 
@@ -472,11 +488,11 @@ bool handleXYBatch(const CommandMessage& first_command) {
     MotionBlock* planned_block = planner_queue.at(index);
     if (planned_block == nullptr ||
         !executePlannedBlock(*planned_block, index, planned_count)) {
+      clearMotionQueues("XY execution failed");
       return false;
     }
   }
-  planner_queue.clear();
-  segment_queue.clear();
+  clearMotionQueues("XY complete");
   return true;
 }
 
@@ -707,20 +723,26 @@ void motionTask(void*) {
         break;
       case CommandType::HOME:
         if (ensureTmcReadyForMotion("HOME")) {
+          clearMotionQueues("HOME start");
           homing_controller.runHome(stepper_backend, safety_manager,
                                     machine_state);
+          clearMotionQueues("HOME end");
         }
         break;
       case CommandType::HOME_X:
         if (ensureTmcReadyForMotion("HOME_X")) {
+          clearMotionQueues("HOME_X start");
           homing_controller.runHomeX(stepper_backend, safety_manager,
                                      machine_state);
+          clearMotionQueues("HOME_X end");
         }
         break;
       case CommandType::HOME_Y:
         if (ensureTmcReadyForMotion("HOME_Y")) {
+          clearMotionQueues("HOME_Y start");
           homing_controller.runHomeY(stepper_backend, safety_manager,
                                      machine_state);
+          clearMotionQueues("HOME_Y end");
         }
         break;
       case CommandType::HOME_STATUS:
@@ -743,6 +765,7 @@ void motionTask(void*) {
       case CommandType::ABORT:
         clearMotionAbort();
         stepper_backend.stop();
+        clearMotionQueues("ABORT");
         safety_manager.setAlarm("abort requested");
         machine_state.alarmed = true;
         invalidateHomed("abort requested");
@@ -763,6 +786,7 @@ void motionTask(void*) {
         handleJobEnd();
         break;
       case CommandType::JOB_ABORT:
+        clearMotionQueues("JOB_ABORT");
         if (job_controller.abortJob("job abort requested")) {
           clearMotionAbort();
           stepper_backend.stop();

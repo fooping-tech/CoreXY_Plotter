@@ -111,7 +111,7 @@ constexpr uint32_t AB_TIMED_MIN_DURATION_US = 1000;
 // soft limit [mm]。homing後の通常XY移動をこの範囲に制限する。
 // 決め方: 実際にペン先が安全に動ける作業範囲から少し余裕を引いた値。
 constexpr float X_MIN_MM = 0.0f;
-constexpr float X_MAX_MM = 55.0f;
+constexpr float X_MAX_MM = 60.0f;
 constexpr float Y_MIN_MM = 0.0f;
 constexpr float Y_MAX_MM = 55.0f;
 
@@ -203,7 +203,7 @@ constexpr uint32_t HOMING_LIMIT_DEBOUNCE_MS = 30;
 // homing中ではない通常移動で、原点から離れた位置なのにlimitがONになった時に、
 // アラームへ入れるまでの継続時間 [ms]。
 // debounce後も継続するlimit ONは衝突または配線異常として速やかに止める。
-constexpr uint32_t HARD_LIMIT_UNEXPECTED_ALARM_MS = 20;
+constexpr uint32_t HARD_LIMIT_UNEXPECTED_ALARM_MS = 80;
 
 // homing完了直後の通常移動で、原点limitがONのまま離れる方向へ動き出した時に、
 // limitがOFFへ戻るまで許す最大移動距離 [mm]。

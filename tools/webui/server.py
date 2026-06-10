@@ -28,8 +28,10 @@ from urllib.parse import parse_qs, urlparse
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = Path(__file__).resolve().parent / "static"
 SERIAL_SEND = REPO_ROOT / "tools" / "serial_tool" / "serial_send.py"
+QR_TOOL = REPO_ROOT / "tools" / "qr_tool" / "qr_to_plot_csv.py"
 DEFAULT_BAUD = 115200
 MAX_GCODE_BYTES = 2 * 1024 * 1024
+MAX_QR_TEXT_CHARS = 512
 
 
 log_queue: "queue.Queue[dict[str, object]]" = queue.Queue()
@@ -47,6 +49,7 @@ state: dict[str, object] = {
         "pen": "UNKNOWN",
         "homed": False,
         "alarmed": False,
+        "alarmReason": "none",
         "homing": False,
         "limits": {"x": "UNKNOWN", "y": "UNKNOWN"},
         "tmc": "UNKNOWN",
@@ -67,6 +70,7 @@ XY_TARGET_RE = re.compile(
 )
 HOMED_RE = re.compile(r"HOMED=(YES|NO)|home:\s*(YES|NO)", re.IGNORECASE)
 ALARM_RE = re.compile(r"ALARM=(YES|NO)|safety:\s*(ALARM|READY)", re.IGNORECASE)
+ALARM_REASON_RE = re.compile(r'ALARM_REASON="([^"]*)"|ALARM_REASON=([^\s]+)', re.IGNORECASE)
 PEN_RE = re.compile(r"PEN=(UP|DOWN)|pen:\s*(UP|DOWN)|PEN\s+(UP|DOWN)", re.IGNORECASE)
 LIMIT_RE = re.compile(r"LIMIT_X=(OPEN|ACTIVE|ON|OFF).*LIMIT_Y=(OPEN|ACTIVE|ON|OFF)", re.IGNORECASE)
 TMC_RE = re.compile(r"TMC[:=]\s*(READY|NOT READY|OFF)", re.IGNORECASE)
@@ -128,6 +132,12 @@ def update_state_from_log(line: str) -> None:
         if alarm_match:
             value = (alarm_match.group(1) or alarm_match.group(2) or "").upper()
             machine["alarmed"] = value in {"YES", "ALARM"}
+            if value == "NO":
+                machine["alarmReason"] = "none"
+
+        alarm_reason_match = ALARM_REASON_RE.search(line)
+        if alarm_reason_match:
+            machine["alarmReason"] = alarm_reason_match.group(1) or alarm_reason_match.group(2)
 
         pen_match = PEN_RE.search(line)
         if pen_match:
@@ -150,8 +160,10 @@ def update_state_from_log(line: str) -> None:
             machine["homing"] = True
         elif "ALARM_CLEAR complete" in line:
             machine["alarmed"] = False
+            machine["alarmReason"] = "none"
         elif "ABORT complete" in line or "JOB_ABORT complete" in line:
             machine["alarmed"] = True
+            machine["alarmReason"] = "abort requested"
             machine["homed"] = False
             machine["homing"] = False
 
@@ -233,6 +245,10 @@ def job_args(port: str, baud: int, gcode_path: Path) -> list[str]:
         "--queue-mode",
         "--stream-gcode-motion",
         "--job-lifecycle",
+        "--queue-retry-delay-ms",
+        "250",
+        "--queue-retry-timeout",
+        "10",
         "--startup-delay",
         "0",
         "--startup-drain",
@@ -258,6 +274,7 @@ def send_json(handler: SimpleHTTPRequestHandler, payload: object, status: HTTPSt
 
 
 def snapshot_state() -> dict[str, object]:
+    reap_finished_job_process()
     with state_lock:
         return {
             "connected": state["connected"],
@@ -277,6 +294,53 @@ def save_gcode(text: str) -> Path:
     with temp:
         temp.write(text)
     return Path(temp.name)
+
+
+def reap_finished_job_process() -> None:
+    global job_process
+    with job_process_lock:
+        process = job_process
+        if process is None:
+            return
+        exit_code = process.poll()
+        if exit_code is None:
+            return
+        job_process = None
+    with state_lock:
+        state["jobRunning"] = False
+        state["lastExitCode"] = exit_code
+
+
+def stop_host_job_process() -> None:
+    global job_process
+    with job_process_lock:
+        process = job_process
+    if process is None or process.poll() is not None:
+        reap_finished_job_process()
+        return
+
+    emit("host", "Stopping host job sender before JOB_ABORT")
+    process.terminate()
+    try:
+        exit_code = process.wait(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        emit("host", "Host job sender did not stop; killing it")
+        process.kill()
+        exit_code = process.wait(timeout=2.0)
+
+    with job_process_lock:
+        if job_process is process:
+            job_process = None
+    with state_lock:
+        state["jobRunning"] = False
+        state["lastExitCode"] = exit_code
+    emit("host", f"host job sender stopped with code {exit_code}", exitCode=exit_code)
+
+
+def abort_job_thread(port: str, baud: int) -> None:
+    stop_host_job_process()
+    csv_path = write_command_csv("JOB_ABORT")
+    run_serial_send(command_args(port, baud, csv_path), label="JOB_ABORT")
 
 
 class WebUIHandler(SimpleHTTPRequestHandler):
@@ -314,6 +378,8 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 self.handle_job()
             elif parsed.path == "/api/job/abort":
                 self.handle_abort()
+            elif parsed.path == "/api/qr/gcode":
+                self.handle_qr_gcode()
             else:
                 send_json(self, {"error": "not found"}, HTTPStatus.NOT_FOUND)
         except Exception as exc:  # Keep UI failures visible without crashing the server.
@@ -363,6 +429,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             baud = int(state.get("baud", DEFAULT_BAUD))
         if not port:
             raise ValueError("serial port is not configured")
+        reap_finished_job_process()
         with job_process_lock:
             if job_process is not None and job_process.poll() is None:
                 raise ValueError("job is already running")
@@ -374,6 +441,82 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         )
         thread.start()
         send_json(self, {"ok": True})
+
+    def handle_qr_gcode(self) -> None:
+        body = read_json(self)
+        text = str(body.get("text", "")).strip()
+        if not text:
+            raise ValueError("QR text is required")
+        if len(text) > MAX_QR_TEXT_CHARS:
+            raise ValueError(f"QR text must be {MAX_QR_TEXT_CHARS} characters or fewer")
+        if not QR_TOOL.exists():
+            raise ValueError(f"QR tool not found: {QR_TOOL}")
+
+        origin_x = float(body.get("originX", 10))
+        origin_y = float(body.get("originY", 10))
+        module_mm = float(body.get("moduleMm", 1.0))
+        hatch_pitch_mm = float(body.get("hatchPitchMm", 0.35))
+        draw_feed = float(body.get("drawFeed", 600))
+        travel_feed = float(body.get("travelFeed", 1800))
+        dwell_ms = int(body.get("dwellMs", 80))
+        error_correction = str(body.get("errorCorrection", "M")).upper()
+        version = body.get("version", "")
+
+        temp = tempfile.NamedTemporaryFile("w", suffix=".gcode", delete=False, encoding="utf-8")
+        temp_path = Path(temp.name)
+        temp.close()
+
+        cmd = [
+            sys.executable,
+            str(QR_TOOL),
+            "--text",
+            text,
+            "--gcode-output",
+            str(temp_path),
+            "--origin-x",
+            str(origin_x),
+            "--origin-y",
+            str(origin_y),
+            "--module-mm",
+            str(module_mm),
+            "--hatch-pitch-mm",
+            str(hatch_pitch_mm),
+            "--draw-feed",
+            str(draw_feed),
+            "--travel-feed",
+            str(travel_feed),
+            "--dwell-ms",
+            str(dwell_ms),
+            "--error-correction",
+            error_correction,
+        ]
+        if str(version).strip():
+            cmd.extend(["--version", str(int(version))])
+
+        result = subprocess.run(
+            cmd,
+            cwd=REPO_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        output = result.stdout.strip()
+        if result.returncode != 0:
+            raise ValueError(output or f"QR tool exited with code {result.returncode}")
+        gcode = temp_path.read_text(encoding="utf-8")
+        temp_path.unlink(missing_ok=True)
+        if len(gcode.encode("utf-8")) > MAX_GCODE_BYTES:
+            raise ValueError("Generated QR G-code is too large")
+        send_json(
+            self,
+            {
+                "ok": True,
+                "name": "qr_generated.gcode",
+                "gcode": gcode,
+                "message": output,
+            },
+        )
 
     def run_job_thread(self, args: list[str]) -> None:
         global job_process
@@ -409,11 +552,9 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             baud = int(state.get("baud", DEFAULT_BAUD))
         if not port:
             raise ValueError("serial port is not configured")
-        csv_path = write_command_csv("JOB_ABORT")
         threading.Thread(
-            target=run_serial_send,
-            args=(command_args(port, baud, csv_path),),
-            kwargs={"label": "JOB_ABORT"},
+            target=abort_job_thread,
+            args=(port, baud),
             daemon=True,
         ).start()
         send_json(self, {"ok": True})

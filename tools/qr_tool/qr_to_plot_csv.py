@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate plotter CSV commands and an SVG preview from QR text."""
+"""Generate plotter CSV/G-code commands and an SVG preview from QR text."""
 
 from __future__ import annotations
 
@@ -84,14 +84,18 @@ class CsvRow:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate CoreXY plotter CSV and SVG preview for a QR code."
+        description="Generate CoreXY plotter CSV, G-code, and SVG preview for a QR code."
     )
     parser.add_argument("--text", required=True, help="Text or URL to encode.")
     parser.add_argument(
         "--output",
-        required=True,
         type=Path,
         help="Output CSV path for tools/serial_tool/serial_send.py.",
+    )
+    parser.add_argument(
+        "--gcode-output",
+        type=Path,
+        help="Optional output G-code path for tools/serial_tool/serial_send.py --gcode.",
     )
     parser.add_argument(
         "--preview-svg",
@@ -135,6 +139,12 @@ def parse_args() -> argparse.Namespace:
         help=f"Feed for pen-up travel moves in mm/min. Default: {DEFAULT_TRAVEL_FEED_MM_MIN}.",
     )
     parser.add_argument(
+        "--dwell-ms",
+        type=int,
+        default=80,
+        help="Optional G4 dwell after M3/M5 in generated G-code. Default: 80.",
+    )
+    parser.add_argument(
         "--error-correction",
         choices=tuple(ERROR_CORRECTION_LEVELS.keys()),
         default=DEFAULT_ERROR_CORRECTION,
@@ -151,6 +161,8 @@ def parse_args() -> argparse.Namespace:
 def validate_args(args: argparse.Namespace) -> None:
     if not args.text:
         raise ValueError("--text must not be empty")
+    if args.output is None and args.gcode_output is None and args.preview_svg is None:
+        raise ValueError("at least one of --output, --gcode-output, or --preview-svg is required")
     if args.module_mm <= 0:
         raise ValueError("--module-mm must be > 0")
     if args.hatch_pitch_mm <= 0:
@@ -159,6 +171,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--draw-feed must be > 0")
     if args.travel_feed <= 0:
         raise ValueError("--travel-feed must be > 0")
+    if args.dwell_ms < 0:
+        raise ValueError("--dwell-ms must be >= 0")
     if args.version is not None and not 1 <= args.version <= 40:
         raise ValueError("--version must be between 1 and 40")
 
@@ -391,6 +405,13 @@ def xy_command(x_mm: float, y_mm: float, feed_mm_min: float) -> str:
     return f"XY {format_mm(x_mm)} {format_mm(y_mm)} {format_feed(feed_mm_min)}"
 
 
+def gcode_motion(command: str, x_mm: float, y_mm: float, feed_mm_min: float) -> str:
+    return (
+        f"{command} X{format_mm(x_mm)} Y{format_mm(y_mm)} "
+        f"F{format_feed(feed_mm_min)}"
+    )
+
+
 def build_csv_rows(
     paths: Sequence[StrokePath],
     draw_feed_mm_min: float,
@@ -441,6 +462,45 @@ def write_csv(rows: Iterable[CsvRow], output_path: Path) -> None:
                     "comment": row.comment,
                 }
             )
+
+
+def build_gcode_lines(
+    paths: Sequence[StrokePath],
+    text: str,
+    draw_feed_mm_min: float,
+    travel_feed_mm_min: float,
+    dwell_ms: int,
+) -> list[str]:
+    display_text = text.replace("\n", "\\n")
+    lines = [
+        "G21",
+        "G90",
+        "M5",
+        "",
+        f"; QR text: {display_text}",
+        f"; stroke paths: {len(paths)}",
+    ]
+    for index, path in enumerate(paths, start=1):
+        start_x_mm, start_y_mm = path.points_mm[0]
+        lines.append("")
+        lines.append(f"; QR {path.kind} {index}")
+        lines.append(gcode_motion("G0", start_x_mm, start_y_mm, travel_feed_mm_min))
+        lines.append("M3")
+        if dwell_ms > 0:
+            lines.append(f"G4 P{dwell_ms}")
+        for x_mm, y_mm in path.points_mm[1:]:
+            lines.append(gcode_motion("G1", x_mm, y_mm, draw_feed_mm_min))
+        lines.append("M5")
+        if dwell_ms > 0:
+            lines.append(f"G4 P{dwell_ms}")
+    lines.append("")
+    lines.append("M5")
+    return lines
+
+
+def write_gcode(lines: Sequence[str], output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def write_preview_svg(
@@ -514,7 +574,19 @@ def main() -> int:
     try:
         validate_args(args)
         rows, paths, matrix_size_modules = generate_plot_data(args)
-        write_csv(rows, args.output)
+        if args.output is not None:
+            write_csv(rows, args.output)
+        if args.gcode_output is not None:
+            write_gcode(
+                build_gcode_lines(
+                    paths=paths,
+                    text=args.text,
+                    draw_feed_mm_min=args.draw_feed,
+                    travel_feed_mm_min=args.travel_feed,
+                    dwell_ms=args.dwell_ms,
+                ),
+                args.gcode_output,
+            )
         if args.preview_svg is not None:
             write_preview_svg(
                 paths=paths,
@@ -530,9 +602,13 @@ def main() -> int:
         return 1
 
     print(
-        f"Wrote {args.output} with {len(rows)} rows and {len(paths)} stroke paths "
+        f"Generated {len(paths)} stroke paths "
         f"({matrix_size_modules}x{matrix_size_modules} modules)."
     )
+    if args.output is not None:
+        print(f"Wrote {args.output} with {len(rows)} rows.")
+    if args.gcode_output is not None:
+        print(f"Wrote {args.gcode_output}.")
     if args.preview_svg is not None:
         print(f"Wrote {args.preview_svg}.")
     return 0

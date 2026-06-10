@@ -14,6 +14,7 @@ From the repository root:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r tools/serial_tool/requirements.txt
+python -m pip install -r tools/qr_tool/requirements.txt
 python tools/webui/server.py
 ```
 
@@ -59,6 +60,13 @@ when sending commands or jobs:
 python -m pip install -r tools/serial_tool/requirements.txt
 ```
 
+QR G-code creation on the Job page delegates to `tools/qr_tool/qr_to_plot_csv.py`, so install
+the QR tool requirements when using that feature:
+
+```bash
+python -m pip install -r tools/qr_tool/requirements.txt
+```
+
 ## Serial connection
 
 Open the Settings page and select the M5Stack Core2 USB serial port, then press
@@ -78,11 +86,23 @@ POS
 
 Manual jog commands from the WebUI use `900 mm/min` by default.
 
+## G-code layout
+
+The Job page can load multiple G-code files, place them in the preview, scale
+them, and choose the draw order. Press `Save Layout` to store the current layout
+in the browser. `Load Layout` restores the saved files, positions, scale values,
+and order on the same browser.
+
+The QR panel on the Job page creates QR hatch-fill G-code from text or a URL and
+adds it to the same layout list. The generated QR can be positioned, scaled,
+previewed, saved with the layout, and sent with the normal `SEND JOB` flow.
+
 ## Current Scope
 
 - Dashboard
 - Manual control
 - G-code preview
+- QR G-code creation
 - Job sending through `serial_send.py`
 - Console log stream
 - Serial target settings
