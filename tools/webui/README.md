@@ -93,6 +93,11 @@ them, and choose the draw order. Press `Save Layout` to store the current layout
 in the browser. `Load Layout` restores the saved files, positions, scale values,
 and order on the same browser.
 
+Saved layouts are stored in IndexedDB because they include the full G-code text
+for each placed file. This avoids the small quota and silent failure risk of
+`localStorage` for larger jobs. `Load Layout` still accepts older
+`localStorage`-based saves as a fallback.
+
 The QR panel on the Job page creates QR hatch-fill G-code from text or a URL and
 adds it to the same layout list. The generated QR can be positioned, scaled,
 previewed, saved with the layout, and sent with the normal `SEND JOB` flow.

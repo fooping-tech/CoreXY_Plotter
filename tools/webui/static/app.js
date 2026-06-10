@@ -4,6 +4,9 @@ const JOG_FEED_MM_MIN = 900;
 const PREVIEW_SIZE = { width: 960, height: 640, pad: 36 };
 const LAST_PORT_KEY = "corexy.webui.lastPort";
 const SAVED_LAYOUT_KEY = "corexy.webui.savedLayout";
+const LAYOUT_DB_NAME = "corexy.webui";
+const LAYOUT_DB_VERSION = 1;
+const LAYOUT_STORE_NAME = "layouts";
 
 const app = {
   page: "dashboard",
@@ -734,7 +737,7 @@ function qrPayload() {
     moduleMm: qrNumber("qrModuleMm", 1.0),
     hatchPitchMm: qrNumber("qrHatchPitchMm", 0.35),
     drawFeed: qrNumber("qrDrawFeed", 600),
-    travelFeed: qrNumber("qrTravelFeed", 1800),
+    travelFeed: qrNumber("qrTravelFeed", 900),
     dwellMs: qrNumber("qrDwellMs", 80),
     errorCorrection: $("qrErrorCorrection").value,
   };
@@ -794,18 +797,62 @@ function serializeLayout() {
   };
 }
 
-function saveLayout() {
-  window.localStorage.setItem(SAVED_LAYOUT_KEY, JSON.stringify(serializeLayout()));
-  appendLog({ time: Date.now(), kind: "host", message: `Saved layout with ${app.layouts.length} file(s)` });
+function openLayoutDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error("IndexedDB is not available in this browser"));
+      return;
+    }
+    const request = window.indexedDB.open(LAYOUT_DB_NAME, LAYOUT_DB_VERSION);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(LAYOUT_STORE_NAME);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Failed to open layout database"));
+  });
 }
 
-function loadLayout() {
-  const raw = window.localStorage.getItem(SAVED_LAYOUT_KEY);
-  if (!raw) {
+async function layoutDbRequest(mode, handler) {
+  const db = await openLayoutDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(LAYOUT_STORE_NAME, mode);
+    const store = transaction.objectStore(LAYOUT_STORE_NAME);
+    const request = handler(store);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Layout database request failed"));
+    transaction.oncomplete = () => db.close();
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error || new Error("Layout database transaction aborted"));
+    };
+  });
+}
+
+async function saveLayout() {
+  try {
+    await layoutDbRequest("readwrite", (store) => store.put(serializeLayout(), SAVED_LAYOUT_KEY));
+    appendLog({ time: Date.now(), kind: "host", message: `Saved layout with ${app.layouts.length} file(s)` });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function loadLayout() {
+  let saved = null;
+  try {
+    saved = await layoutDbRequest("readonly", (store) => store.get(SAVED_LAYOUT_KEY));
+  } catch (error) {
+    showError(error);
+    return;
+  }
+  if (!saved) {
+    const raw = window.localStorage.getItem(SAVED_LAYOUT_KEY);
+    saved = raw ? JSON.parse(raw) : null;
+  }
+  if (!saved) {
     showError(new Error("No saved layout"));
     return;
   }
-  const saved = JSON.parse(raw);
   app.layouts = (saved.layouts || []).map((item) => ({
     id: Number(item.id),
     name: String(item.name || "layout.gcode"),
@@ -969,8 +1016,8 @@ function bindUI() {
     event.preventDefault();
     createQrGcode().catch(showError);
   });
-  $("saveLayoutBtn").addEventListener("click", saveLayout);
-  $("loadLayoutBtn").addEventListener("click", loadLayout);
+  $("saveLayoutBtn").addEventListener("click", () => saveLayout().catch(showError));
+  $("loadLayoutBtn").addEventListener("click", () => loadLayout().catch(showError));
   $("clearLayoutBtn").addEventListener("click", clearLayout);
   ["layoutX", "layoutY", "layoutScale"].forEach((id) => {
     $(id).addEventListener("change", updateSelectedLayoutFromInputs);
