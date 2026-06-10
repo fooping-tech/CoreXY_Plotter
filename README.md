@@ -9,6 +9,14 @@ M5Stack Core2でCoreXYペンプロッタを制御するためのPlatformIOファ
 pio run
 ```
 
+## Host WebUI
+
+PCやRaspberry PiからUSB Serial経由で状態確認、手動操作、G-code送信を行う
+Host WebUIがあります。
+
+起動方法、`.venv`の作り方、シリアルポート設定は
+[tools/webui/README.md](tools/webui/README.md)を参照してください。
+
 ## Simulation mode
 
 `include/PlotterConfig.h`の`SIMULATION_MODE`は初期確認時に`1`へ切り替えて使えます。この状態では

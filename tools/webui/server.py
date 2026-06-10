@@ -61,6 +61,10 @@ POS_RE = re.compile(
     r"pos:\s*X\s*(?P<x2>-?\d+(?:\.\d+)?)\s*Y\s*(?P<y2>-?\d+(?:\.\d+)?)",
     re.IGNORECASE,
 )
+XY_TARGET_RE = re.compile(
+    r"\b(?:ACK_XY|XY batch=).*target=\((?P<x>-?\d+(?:\.\d+)?),(?P<y>-?\d+(?:\.\d+)?)\)",
+    re.IGNORECASE,
+)
 HOMED_RE = re.compile(r"HOMED=(YES|NO)|home:\s*(YES|NO)", re.IGNORECASE)
 ALARM_RE = re.compile(r"ALARM=(YES|NO)|safety:\s*(ALARM|READY)", re.IGNORECASE)
 PEN_RE = re.compile(r"PEN=(UP|DOWN)|pen:\s*(UP|DOWN)|PEN\s+(UP|DOWN)", re.IGNORECASE)
@@ -109,6 +113,11 @@ def update_state_from_log(line: str) -> None:
             y = pos_match.group("y") or pos_match.group("y2")
             machine["x"] = float(x)
             machine["y"] = float(y)
+
+        xy_target_match = XY_TARGET_RE.search(line)
+        if xy_target_match:
+            machine["x"] = float(xy_target_match.group("x"))
+            machine["y"] = float(xy_target_match.group("y"))
 
         homed_match = HOMED_RE.search(line)
         if homed_match:
@@ -275,7 +284,9 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
 
     def log_message(self, format: str, *args: object) -> None:
-        emit("host", format % args)
+        # Keep routine HTTP access logs out of the UI event stream. Logging
+        # every /api/state poll can create a feedback loop and slow controls.
+        return
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)

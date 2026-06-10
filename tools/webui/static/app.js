@@ -1,5 +1,6 @@
 const SOFT_LIMIT = { minX: 0, maxX: 55, minY: 0, maxY: 55 };
 const API_TIMEOUT_MS = 5000;
+const JOG_FEED_MM_MIN = 900;
 
 const app = {
   page: "dashboard",
@@ -224,7 +225,9 @@ function startEvents() {
   events.onmessage = (message) => {
     const event = JSON.parse(message.data);
     appendLog(event);
-    refreshState().catch(() => {});
+    if (["ack", "error", "firmware"].includes(event.kind)) {
+      refreshState().catch(() => {});
+    }
   };
   events.onerror = () => {
     appendLog({ time: Date.now(), kind: "error", message: "Event stream disconnected" });
@@ -243,7 +246,7 @@ function jog(dx, dy) {
   const machine = getMachine();
   const x = Number(machine.x || 0) + dx * app.jogStep;
   const y = Number(machine.y || 0) + dy * app.jogStep;
-  sendCommand(`XY ${x.toFixed(3)} ${y.toFixed(3)}`).catch(showError);
+  sendCommand(`XY ${x.toFixed(3)} ${y.toFixed(3)} ${JOG_FEED_MM_MIN}`).catch(showError);
 }
 
 function showError(error) {
