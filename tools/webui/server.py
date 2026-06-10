@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import glob
 import json
 import os
 import queue
@@ -152,10 +151,15 @@ def update_state_from_log(line: str) -> None:
 
 
 def list_ports() -> list[str]:
-    patterns = ["/dev/cu.*", "/dev/ttyUSB*", "/dev/ttyACM*", "/dev/serial/by-id/*"]
-    ports: list[str] = []
-    for pattern in patterns:
-        ports.extend(glob.glob(pattern))
+    ports: set[str] = set()
+    for entry in os.scandir("/dev"):
+        name = entry.name
+        if name.startswith(("cu.", "ttyUSB", "ttyACM")):
+            ports.add(str(Path("/dev") / name))
+    serial_by_id = Path("/dev/serial/by-id")
+    if serial_by_id.is_dir():
+        for entry in os.scandir(serial_by_id):
+            ports.add(str(serial_by_id / entry.name))
     return sorted(set(ports))
 
 
@@ -244,6 +248,18 @@ def send_json(handler: SimpleHTTPRequestHandler, payload: object, status: HTTPSt
     handler.wfile.write(data)
 
 
+def snapshot_state() -> dict[str, object]:
+    with state_lock:
+        return {
+            "connected": state["connected"],
+            "port": state["port"],
+            "baud": state["baud"],
+            "jobRunning": state["jobRunning"],
+            "lastExitCode": state["lastExitCode"],
+            "machine": json.loads(json.dumps(state["machine"])),
+        }
+
+
 def save_gcode(text: str) -> Path:
     encoded = text.encode("utf-8")
     if len(encoded) > MAX_GCODE_BYTES:
@@ -267,8 +283,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             send_json(self, {"ports": list_ports()})
             return
         if parsed.path == "/api/state":
-            with state_lock:
-                send_json(self, state)
+            send_json(self, snapshot_state())
             return
         if parsed.path == "/api/events":
             self.handle_events()

@@ -1,4 +1,5 @@
 const SOFT_LIMIT = { minX: 0, maxX: 55, minY: 0, maxY: 55 };
+const API_TIMEOUT_MS = 5000;
 
 const app = {
   page: "dashboard",
@@ -128,13 +129,24 @@ function canSendJob() {
 }
 
 async function api(path, options = {}) {
+  const { timeoutMs = API_TIMEOUT_MS, ...fetchOptions } = options;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
+    headers: { "Content-Type": "application/json", ...(fetchOptions.headers || {}) },
+    signal: controller.signal,
+    ...fetchOptions,
+  }).catch((error) => {
+    if (error.name === "AbortError") throw new Error(`${path} timed out`);
+    throw error;
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `${response.status} ${response.statusText}`);
-  return payload;
+  try {
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `${response.status} ${response.statusText}`);
+    return payload;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 async function refreshState() {
@@ -143,9 +155,24 @@ async function refreshState() {
 }
 
 async function refreshPorts() {
-  const { ports } = await api("/api/ports");
   const select = $("portSelect");
   select.innerHTML = "";
+  let ports = [];
+  try {
+    appendLog({ time: Date.now(), kind: "host", message: "Refreshing serial ports" });
+    ({ ports } = await api("/api/ports", { timeoutMs: 2500 }));
+  } catch (error) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Use manual port";
+    select.appendChild(option);
+    appendLog({
+      time: Date.now(),
+      kind: "error",
+      message: `Port refresh failed: ${error.message || error}. Manual port is still available.`,
+    });
+    return;
+  }
   ports.forEach((port) => {
     const option = document.createElement("option");
     option.value = port;
@@ -155,8 +182,11 @@ async function refreshPorts() {
   if (ports.length === 0) {
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = "No ports found";
+    option.textContent = "Use manual port";
     select.appendChild(option);
+    appendLog({ time: Date.now(), kind: "host", message: "No serial ports found. Use manual port." });
+  } else {
+    appendLog({ time: Date.now(), kind: "host", message: `Found ${ports.length} serial port(s)` });
   }
 }
 
@@ -383,12 +413,32 @@ function bindUI() {
   });
   $("refreshPortsBtn").addEventListener("click", () => refreshPorts().catch(showError));
   $("connectBtn").addEventListener("click", async () => {
+    const button = $("connectBtn");
     const port = $("manualPort").value.trim() || $("portSelect").value;
-    await api("/api/connect", {
-      method: "POST",
-      body: JSON.stringify({ port, baud: Number($("baudInput").value || 115200) }),
-    });
-    await refreshState();
+    const baud = Number($("baudInput").value || 115200);
+    if (!port) {
+      showError(new Error("Enter a manual port or select a serial port first"));
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Connecting...";
+    appendLog({ time: Date.now(), kind: "host", message: `Connecting to ${port} @ ${baud}` });
+    try {
+      await api("/api/connect", {
+        method: "POST",
+        body: JSON.stringify({ port, baud }),
+        timeoutMs: 3000,
+      });
+      await refreshState().catch((error) => {
+        appendLog({ time: Date.now(), kind: "error", message: `State refresh failed: ${error.message || error}` });
+      });
+      appendLog({ time: Date.now(), kind: "host", message: `Serial target set to ${port} @ ${baud}` });
+    } catch (error) {
+      showError(new Error(`Connect failed: ${error.message || error}`));
+    } finally {
+      button.disabled = false;
+      button.textContent = "Connect";
+    }
   });
   $("disconnectBtn").addEventListener("click", async () => {
     await api("/api/connect", { method: "POST", body: JSON.stringify({ port: "", baud: 115200 }) });
