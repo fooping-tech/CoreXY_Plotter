@@ -89,14 +89,14 @@ Manual jog commands from the WebUI use `900 mm/min` by default.
 ## G-code layout
 
 The Job page can load multiple G-code files, place them in the preview, scale
-them, and choose the draw order. Press `Save Layout` to store the current layout
-in the browser. `Load Layout` restores the saved files, positions, scale values,
-and order on the same browser.
+them, and choose the draw order. `SEND JOB` sends the combined G-code to the
+plotter. `SEND GCODE` saves the same combined G-code to a timestamped
+`.gcode` file. On browsers that support the File System Access API, `SEND GCODE`
+opens the OS save dialog. Other browsers fall back to a normal file download.
 
-Saved layouts are stored in IndexedDB because they include the full G-code text
-for each placed file. This avoids the small quota and silent failure risk of
-`localStorage` for larger jobs. `Load Layout` still accepts older
-`localStorage`-based saves as a fallback.
+Each loaded G-code item has order controls and a remove button. Use the up/down
+buttons to choose draw order, or the `x` button to remove that item from the
+layout.
 
 The QR panel on the Job page creates QR hatch-fill G-code from text or a URL and
 adds it to the same layout list. The generated QR can be positioned, scaled,

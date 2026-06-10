@@ -3,10 +3,7 @@ const API_TIMEOUT_MS = 5000;
 const JOG_FEED_MM_MIN = 900;
 const PREVIEW_SIZE = { width: 960, height: 640, pad: 36 };
 const LAST_PORT_KEY = "corexy.webui.lastPort";
-const SAVED_LAYOUT_KEY = "corexy.webui.savedLayout";
-const LAYOUT_DB_NAME = "corexy.webui";
-const LAYOUT_DB_VERSION = 1;
-const LAYOUT_STORE_NAME = "layouts";
+const LAYOUT_FILE_SUFFIX = ".gcode";
 
 const app = {
   page: "dashboard",
@@ -610,6 +607,16 @@ function renderLayoutList() {
     });
     row.appendChild(down);
 
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove ${item.name}`);
+    remove.addEventListener("click", (event) => {
+      event.stopPropagation();
+      removeLayout(item.id);
+    });
+    row.appendChild(remove);
+
     row.addEventListener("click", () => setSelectedLayout(item.id));
     list.appendChild(row);
   });
@@ -621,6 +628,17 @@ function moveLayout(from, to) {
   app.layouts.splice(to, 0, item);
   app.selectedLayoutId = item.id;
   updateJobUI();
+}
+
+function removeLayout(id) {
+  const index = app.layouts.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  app.layouts.splice(index, 1);
+  if (app.selectedLayoutId === id) {
+    app.selectedLayoutId = app.layouts[Math.min(index, app.layouts.length - 1)]?.id || null;
+  }
+  updateJobUI();
+  appendLog({ time: Date.now(), kind: "host", message: "Removed G-code item" });
 }
 
 function updateLayoutControls() {
@@ -781,105 +799,85 @@ async function createQrGcode() {
   }
 }
 
-function serializeLayout() {
+function timestampGcodeBase() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate()),
+    "_",
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+    pad(now.getSeconds()),
+  ].join("");
+}
+
+function layoutFileName() {
+  return `${timestampGcodeBase()}${LAYOUT_FILE_SUFFIX}`;
+}
+
+function canUseSaveFilePicker() {
+  return typeof window.showSaveFilePicker === "function";
+}
+
+function layoutFileOptions() {
   return {
-    version: 1,
-    selectedLayoutId: app.selectedLayoutId,
-    nextLayoutId: app.nextLayoutId,
-    layouts: app.layouts.map((item) => ({
-      id: item.id,
-      name: item.name,
-      text: item.text,
-      x: item.x,
-      y: item.y,
-      scale: item.scale,
-    })),
+    suggestedName: layoutFileName(),
+    types: [{
+      description: "G-code",
+      accept: { "text/plain": [".gcode", ".nc", ".txt"] },
+    }],
   };
 }
 
-function openLayoutDb() {
-  return new Promise((resolve, reject) => {
-    if (!window.indexedDB) {
-      reject(new Error("IndexedDB is not available in this browser"));
+function downloadLayoutFile(gcode) {
+  const blob = new Blob([gcode], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = layoutFileName();
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function saveLayoutFile(gcode) {
+  if (!canUseSaveFilePicker()) {
+    downloadLayoutFile(gcode);
+    return "downloaded";
+  }
+  const handle = await window.showSaveFilePicker(layoutFileOptions());
+  const writable = await handle.createWritable();
+  await writable.write(gcode);
+  await writable.close();
+  return handle.name || layoutFileName();
+}
+
+async function saveGcode() {
+  const button = $("sendGcodeBtn");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Saving...";
+  try {
+    if (app.layouts.length === 0) {
+      throw new Error("Add or create G-code first");
+    }
+    const gcode = buildCombinedGcode();
+    const result = await saveLayoutFile(gcode);
+    const suffix = result === "downloaded" ? " Download started." : ` Saved as ${result}.`;
+    appendLog({ time: Date.now(), kind: "host", message: `Saved G-code with ${app.layouts.length} source file(s).${suffix}` });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      appendLog({ time: Date.now(), kind: "host", message: "G-code save canceled" });
       return;
     }
-    const request = window.indexedDB.open(LAYOUT_DB_NAME, LAYOUT_DB_VERSION);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(LAYOUT_STORE_NAME);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error("Failed to open layout database"));
-  });
-}
-
-async function layoutDbRequest(mode, handler) {
-  const db = await openLayoutDb();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(LAYOUT_STORE_NAME, mode);
-    const store = transaction.objectStore(LAYOUT_STORE_NAME);
-    const request = handler(store);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error("Layout database request failed"));
-    transaction.oncomplete = () => db.close();
-    transaction.onabort = () => {
-      db.close();
-      reject(transaction.error || new Error("Layout database transaction aborted"));
-    };
-  });
-}
-
-async function saveLayout() {
-  try {
-    await layoutDbRequest("readwrite", (store) => store.put(serializeLayout(), SAVED_LAYOUT_KEY));
-    appendLog({ time: Date.now(), kind: "host", message: `Saved layout with ${app.layouts.length} file(s)` });
-  } catch (error) {
     showError(error);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
   }
-}
-
-async function loadLayout() {
-  let saved = null;
-  try {
-    saved = await layoutDbRequest("readonly", (store) => store.get(SAVED_LAYOUT_KEY));
-  } catch (error) {
-    showError(error);
-    return;
-  }
-  if (!saved) {
-    const raw = window.localStorage.getItem(SAVED_LAYOUT_KEY);
-    saved = raw ? JSON.parse(raw) : null;
-  }
-  if (!saved) {
-    showError(new Error("No saved layout"));
-    return;
-  }
-  app.layouts = (saved.layouts || []).map((item) => ({
-    id: Number(item.id),
-    name: String(item.name || "layout.gcode"),
-    text: String(item.text || ""),
-    preview: parseGcode(String(item.text || "")),
-    x: Number(item.x || 0),
-    y: Number(item.y || 0),
-    scale: Math.max(0.05, Number(item.scale || 1)),
-  }));
-  app.nextLayoutId = Math.max(
-    Number(saved.nextLayoutId || 1),
-    ...app.layouts.map((item) => item.id + 1),
-    1,
-  );
-  app.selectedLayoutId = app.layouts.some((item) => item.id === saved.selectedLayoutId)
-    ? saved.selectedLayoutId
-    : app.layouts[0]?.id || null;
-  updateJobUI();
-  appendLog({ time: Date.now(), kind: "host", message: `Loaded layout with ${app.layouts.length} file(s)` });
-}
-
-function clearLayout() {
-  app.layouts = [];
-  app.selectedLayoutId = null;
-  app.nextLayoutId = 1;
-  updateJobUI();
-  appendLog({ time: Date.now(), kind: "host", message: "Cleared layout" });
 }
 
 function transformWordsToLine(words, item, motionCode) {
@@ -1016,9 +1014,6 @@ function bindUI() {
     event.preventDefault();
     createQrGcode().catch(showError);
   });
-  $("saveLayoutBtn").addEventListener("click", () => saveLayout().catch(showError));
-  $("loadLayoutBtn").addEventListener("click", () => loadLayout().catch(showError));
-  $("clearLayoutBtn").addEventListener("click", clearLayout);
   ["layoutX", "layoutY", "layoutScale"].forEach((id) => {
     $(id).addEventListener("change", updateSelectedLayoutFromInputs);
   });
@@ -1026,6 +1021,7 @@ function bindUI() {
   window.addEventListener("pointerup", endPreviewDrag);
   window.addEventListener("pointercancel", endPreviewDrag);
   $("sendJobBtn").addEventListener("click", () => sendJob().catch(showError));
+  $("sendGcodeBtn").addEventListener("click", () => saveGcode().catch(showError));
   $("abortJobBtn").addEventListener("click", () => api("/api/job/abort", { method: "POST", body: "{}" }).catch(showError));
   $("topAbortBtn").addEventListener("click", () => api("/api/job/abort", { method: "POST", body: "{}" }).catch(showError));
 }

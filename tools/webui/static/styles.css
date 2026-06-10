@@ -619,20 +619,9 @@ h2 {
   margin-bottom: 12px;
 }
 
-.layout-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.layout-actions button {
-  padding: 0 8px;
-}
-
 .layout-item {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 6px;
   align-items: center;
   min-height: 38px;
