@@ -369,12 +369,22 @@ TMC2209 A/Bを共通UARTで初期化できるようにする。
 - [x] simulation時の表示がある
 - [x] real時の初期化処理がある、または明確なplaceholderがある
 
+### 2.4 Motion前TMC ready保証
+
+- [x] `XY`実行前にTMC未readyなら`TMC_INIT`相当を自動実行する
+- [x] G-code由来`G0`/`G1`実行前にTMC未readyなら`TMC_INIT`相当を自動実行する
+- [x] `HOME`/`HOME_X`/`HOME_Y`実行前にTMC未readyなら`TMC_INIT`相当を自動実行する
+- [x] `AB_TIMED`実行前にTMC未readyなら`TMC_INIT`相当を自動実行する
+- [x] 自動`TMC_INIT`失敗時は該当motionを実行せず拒否する
+- [x] 実機でTMC未初期化のままUI jogするとA/B microstep差により左右移動量がずれる問題を確認し、自動初期化で解消した
+
 ## Phase 2 完了条件
 
 - [x] `TMC_INIT`が存在する
 - [x] `TMC_STATUS`が存在する
 - [x] TMC UART処理が`TMC2209Manager`に閉じている
 - [x] plannerやStepperBackendにTMC設定が混ざっていない
+- [x] motion系コマンドはTMC readyを前提にし、未readyならMotionTask側で自動初期化する
 
 ---
 
@@ -2146,6 +2156,7 @@ Phase 6.9を実装してください。
 | 2026-06-09 | Core2 LCD UIを3ページ構成へ拡張。下部タブ、左右フリック、物理A/Cボタンでページ切替し、Status/Control/Detail表示、UIからの`HOME`、`ALARM_CLEAR`、home完了後のjogとpen上下を追加。ちらつき対策として`M5Canvas` + `pushSprite()`描画へ変更し、`pio run`とuploadは成功 | Codex |
 | 2026-06-09 | Host WebUIの設計を開始。PC/Raspberry Pi側WebUIからUSB Serialで制御し、ジョブ送信は既存`tools/serial_tool/serial_send.py`をsubprocess再利用、G-code previewをMVPに含める方針をSPEC/PLANSへ追加。作業ブランチ`codex/webui-serial-preview`を作成 | Codex |
 | 2026-06-09 | Host WebUI MVPを追加。`tools/webui/server.py`、静的HTML/CSS/JS、READMEを実装し、Dashboard/Control/Job/Console/Settings、SSE log、G-code preview、`serial_send.py` subprocess job送信を追加。`py_compile`と`node --check`は成功。sandbox制限によりローカルHTTP応答確認は未完了 | Codex |
+| 2026-06-10 | UI jogで左右のステップ量が違うように見える実機症状を調査。CoreXY式、A/B pin、motor invert、StepperBackendはmainと一致し、原因はTMC未初期化状態でmotionしていたこと。`XY`、G-code由来`G0/G1`、`HOME`、`AB_TIMED`の前にTMC未readyなら自動`TMC_INIT`するよう修正し、実機で動作改善を確認 | Codex |
 
 ---
 

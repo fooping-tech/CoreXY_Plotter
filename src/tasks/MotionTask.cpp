@@ -229,6 +229,19 @@ bool rejectDisallowedJobCommand(const CommandMessage& command) {
   return true;
 }
 
+bool ensureTmcReadyForMotion(const char* context) {
+  if (machine_state.tmc_ready && tmc_manager.isReady()) {
+    return true;
+  }
+  logMessage("%s TMC_INIT auto", context);
+  machine_state.tmc_ready = tmc_manager.begin();
+  if (!machine_state.tmc_ready) {
+    logMessage("REJECT: %s reason=tmc_not_ready", context);
+    return false;
+  }
+  return true;
+}
+
 GcodeInterpreterResult translateGcodeCommand(const CommandMessage& command,
                                              const MachineState& reference,
                                              CommandMessage& translated) {
@@ -660,10 +673,14 @@ void motionTask(void*) {
         handleSingleMotor(false, command.steps);
         break;
       case CommandType::AB_TIMED:
-        handleABTimed(command);
+        if (ensureTmcReadyForMotion("AB_TIMED")) {
+          handleABTimed(command);
+        }
         break;
       case CommandType::XY:
-        handleXYBatch(command);
+        if (ensureTmcReadyForMotion("XY")) {
+          handleXYBatch(command);
+        }
         break;
       case CommandType::DWELL:
         logMessage("DWELL P=%lums", static_cast<unsigned long>(command.dwell_ms));
@@ -689,16 +706,22 @@ void motionTask(void*) {
         tmc_manager.printStatus();
         break;
       case CommandType::HOME:
-        homing_controller.runHome(stepper_backend, safety_manager,
-                                  machine_state);
+        if (ensureTmcReadyForMotion("HOME")) {
+          homing_controller.runHome(stepper_backend, safety_manager,
+                                    machine_state);
+        }
         break;
       case CommandType::HOME_X:
-        homing_controller.runHomeX(stepper_backend, safety_manager,
-                                   machine_state);
+        if (ensureTmcReadyForMotion("HOME_X")) {
+          homing_controller.runHomeX(stepper_backend, safety_manager,
+                                     machine_state);
+        }
         break;
       case CommandType::HOME_Y:
-        homing_controller.runHomeY(stepper_backend, safety_manager,
-                                   machine_state);
+        if (ensureTmcReadyForMotion("HOME_Y")) {
+          homing_controller.runHomeY(stepper_backend, safety_manager,
+                                     machine_state);
+        }
         break;
       case CommandType::HOME_STATUS:
         Diagnostics::printHomingStatus(currentStatus());
@@ -708,6 +731,11 @@ void motionTask(void*) {
         Diagnostics::printLimitStatus(currentStatus());
         break;
       case CommandType::ALARM_CLEAR:
+        safety_manager.poll();
+        if (safety_manager.xLimitRawActive() || safety_manager.yLimitRawActive() ||
+            safety_manager.xLimitActive() || safety_manager.yLimitActive()) {
+          invalidateHomed("ALARM_CLEAR with limit active");
+        }
         safety_manager.clearAlarm();
         machine_state.alarmed = false;
         logMessage("ALARM_CLEAR complete");
@@ -763,7 +791,9 @@ void motionTask(void*) {
           break;
         }
         if (translated.type == CommandType::XY) {
-          handleXYBatch(translated);
+          if (ensureTmcReadyForMotion("GCODE_XY")) {
+            handleXYBatch(translated);
+          }
         } else {
           stashPendingCommand(translated);
         }

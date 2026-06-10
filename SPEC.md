@@ -608,7 +608,7 @@ timed segment実行中もSafetyManagerを定期pollし、alarm発生時はSteppe
 | B address | 1 |
 | microsteps | 16 |
 | interpolation | ON |
-| current | 通常profileは850mAを暫定値とする |
+| current | 通常profileは1100mAを暫定値とする |
 | mode | 初期はspreadCycle寄り |
 | diagnostics | 低頻度 |
 
@@ -617,6 +617,19 @@ TMC2209ManagerはFastAccelStepperやplannerに依存しない。
 実装では`TMCStepper`を使用し、共有`Serial2`上のアドレス`0`と`1`へ個別に
 レジスタ設定を書き込む。`TMC_STATUS`では両ドライバの`test_connection()`、
 `IFCNT`、microsteps、RMS current、IRUN/IHOLD、chop mode等を確認できる。
+
+TMC UART profileはCoreXY motionの前提である。A/Bのmicrostepsや電流が揃わない状態で
+`XY`、`G0/G1`、`HOME`、`AB_TIMED`を実行すると、ファームウェアが同じA/B step数を
+出していても実機の左右移動量がずれ、斜め流れや脱調に見える。したがってMotionTaskは
+以下のmotion系コマンド実行前に、`machine_state.tmc_ready`または`TMC2209Manager::isReady()`
+がfalseなら`TMC_INIT`相当を自動実行する。
+
+- `XY`
+- G-code由来の`G0` / `G1`
+- `HOME` / `HOME_X` / `HOME_Y`
+- `AB_TIMED`
+
+自動`TMC_INIT`が失敗した場合、該当motionは実行せず`tmc_not_ready`相当で拒否する。
 
 ### 診断用モータメロディ仕様
 
