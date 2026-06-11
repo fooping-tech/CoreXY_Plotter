@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <string.h>
 #include "AppContext.h"
 #include "CoreXYKinematics.h"
 #include "Diagnostics.h"
@@ -383,9 +384,20 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
   const bool executed = executeTimedSegments(segment_queue);
   safety_manager.clearNormalMoveLimitReleaseAllowance();
   if (!executed) {
-    logMessage("ERROR: backend rejected timed XY move");
-    logMessage("NACK_XY target=(%.3f,%.3f) reason=backend",
-               block.target_x_mm, block.target_y_mm);
+    const char* alarm_reason = safety_manager.alarmReason();
+    if (safety_manager.isAlarmed()) {
+      const bool abort_alarm =
+          strstr(alarm_reason, "abort requested") != nullptr;
+      logMessage("ERROR: timed XY move stopped: alarm reason=%s",
+                 alarm_reason);
+      logMessage("NACK_XY target=(%.3f,%.3f) reason=%s",
+                 block.target_x_mm, block.target_y_mm,
+                 abort_alarm ? "abort" : "alarm");
+    } else {
+      logMessage("ERROR: backend rejected timed XY move");
+      logMessage("NACK_XY target=(%.3f,%.3f) reason=backend",
+                 block.target_x_mm, block.target_y_mm);
+    }
     return false;
   }
   logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",

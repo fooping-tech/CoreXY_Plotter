@@ -124,12 +124,12 @@ tools/serial_tool/serial_send.py
   --queue-mode
   --stream-gcode-motion
   --job-lifecycle
-  --timeout 10
+  --timeout 30
 ```
 
 `--stream-gcode-motion`では`G0/G1`を先行投入しますが、`M3/M5`や`G4`は完了ログを待ちます。
 長いtravel move直後の`M3/M5`で`timeout after ... waiting for 'PEN DOWN'`などが出る場合は、
-前の移動が終わる前にホスト側timeoutへ到達しています。WebUIの既定ジョブ送信timeoutは10秒です。
+前の移動が終わる前にホスト側timeoutへ到達しています。WebUIの既定ジョブ送信timeoutは30秒です。
 
 ## Safety Model
 

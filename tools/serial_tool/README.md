@@ -143,7 +143,7 @@ CSVはヘッダ行を必須とし、以下の列を使います。
 | `comment` | no | 人間用メモ。送信されません |
 
 `delay_ms`は各コマンド送信後の最小読み取り時間です。`expect`がある場合は、`delay_ms`経過後に`expect`を受信し、受信が短時間idleになると次の行へ進みます。
-最大待ち時間は`max(delay_ms, --timeout)`です。`HOME`のように完了時間が読みにくいコマンドは、CSV側の`delay_ms`を短くし、実行時の`--timeout`を長くしてください。
+最大待ち時間は`max(delay_ms, --timeout)`です。`--timeout`の既定値は30秒です。`HOME`のように完了時間が読みにくいコマンドは、CSV側の`delay_ms`を短くし、必要に応じて実行時の`--timeout`をさらに長くしてください。
 
 各コマンドの開始時と終了時には`TIMING START`、`TIMING END`を表示します。
 `t=...s`は`--startup-delay`と`--startup-drain`後、最初のCSVコマンドを送る直前を0とした相対時刻です。
@@ -164,7 +164,7 @@ CSV由来の`XY`は`ACK QUEUED`を見つけた時点でserial idleと`ACK_XY tar
 stream対象の`G0/G1`は、`ACK QUEUED`を見つけた時点でserial idleを待たずに次行へ進みます。また送信速度を落とさないため、成功時の`--echo`、`TIMING START/END`、ACK表示はstream対象行では抑制します。エラー、queue full、`M3/M5`、`G4`、`G28`などの非motion行は従来通り表示します。
 `M3/M5`、`G4`、`G28`、`M114`、`G20/G21/G90/G91`は従来通り、それぞれの完了ログやmodalログを待ちます。
 先行投入した`G0/G1`の`ACK_XY target=`は後続コマンドの応答読み取り中に流れてくる場合がありますが、後続コマンドの完了判定には使いません。
-期待するACKや完了ログが最大待ち時間内に出ない場合は、`timeout after ... waiting for ...`として表示します。これは`NACK`や`REJECT:`などのファームウェア拒否とは別の、ホスト側待ち時間切れです。
+期待するACKや完了ログが最大待ち時間内に出ない場合は、`timeout after ... waiting for ...`として表示します。timeout時は、その時点までに受信したSerialログも`timeout partial serial log`として表示します。これは`NACK`や`REJECT:`などのファームウェア拒否とは別の、ホスト側待ち時間切れです。
 
 `--gcode --job-lifecycle`を指定すると、G-code本文の前に`JOB_BEGIN`、最後に`JOB_END`を自動で送ります。
 G-code行の送信中に`NACK`、`REJECT:`、alarm、`ERROR:`を検出した場合は、後続行を止めて`JOB_ABORT`を送ります。

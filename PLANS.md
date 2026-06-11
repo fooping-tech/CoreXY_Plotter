@@ -1801,6 +1801,8 @@ python tools/serial_tool/serial_send.py \
 チェック:
 
 - [x] `--timeout`は各コマンド応答の最大待ち時間として扱う
+- [x] `--timeout`の既定値は30秒とする
+- [x] timeout時は、その時点までに受信したSerialログを表示する
 - [x] 起動ログ読み捨て時間は`--startup-drain`で指定できる
 - [x] `--startup-delay 0 --timeout 60`でも、最初のコマンド送信前に60秒待たない
 - [x] `HOME`行はCSV `delay_ms`を短くし、`expect=HOME complete`と長めの`--timeout`で完了待ちできる

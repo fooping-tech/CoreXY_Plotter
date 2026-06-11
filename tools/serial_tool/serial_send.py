@@ -13,7 +13,7 @@ from typing import Iterable
 
 
 DEFAULT_BAUD = 115200
-DEFAULT_TIMEOUT_S = 2.0
+DEFAULT_TIMEOUT_S = 30.0
 DEFAULT_DELAY_MS = 250
 DEFAULT_STARTUP_DELAY_S = 4.0
 DEFAULT_STARTUP_DRAIN_S = 0.5
@@ -47,12 +47,15 @@ SYNC_COMPLETION_BY_COMMAND = {
     "G28": "HOME complete",
 }
 SYNC_COMPLETION_TIMEOUT_S_BY_COMMAND = {
+    "G4": 30.0,
     "HOME": 30.0,
     "HOME_X": 30.0,
     "HOME_Y": 30.0,
     "G28": 30.0,
     "JOB_BEGIN": 60.0,
     "JOB_END": 30.0,
+    "M3": 30.0,
+    "M5": 30.0,
 }
 
 
@@ -554,13 +557,22 @@ def read_response_text(
     stop_on: str | tuple[str, ...],
     return_on_stop: bool = False,
 ) -> str:
-    return read_response_result(
+    result = read_response_result(
         serial_port,
         min_duration_s=min_duration_s,
         max_duration_s=max_duration_s,
         stop_on=stop_on,
         return_on_stop=return_on_stop,
-    ).text
+    )
+    if result.timed_out:
+        print(
+            f"WARNING: serial read timeout after {result.max_duration_s:.3f}s "
+            f"waiting for {format_stop_patterns(stop_on)}",
+            file=sys.stderr,
+            flush=True,
+        )
+        print_timeout_partial_log(result.text)
+    return result.text
 
 
 def open_serial_port(serial, port: str, baud: int, timeout: float, retries: int):
@@ -671,6 +683,28 @@ def print_response(response: str) -> None:
         print(response, end="" if response.endswith("\n") else "\n", flush=True)
 
 
+def format_stop_patterns(patterns: str | tuple[str, ...]) -> str:
+    if isinstance(patterns, str):
+        return repr(patterns) if patterns else "serial activity"
+    if not patterns:
+        return "serial activity"
+    return ", ".join(repr(pattern) for pattern in patterns if pattern)
+
+
+def print_timeout_partial_log(response: str) -> None:
+    print("--- timeout partial serial log start ---", file=sys.stderr, flush=True)
+    if response:
+        print(
+            response,
+            end="" if response.endswith("\n") else "\n",
+            file=sys.stderr,
+            flush=True,
+        )
+    else:
+        print("<no serial output>", file=sys.stderr, flush=True)
+    print("--- timeout partial serial log end ---", file=sys.stderr, flush=True)
+
+
 def print_missing_response_error(
     row: CommandRow,
     expected: str,
@@ -685,6 +719,7 @@ def print_missing_response_error(
             file=sys.stderr,
             flush=True,
         )
+        print_timeout_partial_log(read_result.text)
         return
     print(
         f"ERROR: line {row.line_number}: expected {expected!r} "
@@ -881,6 +916,15 @@ def send_row_standard_mode(serial_port, args: argparse.Namespace, index: int, ro
     )
     response = read_result.text
     print_response(response)
+    if read_result.timed_out and not response:
+        print(
+            f"ERROR: line {row.line_number}: timeout after "
+            f"{read_result.max_duration_s:.3f}s waiting for serial response",
+            file=sys.stderr,
+            flush=True,
+        )
+        print_timeout_partial_log(response)
+        return 1
     failure = firmware_failure_line(response)
     if failure:
         if benign_firmware_failure(row, response):

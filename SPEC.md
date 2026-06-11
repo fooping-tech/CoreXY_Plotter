@@ -521,7 +521,7 @@ homing完了直後など、通常移動開始時に原点limitがONで、かつ�
 
 - `--startup-delay`: serial port open後、最初のコマンド送信前に固定で待つ時間
 - `--startup-drain`: `--startup-delay`後に起動ログを読み捨てる最大時間
-- `--timeout`: 各コマンド応答の最大待ち時間
+- `--timeout`: 各コマンド応答の最大待ち時間。既定値は30秒
 - CSV `delay_ms`: 各コマンド送信後の最小読み取り時間
 - 各行の最大待ち時間は`max(delay_ms, --timeout)`
 - `expect`が指定されている場合、`delay_ms`経過後に`expect`を受信済みで、受信が短時間idleになったら次の行へ進む
@@ -977,7 +977,7 @@ F値はmm/minとして扱う。
 `--gcode --queue-mode --stream-gcode-motion`では、G-codeファイル由来の`G0/G1`に限り、`ACK QUEUED`を確認した時点で次の行を送る。`ACK_XY target=`は後から流れる完了ログとして扱い、後続コマンドの完了判定には使わない。
 stream対象の`G0/G1`では、serial idle待ち、成功時の行別`TIMING START/END`、`--echo`表示、ACK表示を抑制し、CommandQueueへ連続XYを投入しやすくする。
 このstream modeでも`M3/M5`、`G4`、`G28`、`M114`、`G20/G21/G90/G91`は従来通り完了ログまたはmodalログを待つ。`ERROR:`、`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`は停止条件とする。
-期待するqueue ACKまたは完了ログが最大待ち時間内に出ない場合、Serial Toolは`timeout after ... waiting for ...`を表示し、ファームウェア拒否ではなくホスト側待ち時間切れとして区別する。
+期待するqueue ACKまたは完了ログが最大待ち時間内に出ない場合、Serial Toolは`timeout after ... waiting for ...`を表示し、その時点までに受信したSerialログを`timeout partial serial log`として出力する。これはファームウェア拒否ではなくホスト側待ち時間切れとして区別する。
 Serial Toolは`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`を受信した場合、その行を失敗扱いにして、既定では後続行を送信しない。
 `--gcode --job-lifecycle`では、G-code本文の前に`JOB_BEGIN`、最後に`JOB_END`を送る。G-code本文中にfailureを検出した場合は、後続行を送らず`JOB_ABORT`を送る。
 
