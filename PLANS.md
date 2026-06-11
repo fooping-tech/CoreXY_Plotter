@@ -2160,6 +2160,7 @@ Phase 6.9を実装してください。
 | 2026-06-09 | Host WebUI MVPを追加。`tools/webui/server.py`、静的HTML/CSS/JS、READMEを実装し、Dashboard/Control/Job/Console/Settings、SSE log、G-code preview、`serial_send.py` subprocess job送信を追加。`py_compile`と`node --check`は成功。sandbox制限によりローカルHTTP応答確認は未完了 | Codex |
 | 2026-06-10 | UI jogで左右のステップ量が違うように見える実機症状を調査。CoreXY式、A/B pin、motor invert、StepperBackendはmainと一致し、原因はTMC未初期化状態でmotionしていたこと。`XY`、G-code由来`G0/G1`、`HOME`、`AB_TIMED`の前にTMC未readyなら自動`TMC_INIT`するよう修正し、実機で動作改善を確認 | Codex |
 | 2026-06-11 | `--stream-gcode-motion`中に`M3`の`PEN DOWN`待ちが既定timeoutで失敗した実機ログを受け、Serial Toolの期待ログ未検出エラーをtimeout到達時は`timeout after ... waiting for ...`と表示するよう修正。ファームウェア拒否とホスト側待ち時間切れを区別する方針をSPEC/READMEへ反映 | Codex |
+| 2026-06-11 | look-ahead中にG-code由来`M5`をpendingへ退避した後、XY正常完了時のqueue clearでpendingも消えて`PEN UP`が実行されない実機ログを受け、XY正常完了時はpending commandを保持するよう修正 | Codex |
 
 ---
 

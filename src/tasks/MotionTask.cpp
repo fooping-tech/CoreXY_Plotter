@@ -157,10 +157,12 @@ bool commandQueueEmpty() {
   return command_queue == nullptr || uxQueueMessagesWaiting(command_queue) == 0;
 }
 
-void clearMotionQueues(const char* reason) {
+void clearMotionQueues(const char* reason, bool clear_pending = true) {
   planner_queue.clear();
   segment_queue.clear();
-  has_pending_command = false;
+  if (clear_pending) {
+    has_pending_command = false;
+  }
   if (reason != nullptr) {
     logMessage("MOTION_QUEUES cleared reason=%s", reason);
   }
@@ -504,7 +506,7 @@ bool handleXYBatch(const CommandMessage& first_command) {
       return false;
     }
   }
-  clearMotionQueues("XY complete");
+  clearMotionQueues("XY complete", false);
   return true;
 }
 
