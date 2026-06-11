@@ -23,12 +23,9 @@ constexpr MotorMelodyNote NOTES[] = {
 };
 
 constexpr MotorChordNote JOB_END_NOTES[] = {
-    {523, 659, 80},
-    {659, 784, 80},
-    {784, 988, 100},
-    {1047, 1319, 150},
-    {784, 1047, 90},
-    {1047, 1568, 190},
+    {523, 659, 120},  // A: do, B: mi
+    {587, 698, 120},  // A: re, B: fa
+    {523, 659, 180},  // A: do, B: mi
 };
 
 uint32_t evenPulseCount(uint16_t frequency_hz, uint16_t duration_ms) {
