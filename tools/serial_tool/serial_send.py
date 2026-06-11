@@ -66,6 +66,13 @@ class CommandRow:
     source: str = "csv"
 
 
+@dataclass(frozen=True)
+class SerialReadResult:
+    text: str
+    timed_out: bool
+    max_duration_s: float
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Send CoreXY plotter firmware commands from CSV or G-code files."
@@ -498,17 +505,19 @@ def read_available_text(serial_port, timeout_s: float) -> str:
     return b"".join(chunks).decode("utf-8", errors="replace")
 
 
-def read_response_text(
+def read_response_result(
     serial_port,
     min_duration_s: float,
     max_duration_s: float,
     stop_on: str | tuple[str, ...],
     return_on_stop: bool = False,
-) -> str:
+) -> SerialReadResult:
     started_at = time.monotonic()
-    deadline = started_at + max(max_duration_s, min_duration_s)
+    effective_max_duration_s = max(max_duration_s, min_duration_s)
+    deadline = started_at + effective_max_duration_s
     last_rx_at: float | None = None
     chunks: list[bytes] = []
+    timed_out = False
     while True:
         now = time.monotonic()
         elapsed_s = now - started_at
@@ -522,6 +531,7 @@ def read_response_text(
             if not has_stop_patterns(stop_on) and idle_s is not None and idle_s >= READ_IDLE_S:
                 break
         if now >= deadline:
+            timed_out = True
             break
 
         waiting = getattr(serial_port, "in_waiting", 0)
@@ -530,7 +540,27 @@ def read_response_text(
             last_rx_at = time.monotonic()
         else:
             time.sleep(0.02)
-    return b"".join(chunks).decode("utf-8", errors="replace")
+    return SerialReadResult(
+        text=b"".join(chunks).decode("utf-8", errors="replace"),
+        timed_out=timed_out,
+        max_duration_s=effective_max_duration_s,
+    )
+
+
+def read_response_text(
+    serial_port,
+    min_duration_s: float,
+    max_duration_s: float,
+    stop_on: str | tuple[str, ...],
+    return_on_stop: bool = False,
+) -> str:
+    return read_response_result(
+        serial_port,
+        min_duration_s=min_duration_s,
+        max_duration_s=max_duration_s,
+        stop_on=stop_on,
+        return_on_stop=return_on_stop,
+    ).text
 
 
 def open_serial_port(serial, port: str, baud: int, timeout: float, retries: int):
@@ -641,6 +671,29 @@ def print_response(response: str) -> None:
         print(response, end="" if response.endswith("\n") else "\n", flush=True)
 
 
+def print_missing_response_error(
+    row: CommandRow,
+    expected: str,
+    read_result: SerialReadResult,
+    context: str,
+) -> None:
+    if read_result.timed_out:
+        print(
+            f"ERROR: line {row.line_number}: timeout after "
+            f"{read_result.max_duration_s:.3f}s waiting for {expected!r} "
+            f"{context}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return
+    print(
+        f"ERROR: line {row.line_number}: expected {expected!r} "
+        f"was not found in serial response {context}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def elapsed_s(origin_s: float) -> float:
     return time.monotonic() - origin_s
 
@@ -704,13 +757,14 @@ def send_row_queue_mode(
             print(f">>> {index:03d}: {row.command}{suffix}", flush=True)
         serial_port.write((row.command + "\n").encode("utf-8"))
         serial_port.flush()
-        response = read_response_text(
+        ack_read = read_response_result(
             serial_port,
             min_duration_s=0.0,
             max_duration_s=args.timeout,
             stop_on=stop_on,
             return_on_stop=stream_motion,
         )
+        response = ack_read.text
         if not stream_motion or QUEUE_FULL_PATTERN in response or firmware_failure_line(response):
             print_response(response)
 
@@ -759,22 +813,25 @@ def send_row_queue_mode(
             )
             return 1
 
-        print(
-            f"ERROR: line {row.line_number}: queue ACK was not found in serial response",
-            file=sys.stderr,
-            flush=True,
+        print_missing_response_error(
+            row,
+            "ACK QUEUED",
+            ack_read,
+            "before command queue acceptance",
         )
         return 1
 
     completion = queue_completion_pattern(row, args)
+    completion_read = SerialReadResult("", False, 0.0)
     if completion and completion not in response:
         delay_s = row.delay_ms / 1000.0
-        completion_response = read_response_text(
+        completion_read = read_response_result(
             serial_port,
             min_duration_s=delay_s,
             max_duration_s=queue_completion_timeout_s(row, args),
             stop_on=stop_patterns_with_failures(completion),
         )
+        completion_response = completion_read.text
         print_response(completion_response)
         response += completion_response
 
@@ -799,11 +856,11 @@ def send_row_queue_mode(
         return 1
 
     if completion and completion not in response:
-        print(
-            f"ERROR: line {row.line_number}: expected {completion!r} "
-            "was not found in serial response",
-            file=sys.stderr,
-            flush=True,
+        print_missing_response_error(
+            row,
+            completion,
+            completion_read,
+            "after command queue acceptance",
         )
         return 1
 
@@ -816,12 +873,13 @@ def send_row_standard_mode(serial_port, args: argparse.Namespace, index: int, ro
     serial_port.write((row.command + "\n").encode("utf-8"))
     serial_port.flush()
     delay_s = row.delay_ms / 1000.0
-    response = read_response_text(
+    read_result = read_response_result(
         serial_port,
         min_duration_s=delay_s,
         max_duration_s=max(args.timeout, delay_s),
         stop_on=stop_patterns_with_failures(row.expect),
     )
+    response = read_result.text
     print_response(response)
     failure = firmware_failure_line(response)
     if failure:
@@ -834,11 +892,11 @@ def send_row_standard_mode(serial_port, args: argparse.Namespace, index: int, ro
         )
         return 1
     if row.expect and row.expect not in response:
-        print(
-            f"ERROR: line {row.line_number}: expected {row.expect!r} "
-            "was not found in serial response",
-            file=sys.stderr,
-            flush=True,
+        print_missing_response_error(
+            row,
+            row.expect,
+            read_result,
+            "before expected response",
         )
         return 1
     return 0

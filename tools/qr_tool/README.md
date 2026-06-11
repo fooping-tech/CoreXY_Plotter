@@ -1,7 +1,8 @@
 # QR Tool
 
-QR文字列やURLから、既存のSerial Toolで送れるプロッタ用CSV/G-codeと、同じハッチング線を表示する確認用SVGを生成します。
-ファームウェアにはQRエンコード処理を入れず、生成後のCSVは`PENUP`、`PENDOWN`、`XY`、G-codeは`G0`、`G1`、`M3`、`M5`、`G4`だけを使います。
+QR文字列やURLから、既存のSerial Toolで送れるプロッタ用G-codeと、同じハッチング線を表示する確認用SVGを生成します。
+ファームウェアにはQRエンコード処理を入れず、生成後のG-codeは`G21`、`G90`、`G0`、`G1`、`M3`、`M5`、`G4`だけを使います。
+CSV出力も可能ですが、通常の描画ジョブはG-codeと`--job-lifecycle`で実行します。
 
 ## Setup
 
@@ -18,7 +19,6 @@ python -m pip install -r tools/qr_tool/requirements.txt
 ```bash
 python tools/qr_tool/qr_to_plot_csv.py \
   --text "HELLO COREXY" \
-  --output tools/serial_tool/examples/qr_hello.csv \
   --gcode-output tools/qr_tool/examples/gcode/qr_hello.gcode \
   --preview-svg tools/qr_tool/qr_hello.svg \
   --origin-x 10 \
@@ -30,9 +30,8 @@ python tools/qr_tool/qr_to_plot_csv.py \
   --error-correction M
 ```
 
-`qrcode`のquiet zoneは4 modulesです。黒セルは上下左右につながる接続成分へ結合し、各成分をペンアップなしの横方向ジグザグで塗ります。CSVの最初と最後には`PENUP`が入ります。
-生成CSVの先頭には`CONFIG`、`SELFTEST`、`TMC_INIT`、`TMC_STATUS`、`PENUP`、`ZERO`、`ALARM_CLEAR`、`LIMIT_STATUS`、`HOME`、`POS`のbring-up確認preambleが入ります。
-G-code出力にはbring-up preambleを入れません。正式ジョブとして送る場合はSerial Toolの`--job-lifecycle`を使って、ファームウェア側に`JOB_BEGIN`/`JOB_END`を送ってください。
+`qrcode`のquiet zoneは4 modulesです。黒セルは上下左右につながる接続成分へ結合し、各成分をペンアップなしの横方向ジグザグで塗ります。
+G-code出力にはbring-up preambleを入れません。正式ジョブとして送る場合はSerial Toolの`--job-lifecycle`を使って、ファームウェア側に`JOB_BEGIN`/`JOB_END`を送ります。
 
 ## Send
 
@@ -40,24 +39,14 @@ G-code出力にはbring-up preambleを入れません。正式ジョブとして
 
 ```bash
 python tools/serial_tool/serial_send.py \
-  --csv tools/serial_tool/examples/qr_hello.csv \
-  --dry-run
-```
-
-G-code出力を確認する場合:
-
-```bash
-python tools/serial_tool/serial_send.py \
   --gcode tools/qr_tool/examples/gcode/qr_hello.gcode \
+  --job-lifecycle \
+  --queue-mode \
+  --stream-gcode-motion \
   --dry-run
 ```
 
-QR CSVは通常XY移動を使うため、現在のファームウェア設定では先にhomingを完了して`HOMED=YES`にしてください。
-未homed状態では`XY`が`NACK_XY ... reason=rejected`になり、機械は動かず、その場でペンの上げ下げだけが実行されます。
-Core2がSerial port openでリセットされる環境では、前回の`serial_send.py`実行で完了したhoming状態が次回実行時に消えることがあります。
-QR送信直前の同じ接続で`POS`が`HOMED=YES`を返す状態にしてから送ってください。
-
-まず安全な状態で以下を確認します。
+実機送信前に、Core2とプロッタが安全に動ける状態か確認します。
 
 ```bash
 python tools/serial_tool/serial_send.py \
@@ -67,7 +56,10 @@ python tools/serial_tool/serial_send.py \
   --echo
 ```
 
-次にhomingします。動作範囲とlimit switchを確認し、E-stopまたはモータ電源を切れる状態で実行してください。
+`JOB_BEGIN_AUTO_HOME=false`の場合は、ジョブ送信前にhomingを完了して`HOMED=YES`にしてください。
+Core2がSerial port openでリセットされる環境では、前回の`serial_send.py`実行で完了したhoming状態が次回実行時に消えることがあります。
+
+必要なら先にhomingします。動作範囲とlimit switchを確認し、E-stopまたはモータ電源を切れる状態で実行してください。
 
 ```bash
 python tools/serial_tool/serial_send.py \
@@ -78,7 +70,33 @@ python tools/serial_tool/serial_send.py \
   --echo
 ```
 
-送信例:
+G-codeジョブとして送ります。
+
+```bash
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-023591AC \
+  --gcode tools/qr_tool/examples/gcode/qr_hello.gcode \
+  --startup-delay 4 \
+  --timeout 10 \
+  --queue-mode \
+  --stream-gcode-motion \
+  --job-lifecycle \
+  --echo
+```
+
+`--stream-gcode-motion`では、G-codeの`G0/G1`は`ACK QUEUED`後に先行投入し、`M3/M5`、`G4`、`G21/G90`、`JOB_BEGIN/JOB_END`は完了ログを待ちます。前の移動が長く、`M3/M5`の完了ログがtimeoutする場合は、`--timeout`を長くしてください。
+
+CSVも生成したい場合は`--output`を追加します。
+
+```bash
+python tools/qr_tool/qr_to_plot_csv.py \
+  --text "HELLO COREXY" \
+  --output tools/serial_tool/examples/qr_hello.csv \
+  --gcode-output tools/qr_tool/examples/gcode/qr_hello.gcode \
+  --preview-svg tools/qr_tool/qr_hello.svg
+```
+
+CSVを送る場合は、診断/旧方式として以下のように実行します。
 
 ```bash
 python tools/serial_tool/serial_send.py \
@@ -90,28 +108,14 @@ python tools/serial_tool/serial_send.py \
   --echo
 ```
 
-G-codeジョブとして送る例:
-
-```bash
-python tools/serial_tool/serial_send.py \
-  --port /dev/cu.usbserial-023591AC \
-  --gcode tools/qr_tool/examples/gcode/qr_hello.gcode \
-  --startup-delay 4 \
-  --timeout 30 \
-  --queue-mode \
-  --stream-gcode-motion \
-  --job-lifecycle \
-  --echo
-```
-
-生成CSVの`XY`行には`expect=ACK_XY target=`が入ります。未homed、soft limit超過、alarm中などで`NACK_XY`になった場合は、Serial Toolがその行で停止します。
+未homed、soft limit超過、alarm中などで`NACK_XY`、`REJECT:`、`ERROR:`になった場合は、Serial Toolがその行で停止します。`timeout after ... waiting for ...`は、ファームウェア拒否ではなくホスト側の待ち時間切れです。
 
 ## Parameters
 
 | Option | Meaning |
 |---|---|
 | `--text` | QRに入れる文字列またはURL |
-| `--output` | Serial Toolへ渡すCSV出力先 |
+| `--output` | Serial Toolへ渡すCSV出力先。G-codeだけ使う場合は省略可 |
 | `--gcode-output` | Serial Toolの`--gcode`へ渡すG-code出力先 |
 | `--preview-svg` | 実際に出力されるハッチング線のSVG確認出力先 |
 | `--origin-x`, `--origin-y` | QR左上の原点位置mm |

@@ -32,6 +32,7 @@ QR_TOOL = REPO_ROOT / "tools" / "qr_tool" / "qr_to_plot_csv.py"
 DEFAULT_BAUD = 115200
 MAX_GCODE_BYTES = 2 * 1024 * 1024
 MAX_QR_TEXT_CHARS = 512
+JOB_SERIAL_TIMEOUT_S = 10
 
 
 log_queue: "queue.Queue[dict[str, object]]" = queue.Queue()
@@ -253,6 +254,8 @@ def job_args(port: str, baud: int, gcode_path: Path) -> list[str]:
         "0",
         "--startup-drain",
         "0.2",
+        "--timeout",
+        str(JOB_SERIAL_TIMEOUT_S),
         "--echo",
     ]
 
