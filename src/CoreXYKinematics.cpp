@@ -1,6 +1,14 @@
 #include "CoreXYKinematics.h"
 #include <math.h>
 
+CoreXYPositionSteps CoreXYKinematics::xyPositionToABSteps(
+    float x_mm, float y_mm, float steps_per_mm) {
+  CoreXYPositionSteps position{};
+  position.a_steps = lroundf((x_mm + y_mm) * steps_per_mm);
+  position.b_steps = lroundf((x_mm - y_mm) * steps_per_mm);
+  return position;
+}
+
 CoreXYDelta CoreXYKinematics::xyDeltaToABSteps(float dx_mm, float dy_mm,
                                                 float steps_per_mm) {
   CoreXYDelta delta{};

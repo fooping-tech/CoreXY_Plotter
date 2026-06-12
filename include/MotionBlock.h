@@ -26,6 +26,8 @@ struct MotionBlock {
   float deceleration_time_s = 0.0f;
   int32_t a_steps = 0;
   int32_t b_steps = 0;
+  int32_t target_a_steps = 0;
+  int32_t target_b_steps = 0;
   bool pen_down = false;
   bool triangular_profile = false;
   bool trapezoid_planned = false;

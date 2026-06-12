@@ -21,7 +21,19 @@ PlannerQueue planner_queue;
 CommandMessage pending_command;
 bool has_pending_command = false;
 
-constexpr float MIN_XY_MOVE_LENGTH_MM = 0.0001f;
+struct MotionSyncReference {
+  int32_t backend_a_steps = 0;
+  int32_t backend_b_steps = 0;
+  int32_t machine_a_steps = 0;
+  int32_t machine_b_steps = 0;
+  float machine_x_mm = 0.0f;
+  float machine_y_mm = 0.0f;
+};
+
+int32_t drift_backend_origin_a_steps = 0;
+int32_t drift_backend_origin_b_steps = 0;
+int32_t drift_machine_origin_a_steps = 0;
+int32_t drift_machine_origin_b_steps = 0;
 
 const char* timedSegmentResultName(StepperBackend::TimedSegmentResult result) {
   switch (result) {
@@ -49,6 +61,65 @@ void invalidateHomed(const char* reason) {
   logMessage("HOMED invalidated: %s", reason);
 }
 
+MotionSyncReference captureMotionSyncReference() {
+  MotionSyncReference reference{};
+  reference.backend_a_steps = stepper_backend.currentASteps();
+  reference.backend_b_steps = stepper_backend.currentBSteps();
+  reference.machine_a_steps = machine_state.a_steps;
+  reference.machine_b_steps = machine_state.b_steps;
+  reference.machine_x_mm = machine_state.x_mm;
+  reference.machine_y_mm = machine_state.y_mm;
+  return reference;
+}
+
+void updateMachinePositionEstimateFromBackend(
+    const MotionSyncReference& reference) {
+  const int32_t delta_a_steps =
+      stepper_backend.currentASteps() - reference.backend_a_steps;
+  const int32_t delta_b_steps =
+      stepper_backend.currentBSteps() - reference.backend_b_steps;
+  machine_state.a_steps = reference.machine_a_steps + delta_a_steps;
+  machine_state.b_steps = reference.machine_b_steps + delta_b_steps;
+  const float delta_a_mm = static_cast<float>(delta_a_steps) / STEPS_PER_MM;
+  const float delta_b_mm = static_cast<float>(delta_b_steps) / STEPS_PER_MM;
+  machine_state.x_mm = reference.machine_x_mm + (delta_a_mm + delta_b_mm) * 0.5f;
+  machine_state.y_mm = reference.machine_y_mm + (delta_a_mm - delta_b_mm) * 0.5f;
+}
+
+void resetDriftReference(const char* reason) {
+#if !SIMULATION_MODE
+  drift_backend_origin_a_steps = stepper_backend.currentASteps();
+  drift_backend_origin_b_steps = stepper_backend.currentBSteps();
+#else
+  drift_backend_origin_a_steps = machine_state.a_steps;
+  drift_backend_origin_b_steps = machine_state.b_steps;
+#endif
+  drift_machine_origin_a_steps = machine_state.a_steps;
+  drift_machine_origin_b_steps = machine_state.b_steps;
+  logMessage("DRIFT reference reset reason=%s A=%ld B=%ld",
+             reason, machine_state.a_steps, machine_state.b_steps);
+}
+
+void warnIfDriftDetected() {
+#if !SIMULATION_MODE
+  const int32_t machine_delta_a =
+      machine_state.a_steps - drift_machine_origin_a_steps;
+  const int32_t machine_delta_b =
+      machine_state.b_steps - drift_machine_origin_b_steps;
+  const int32_t backend_delta_a =
+      stepper_backend.currentASteps() - drift_backend_origin_a_steps;
+  const int32_t backend_delta_b =
+      stepper_backend.currentBSteps() - drift_backend_origin_b_steps;
+  const int32_t drift_a = machine_delta_a - backend_delta_a;
+  const int32_t drift_b = machine_delta_b - backend_delta_b;
+  if (drift_a != 0 || drift_b != 0) {
+    logMessage("WARN: DRIFT a=%ld b=%ld machine=(%ld,%ld) backend=(%ld,%ld)",
+               drift_a, drift_b, machine_delta_a, machine_delta_b,
+               backend_delta_a, backend_delta_b);
+  }
+#endif
+}
+
 bool stopForAbort(const char* context) {
   if (!isMotionAbortRequested()) return false;
   clearMotionAbort();
@@ -63,32 +134,12 @@ bool stopForAbort(const char* context) {
   return true;
 }
 
-void updateMachinePositionEstimateFromBackend(int32_t start_backend_a_steps,
-                                              int32_t start_backend_b_steps,
-                                              float start_x_mm,
-                                              float start_y_mm) {
-  const int32_t delta_a_steps =
-      stepper_backend.currentASteps() - start_backend_a_steps;
-  const int32_t delta_b_steps =
-      stepper_backend.currentBSteps() - start_backend_b_steps;
-  const float delta_a_mm = static_cast<float>(delta_a_steps) / STEPS_PER_MM;
-  const float delta_b_mm = static_cast<float>(delta_b_steps) / STEPS_PER_MM;
-  machine_state.x_mm = start_x_mm + (delta_a_mm + delta_b_mm) * 0.5f;
-  machine_state.y_mm = start_y_mm + (delta_a_mm - delta_b_mm) * 0.5f;
-}
-
-bool waitForMotionOrLimit() {
-  const int32_t start_backend_a_steps = stepper_backend.currentASteps();
-  const int32_t start_backend_b_steps = stepper_backend.currentBSteps();
-  const float start_x_mm = machine_state.x_mm;
-  const float start_y_mm = machine_state.y_mm;
+bool waitForMotionOrLimit(const MotionSyncReference& reference) {
   while (stepper_backend.isRunning()) {
     if (stopForAbort("Motion stopped")) {
       return false;
     }
-    updateMachinePositionEstimateFromBackend(start_backend_a_steps,
-                                             start_backend_b_steps, start_x_mm,
-                                             start_y_mm);
+    updateMachinePositionEstimateFromBackend(reference);
     safety_manager.poll();
     if (safety_manager.isAlarmed()) {
       stepper_backend.stop();
@@ -97,13 +148,29 @@ bool waitForMotionOrLimit() {
     }
     vTaskDelay(pdMS_TO_TICKS(1));
   }
-  updateMachinePositionEstimateFromBackend(start_backend_a_steps,
-                                           start_backend_b_steps, start_x_mm,
-                                           start_y_mm);
+  updateMachinePositionEstimateFromBackend(reference);
   return true;
 }
 
-bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start) {
+bool waitForMotionOrLimit() {
+  const MotionSyncReference reference = captureMotionSyncReference();
+  return waitForMotionOrLimit(reference);
+}
+
+void handleTimedSegmentQueueError(const MotionSyncReference& reference,
+                                  const char* context) {
+  stepper_backend.stop();
+  updateMachinePositionEstimateFromBackend(reference);
+  safety_manager.setAlarm("timed segment queue lost position confidence");
+  machine_state.alarmed = true;
+  invalidateHomed("timed segment queue error");
+  logMessage("%s: ERROR position confidence lost; resynced from backend X=%.3f Y=%.3f A=%ld B=%ld",
+             context, machine_state.x_mm, machine_state.y_mm,
+             machine_state.a_steps, machine_state.b_steps);
+}
+
+bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start,
+                                const MotionSyncReference& reference) {
   for (;;) {
     if (stopForAbort("Motion stopped while queueing segment")) {
       return false;
@@ -111,7 +178,11 @@ bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start) {
     const StepperBackend::TimedSegmentResult result =
         stepper_backend.queueTimedSegment(segment, start);
     if (result == StepperBackend::TimedSegmentResult::QUEUED) return true;
-    if (result == StepperBackend::TimedSegmentResult::ERROR) return false;
+    if (result == StepperBackend::TimedSegmentResult::ERROR) {
+      handleTimedSegmentQueueError(reference,
+                                   "Motion stopped while queueing segment");
+      return false;
+    }
     safety_manager.poll();
     if (safety_manager.isAlarmed()) {
       stepper_backend.stop();
@@ -127,18 +198,19 @@ bool executeTimedSegments(SegmentQueue& queue) {
   if (stopForAbort("Motion stopped before timed segment start")) {
     return false;
   }
+  const MotionSyncReference reference = captureMotionSyncReference();
   MotionSegment segment{};
   if (!queue.dequeue(segment)) return false;
-  if (!queueTimedSegmentWithRetry(segment, false)) return false;
+  if (!queueTimedSegmentWithRetry(segment, false, reference)) return false;
   if (!stepper_backend.startTimedSegments()) return false;
 
   while (queue.dequeue(segment)) {
     if (stopForAbort("Motion stopped during timed segment queueing")) {
       return false;
     }
-    if (!queueTimedSegmentWithRetry(segment, true)) return false;
+    if (!queueTimedSegmentWithRetry(segment, true, reference)) return false;
   }
-  return waitForMotionOrLimit();
+  return waitForMotionOrLimit(reference);
 }
 
 void stashPendingCommand(const CommandMessage& command) {
@@ -290,7 +362,8 @@ void resetGcodeModalForJob() {
 }
 
 bool buildXYBlock(const CommandMessage& command, float start_x_mm,
-                  float start_y_mm, MotionBlock& block) {
+                  float start_y_mm, int32_t start_a_steps,
+                  int32_t start_b_steps, MotionBlock& block) {
   if (stopForAbort("XY rejected before planning")) {
     logMessage("NACK_XY target=(%.3f,%.3f) reason=abort",
                command.x_mm, command.y_mm);
@@ -303,34 +376,40 @@ bool buildXYBlock(const CommandMessage& command, float start_x_mm,
                command.x_mm, command.y_mm);
     return false;
   }
-  const CoreXYDelta delta = CoreXYKinematics::xyMoveToABSteps(
-      start_x_mm, start_y_mm, command.x_mm, command.y_mm, STEPS_PER_MM);
+  const float dx_mm = command.x_mm - start_x_mm;
+  const float dy_mm = command.y_mm - start_y_mm;
+  const CoreXYPositionSteps target_steps =
+      CoreXYKinematics::xyPositionToABSteps(command.x_mm, command.y_mm,
+                                            STEPS_PER_MM);
   block = MotionBlock{};
   block.start_x_mm = start_x_mm;
   block.start_y_mm = start_y_mm;
   block.target_x_mm = command.x_mm;
   block.target_y_mm = command.y_mm;
-  block.dx_mm = delta.dx_mm;
-  block.dy_mm = delta.dy_mm;
-  block.length_mm = sqrtf(delta.dx_mm * delta.dx_mm + delta.dy_mm * delta.dy_mm);
+  block.dx_mm = dx_mm;
+  block.dy_mm = dy_mm;
+  block.length_mm = sqrtf(dx_mm * dx_mm + dy_mm * dy_mm);
   block.nominal_speed_mm_min = feed_mm_min;
   block.entry_speed_mm_min = 0.0f;
   block.exit_speed_mm_min = 0.0f;
-  block.a_steps = delta.a_steps;
-  block.b_steps = delta.b_steps;
+  block.a_steps = target_steps.a_steps - start_a_steps;
+  block.b_steps = target_steps.b_steps - start_b_steps;
+  block.target_a_steps = target_steps.a_steps;
+  block.target_b_steps = target_steps.b_steps;
   block.pen_down = machine_state.pen_down;
   return true;
 }
 
 bool isNoOpXYBlock(const MotionBlock& block) {
-  return block.length_mm < MIN_XY_MOVE_LENGTH_MM && block.a_steps == 0 &&
-         block.b_steps == 0;
+  return block.a_steps == 0 && block.b_steps == 0;
 }
 
 void acknowledgeNoOpXY(const MotionBlock& block, bool update_machine_state) {
   if (update_machine_state) {
     machine_state.x_mm = block.target_x_mm;
     machine_state.y_mm = block.target_y_mm;
+    machine_state.a_steps = block.target_a_steps;
+    machine_state.b_steps = block.target_b_steps;
     machine_state.feed_mm_min = block.nominal_speed_mm_min;
   }
   logMessage("XY no-op current=(%.3f,%.3f) target=(%.3f,%.3f) F=%.3f",
@@ -429,8 +508,8 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
 #endif
   machine_state.x_mm = block.target_x_mm;
   machine_state.y_mm = block.target_y_mm;
-  machine_state.a_steps += block.a_steps;
-  machine_state.b_steps += block.b_steps;
+  machine_state.a_steps = block.target_a_steps;
+  machine_state.b_steps = block.target_b_steps;
   machine_state.feed_mm_min = block.nominal_speed_mm_min;
   return true;
 }
@@ -439,10 +518,13 @@ bool handleXYBatch(const CommandMessage& first_command) {
   planner_queue.clear();
   float planned_x_mm = machine_state.x_mm;
   float planned_y_mm = machine_state.y_mm;
+  int32_t planned_a_steps = machine_state.a_steps;
+  int32_t planned_b_steps = machine_state.b_steps;
   float planned_feed_mm_min = machine_state.feed_mm_min;
 
   MotionBlock block{};
-  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm, block)) {
+  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm,
+                    planned_a_steps, planned_b_steps, block)) {
     clearMotionQueues("XY build first failed");
     return false;
   }
@@ -457,6 +539,8 @@ bool handleXYBatch(const CommandMessage& first_command) {
   }
   planned_x_mm = first_command.x_mm;
   planned_y_mm = first_command.y_mm;
+  planned_a_steps = block.target_a_steps;
+  planned_b_steps = block.target_b_steps;
   planned_feed_mm_min = first_command.feed_mm_min;
 
   CommandMessage next_command;
@@ -470,6 +554,8 @@ bool handleXYBatch(const CommandMessage& first_command) {
       MachineState planned_state = machine_state;
       planned_state.x_mm = planned_x_mm;
       planned_state.y_mm = planned_y_mm;
+      planned_state.a_steps = planned_a_steps;
+      planned_state.b_steps = planned_b_steps;
       planned_state.feed_mm_min = planned_feed_mm_min;
       CommandMessage translated{};
       const GcodeInterpreterResult result =
@@ -495,7 +581,8 @@ bool handleXYBatch(const CommandMessage& first_command) {
       break;
     }
     MotionBlock next_block{};
-    if (!buildXYBlock(next_command, planned_x_mm, planned_y_mm, next_block)) {
+    if (!buildXYBlock(next_command, planned_x_mm, planned_y_mm,
+                      planned_a_steps, planned_b_steps, next_block)) {
       clearMotionQueues("XY build batch failed");
       return false;
     }
@@ -510,6 +597,8 @@ bool handleXYBatch(const CommandMessage& first_command) {
     }
     planned_x_mm = next_command.x_mm;
     planned_y_mm = next_command.y_mm;
+    planned_a_steps = next_block.target_a_steps;
+    planned_b_steps = next_block.target_b_steps;
     planned_feed_mm_min = next_command.feed_mm_min;
   }
 
@@ -539,7 +628,12 @@ bool handleXYBatch(const CommandMessage& first_command) {
       return false;
     }
   }
+  machine_state.x_mm = planned_x_mm;
+  machine_state.y_mm = planned_y_mm;
+  machine_state.a_steps = planned_a_steps;
+  machine_state.b_steps = planned_b_steps;
   machine_state.feed_mm_min = planned_feed_mm_min;
+  warnIfDriftDetected();
   clearMotionQueues("XY complete", false);
   return true;
 }
@@ -634,6 +728,7 @@ void handleABTimed(const CommandMessage& command) {
   segment.b_steps = command.b_steps;
   segment.duration_us = command.duration_us;
   const uint32_t micros_before_queue = micros();
+  const MotionSyncReference reference = captureMotionSyncReference();
   logMessage("AB_TIMED before_queue micros=%lu queueEntries A=%u B=%u running A=%u B=%u",
              micros_before_queue, stepper_backend.motorAQueueEntries(),
              stepper_backend.motorBQueueEntries(),
@@ -649,6 +744,9 @@ void handleABTimed(const CommandMessage& command) {
              stepper_backend.isMotorARunning(),
              stepper_backend.isMotorBRunning());
   if (queue_result != StepperBackend::TimedSegmentResult::QUEUED) {
+    if (queue_result == StepperBackend::TimedSegmentResult::ERROR) {
+      handleTimedSegmentQueueError(reference, "AB_TIMED queue");
+    }
     logMessage("NACK_AB_TIMED reason=queue_%s",
                timedSegmentResultName(queue_result));
     return;
@@ -661,10 +759,11 @@ void handleABTimed(const CommandMessage& command) {
              stepper_backend.isMotorARunning(),
              stepper_backend.isMotorBRunning());
   if (!started) {
+    handleTimedSegmentQueueError(reference, "AB_TIMED start");
     logMessage("NACK_AB_TIMED reason=start_error");
     return;
   }
-  if (!waitForMotionOrLimit()) {
+  if (!waitForMotionOrLimit(reference)) {
     logMessage("AB_TIMED result=STOPPED queueEntries A=%u B=%u running A=%u B=%u",
                stepper_backend.motorAQueueEntries(),
                stepper_backend.motorBQueueEntries(),
@@ -673,8 +772,6 @@ void handleABTimed(const CommandMessage& command) {
     logMessage("NACK_AB_TIMED reason=stopped");
     return;
   }
-  machine_state.a_steps += command.a_steps;
-  machine_state.b_steps += command.b_steps;
   logMessage("AB_TIMED result=OK queueEntries A=%u B=%u running A=%u B=%u",
              stepper_backend.motorAQueueEntries(),
              stepper_backend.motorBQueueEntries(),
@@ -727,6 +824,7 @@ void motionTask(void*) {
         machine_state.y_mm = 0;
         machine_state.a_steps = 0;
         machine_state.b_steps = 0;
+        resetDriftReference("ZERO");
         invalidateHomed("ZERO logical origin reset");
         logMessage("ZERO logical origin reset; this is not homing");
         break;
@@ -772,24 +870,30 @@ void motionTask(void*) {
       case CommandType::HOME:
         if (ensureTmcReadyForMotion("HOME")) {
           clearMotionQueues("HOME start");
-          homing_controller.runHome(stepper_backend, safety_manager,
-                                    machine_state);
+          if (homing_controller.runHome(stepper_backend, safety_manager,
+                                        machine_state)) {
+            resetDriftReference("HOME");
+          }
           clearMotionQueues("HOME end");
         }
         break;
       case CommandType::HOME_X:
         if (ensureTmcReadyForMotion("HOME_X")) {
           clearMotionQueues("HOME_X start");
-          homing_controller.runHomeX(stepper_backend, safety_manager,
-                                     machine_state);
+          if (homing_controller.runHomeX(stepper_backend, safety_manager,
+                                         machine_state)) {
+            resetDriftReference("HOME_X");
+          }
           clearMotionQueues("HOME_X end");
         }
         break;
       case CommandType::HOME_Y:
         if (ensureTmcReadyForMotion("HOME_Y")) {
           clearMotionQueues("HOME_Y start");
-          homing_controller.runHomeY(stepper_backend, safety_manager,
-                                     machine_state);
+          if (homing_controller.runHomeY(stepper_backend, safety_manager,
+                                         machine_state)) {
+            resetDriftReference("HOME_Y");
+          }
           clearMotionQueues("HOME_Y end");
         }
         break;
@@ -828,6 +932,7 @@ void motionTask(void*) {
                                     machine_state, pen_controller,
                                     tmc_manager)) {
           resetGcodeModalForJob();
+          resetDriftReference("JOB_BEGIN");
         }
         break;
       case CommandType::JOB_END:
