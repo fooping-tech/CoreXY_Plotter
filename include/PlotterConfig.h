@@ -56,7 +56,7 @@ constexpr uint32_t DEFAULT_MOTOR_SPEED_STEPS_S = static_cast<uint32_t>(
 // TrapezoidPlannerで使うXY空間の加速度 [mm/s^2]。
 // 決め方: 低めから上げ、脱調や振動が出ない値にする。
 // ペンが紙に接触する描画では負荷が増えるため、実機で段階的に確認する。
-constexpr float DEFAULT_ACCEL_MM_S2 = 10000.0f;
+constexpr float DEFAULT_ACCEL_MM_S2 = 1000.0f;
 
 // モータ加速度 [steps/s^2]。
 // CoreXY最悪条件を考慮し、XY空間加速度にsteps/mmとsqrt(2)を掛けて導出する。
