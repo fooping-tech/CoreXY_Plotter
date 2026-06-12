@@ -742,6 +742,38 @@ h2 {
   color: var(--text-secondary);
 }
 
+.config-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.config-group {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-weight: 800;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 5px;
+}
+
+.config-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(120px, 180px) 88px;
+  gap: 8px;
+  align-items: center;
+}
+
+.config-row label {
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.config-row input[type="checkbox"] {
+  width: 22px;
+  min-height: 22px;
+}
+
 @media (max-width: 900px) {
   .app {
     grid-template-columns: 1fr;

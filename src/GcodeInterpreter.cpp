@@ -1,5 +1,6 @@
 #include "GcodeInterpreter.h"
 
+#include "AppContext.h"
 #include "PlotterConfig.h"
 
 #include <stdio.h>
@@ -88,7 +89,7 @@ GcodeInterpreterResult GcodeInterpreter::interpret(const ParsedGcode& parsed,
           parsed.has_f
               ? parsed.f_mm_min
               : (machine.feed_mm_min > 0.0f ? machine.feed_mm_min
-                                            : DEFAULT_FEED_MM_MIN);
+                                            : runtime_config.default_feed_mm_min);
       return GcodeInterpreterResult::COMMAND;
     }
     case ParsedGcodeType::NONE:

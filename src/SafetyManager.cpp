@@ -26,43 +26,47 @@ bool SafetyManager::validateMove(float target_x_mm, float target_y_mm,
   }
   const bool has_homed_motion_reference =
       machine_state.homed || job_controller.hasHomedJobMotionGrant();
-  if (HOMING_REQUIRE_HOMED_FOR_XY_MOVE && !has_homed_motion_reference) {
+  if (runtime_config.homing_require_homed_for_xy_move &&
+      !has_homed_motion_reference) {
     logMessage("REJECT: machine is not homed");
     return false;
   }
   const float dx_mm = target_x_mm - machine_state.x_mm;
   const float dy_mm = target_y_mm - machine_state.y_mm;
-  if (x_debounced_ && dx_mm * static_cast<float>(HOMING_X_DIR) > 0.0f) {
+  if (x_debounced_ && dx_mm * static_cast<float>(runtime_config.homing_x_dir) > 0.0f) {
     logMessage("REJECT: X limit active and move pushes toward limit");
     return false;
   }
-  if (y_debounced_ && dy_mm * static_cast<float>(HOMING_Y_DIR) > 0.0f) {
+  if (y_debounced_ && dy_mm * static_cast<float>(runtime_config.homing_y_dir) > 0.0f) {
     logMessage("REJECT: Y limit active and move pushes toward limit");
     return false;
   }
-  if (target_x_mm < X_MIN_MM || target_x_mm > X_MAX_MM) {
-    logMessage("REJECT: X %.3f outside [%.3f, %.3f]", target_x_mm, X_MIN_MM,
-               X_MAX_MM);
+  if (target_x_mm < runtime_config.x_min_mm ||
+      target_x_mm > runtime_config.x_max_mm) {
+    logMessage("REJECT: X %.3f outside [%.3f, %.3f]", target_x_mm,
+               runtime_config.x_min_mm, runtime_config.x_max_mm);
     return false;
   }
-  if (target_y_mm < Y_MIN_MM || target_y_mm > Y_MAX_MM) {
-    logMessage("REJECT: Y %.3f outside [%.3f, %.3f]", target_y_mm, Y_MIN_MM,
-               Y_MAX_MM);
+  if (target_y_mm < runtime_config.y_min_mm ||
+      target_y_mm > runtime_config.y_max_mm) {
+    logMessage("REJECT: Y %.3f outside [%.3f, %.3f]", target_y_mm,
+               runtime_config.y_min_mm, runtime_config.y_max_mm);
     return false;
   }
   if (feed_mm_min <= 0.0f) {
     logMessage("REJECT: feed must be > 0");
     return false;
   }
-  if (feed_mm_min > MAX_FEED_MM_MIN) {
-    logMessage("CLAMP: feed %.3f -> %.3f", feed_mm_min, MAX_FEED_MM_MIN);
-    feed_mm_min = MAX_FEED_MM_MIN;
+  if (feed_mm_min > runtime_config.max_feed_mm_min) {
+    logMessage("CLAMP: feed %.3f -> %.3f", feed_mm_min,
+               runtime_config.max_feed_mm_min);
+    feed_mm_min = runtime_config.max_feed_mm_min;
   }
   return true;
 }
 
 bool SafetyManager::validateHomingStart() const {
-  if (!HOMING_ENABLED) {
+  if (!runtime_config.homing_enabled) {
     logMessage("REJECT: homing disabled by config");
     return false;
   }
@@ -123,7 +127,7 @@ bool SafetyManager::updateDebounced(bool raw_active, bool& last_raw,
     last_raw = raw_active;
     last_change_ms = now_ms;
   }
-  if (now_ms - last_change_ms >= HOMING_LIMIT_DEBOUNCE_MS) {
+  if (now_ms - last_change_ms >= runtime_config.homing_limit_debounce_ms) {
     debounced = raw_active;
   }
   return debounced;
@@ -146,24 +150,28 @@ void SafetyManager::poll() {
     const uint32_t now_ms = millis();
     if (x_release_allowed_ && x_debounced_ &&
         fabsf(machine_state.x_mm - x_release_start_mm_) >=
-            NORMAL_MOVE_LIMIT_RELEASE_MM) {
+            runtime_config.normal_move_limit_release_mm) {
       setAlarm("X home limit did not release");
       return;
     }
     if (y_release_allowed_ && y_debounced_ &&
         fabsf(machine_state.y_mm - y_release_start_mm_) >=
-            NORMAL_MOVE_LIMIT_RELEASE_MM) {
+            runtime_config.normal_move_limit_release_mm) {
       setAlarm("Y home limit did not release");
       return;
     }
     const bool x_unexpected =
         x_debounced_ && !x_release_allowed_ &&
-        ((HOMING_X_DIR < 0 && machine_state.x_mm > HOMING_SET_X_MM + 0.5f) ||
-         (HOMING_X_DIR > 0 && machine_state.x_mm < HOMING_SET_X_MM - 0.5f));
+        ((runtime_config.homing_x_dir < 0 &&
+          machine_state.x_mm > runtime_config.homing_set_x_mm + 0.5f) ||
+         (runtime_config.homing_x_dir > 0 &&
+          machine_state.x_mm < runtime_config.homing_set_x_mm - 0.5f));
     const bool y_unexpected =
         y_debounced_ && !y_release_allowed_ &&
-        ((HOMING_Y_DIR < 0 && machine_state.y_mm > HOMING_SET_Y_MM + 0.5f) ||
-         (HOMING_Y_DIR > 0 && machine_state.y_mm < HOMING_SET_Y_MM - 0.5f));
+        ((runtime_config.homing_y_dir < 0 &&
+          machine_state.y_mm > runtime_config.homing_set_y_mm + 0.5f) ||
+         (runtime_config.homing_y_dir > 0 &&
+          machine_state.y_mm < runtime_config.homing_set_y_mm - 0.5f));
     if (x_unexpected && x_unexpected_since_ms_ == 0) {
       x_unexpected_since_ms_ = now_ms;
     } else if (!x_unexpected) {
@@ -176,10 +184,12 @@ void SafetyManager::poll() {
     }
     const bool x_unexpected_persistent =
         x_unexpected_since_ms_ != 0 &&
-        now_ms - x_unexpected_since_ms_ >= HARD_LIMIT_UNEXPECTED_ALARM_MS;
+        now_ms - x_unexpected_since_ms_ >=
+            runtime_config.hard_limit_unexpected_alarm_ms;
     const bool y_unexpected_persistent =
         y_unexpected_since_ms_ != 0 &&
-        now_ms - y_unexpected_since_ms_ >= HARD_LIMIT_UNEXPECTED_ALARM_MS;
+        now_ms - y_unexpected_since_ms_ >=
+            runtime_config.hard_limit_unexpected_alarm_ms;
     if (x_unexpected_persistent || y_unexpected_persistent) {
       char reason[96];
       snprintf(reason, sizeof(reason),

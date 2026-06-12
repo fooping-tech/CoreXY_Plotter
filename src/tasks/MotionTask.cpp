@@ -71,8 +71,10 @@ void updateMachinePositionEstimateFromBackend(int32_t start_backend_a_steps,
       stepper_backend.currentASteps() - start_backend_a_steps;
   const int32_t delta_b_steps =
       stepper_backend.currentBSteps() - start_backend_b_steps;
-  const float delta_a_mm = static_cast<float>(delta_a_steps) / STEPS_PER_MM;
-  const float delta_b_mm = static_cast<float>(delta_b_steps) / STEPS_PER_MM;
+  const float delta_a_mm =
+      static_cast<float>(delta_a_steps) / runtime_config.steps_per_mm;
+  const float delta_b_mm =
+      static_cast<float>(delta_b_steps) / runtime_config.steps_per_mm;
   machine_state.x_mm = start_x_mm + (delta_a_mm + delta_b_mm) * 0.5f;
   machine_state.y_mm = start_y_mm + (delta_a_mm - delta_b_mm) * 0.5f;
 }
@@ -187,7 +189,7 @@ bool jobPreflightIdle(const JobPreflight& preflight) {
 }
 
 bool prepareJobBeginAutoHome() {
-  if (!JOB_BEGIN_AUTO_HOME || machine_state.homed) {
+  if (!runtime_config.job_begin_auto_home || machine_state.homed) {
     return true;
   }
   job_controller.recoverToIdleIfSafe(safety_manager, machine_state);
@@ -284,9 +286,9 @@ GcodeInterpreterResult translateGcodeCommand(const CommandMessage& command,
 
 void resetGcodeModalForJob() {
   gcode_interpreter.resetModalState();
-  machine_state.feed_mm_min = DEFAULT_FEED_MM_MIN;
+  machine_state.feed_mm_min = runtime_config.default_feed_mm_min;
   logMessage("JOB modal reset units=MM distance=ABSOLUTE feed=%.3f",
-             DEFAULT_FEED_MM_MIN);
+             runtime_config.default_feed_mm_min);
 }
 
 bool buildXYBlock(const CommandMessage& command, float start_x_mm,
@@ -304,7 +306,8 @@ bool buildXYBlock(const CommandMessage& command, float start_x_mm,
     return false;
   }
   const CoreXYDelta delta = CoreXYKinematics::xyMoveToABSteps(
-      start_x_mm, start_y_mm, command.x_mm, command.y_mm, STEPS_PER_MM);
+      start_x_mm, start_y_mm, command.x_mm, command.y_mm,
+      runtime_config.steps_per_mm);
   block = MotionBlock{};
   block.start_x_mm = start_x_mm;
   block.start_y_mm = start_y_mm;
@@ -391,15 +394,15 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
   safety_manager.poll();
   const bool allow_x_limit_release =
       safety_manager.xLimitActive() &&
-      block.dx_mm * static_cast<float>(HOMING_X_DIR) < 0.0f;
+      block.dx_mm * static_cast<float>(runtime_config.homing_x_dir) < 0.0f;
   const bool allow_y_limit_release =
       safety_manager.yLimitActive() &&
-      block.dy_mm * static_cast<float>(HOMING_Y_DIR) < 0.0f;
+      block.dy_mm * static_cast<float>(runtime_config.homing_y_dir) < 0.0f;
   if (allow_x_limit_release || allow_y_limit_release) {
     logMessage("LIMIT_RELEASE_ALLOW X=%s Y=%s max=%.3f",
                allow_x_limit_release ? "YES" : "NO",
                allow_y_limit_release ? "YES" : "NO",
-               NORMAL_MOVE_LIMIT_RELEASE_MM);
+               runtime_config.normal_move_limit_release_mm);
   }
   safety_manager.beginNormalMoveLimitReleaseAllowance(
       allow_x_limit_release, allow_y_limit_release, block.start_x_mm,
@@ -462,7 +465,8 @@ bool handleXYBatch(const CommandMessage& first_command) {
   CommandMessage next_command;
   while (!planner_queue.isFull() &&
          receiveNextCommand(next_command,
-                            pdMS_TO_TICKS(LOOKAHEAD_BATCH_COLLECT_MS))) {
+                            pdMS_TO_TICKS(
+                                runtime_config.lookahead_batch_collect_ms))) {
     if (rejectDisallowedJobCommand(next_command)) {
       continue;
     }
@@ -528,7 +532,8 @@ bool handleXYBatch(const CommandMessage& first_command) {
 
   logMessage("LOOKAHEAD blocks=%u junction_deviation=%.3f classic_jerk=%.3f",
              static_cast<unsigned>(planner_queue.count()),
-             JUNCTION_DEVIATION_MM, CLASSIC_JERK_LIMIT_MM_S);
+             runtime_config.junction_deviation_mm,
+             runtime_config.classic_jerk_limit_mm_s);
 
   const size_t planned_count = planner_queue.count();
   for (size_t index = 0; index < planned_count; ++index) {
@@ -545,23 +550,24 @@ bool handleXYBatch(const CommandMessage& first_command) {
 }
 
 bool moveToJobEndPark() {
-  if (!JOB_END_PARK_ENABLED) {
+  if (!runtime_config.job_end_park_enabled) {
     logMessage("JOB_END park skipped: disabled by config");
     return true;
   }
-  if (fabsf(machine_state.x_mm - JOB_END_PARK_X_MM) < 0.01f &&
-      fabsf(machine_state.y_mm - JOB_END_PARK_Y_MM) < 0.01f) {
+  if (fabsf(machine_state.x_mm - runtime_config.job_end_park_x_mm) < 0.01f &&
+      fabsf(machine_state.y_mm - runtime_config.job_end_park_y_mm) < 0.01f) {
     logMessage("JOB_END park skipped: already at X=%.3f Y=%.3f",
-               JOB_END_PARK_X_MM, JOB_END_PARK_Y_MM);
+               runtime_config.job_end_park_x_mm,
+               runtime_config.job_end_park_y_mm);
     return true;
   }
   CommandMessage park{};
   park.type = CommandType::XY;
   park.from_gcode = true;
   snprintf(park.name, sizeof(park.name), "JOB_PARK");
-  park.x_mm = JOB_END_PARK_X_MM;
-  park.y_mm = JOB_END_PARK_Y_MM;
-  park.feed_mm_min = JOB_END_PARK_FEED_MM_MIN;
+  park.x_mm = runtime_config.job_end_park_x_mm;
+  park.y_mm = runtime_config.job_end_park_y_mm;
+  park.feed_mm_min = runtime_config.job_end_park_feed_mm_min;
   logMessage("JOB_END park target=(%.3f,%.3f) F=%.3f",
              park.x_mm, park.y_mm, park.feed_mm_min);
   return handleXYBatch(park);
@@ -618,9 +624,9 @@ void handleABTimed(const CommandMessage& command) {
     logMessage("NACK_AB_TIMED reason=no_steps");
     return;
   }
-  if (command.duration_us < AB_TIMED_MIN_DURATION_US) {
+  if (command.duration_us < runtime_config.ab_timed_min_duration_us) {
     logMessage("NACK_AB_TIMED reason=duration_too_short min_us=%lu",
-               AB_TIMED_MIN_DURATION_US);
+               runtime_config.ab_timed_min_duration_us);
     return;
   }
   if (command.a_steps < INT16_MIN || command.a_steps > INT16_MAX ||
@@ -701,6 +707,30 @@ void handleSingleMotor(bool motor_a, int32_t steps) {
   }
 #endif
 }
+
+void handleConfigSet(const CommandMessage& command) {
+  const RuntimeConfigSetResult result =
+      setRuntimeConfigValue(command.config_key, command.config_value);
+  switch (result) {
+    case RuntimeConfigSetResult::OK:
+      logMessage("CONFIG_SET %s=%s", command.config_key, command.config_value);
+      if (runtimeConfigNeedsTmcReconfigure(command.config_key) &&
+          machine_state.tmc_ready && tmc_manager.isReady()) {
+        machine_state.tmc_ready = tmc_manager.applyNormalProfile();
+      }
+      return;
+    case RuntimeConfigSetResult::UNKNOWN_KEY:
+      logMessage("ERROR: CONFIG_SET unknown key=%s", command.config_key);
+      return;
+    case RuntimeConfigSetResult::INVALID_VALUE:
+      logMessage("ERROR: CONFIG_SET invalid value key=%s value=%s",
+                 command.config_key, command.config_value);
+      return;
+    case RuntimeConfigSetResult::READ_ONLY:
+      logMessage("ERROR: CONFIG_SET read-only key=%s", command.config_key);
+      return;
+  }
+}
 }
 
 void motionTask(void*) {
@@ -717,6 +747,19 @@ void motionTask(void*) {
         break;
       case CommandType::CONFIG:
         Diagnostics::printConfig();
+        break;
+      case CommandType::CONFIG_GET:
+        printRuntimeConfig();
+        break;
+      case CommandType::CONFIG_SET:
+        handleConfigSet(command);
+        break;
+      case CommandType::CONFIG_RESET:
+        resetRuntimeConfig();
+        logMessage("CONFIG_RESET complete");
+        if (machine_state.tmc_ready && tmc_manager.isReady()) {
+          machine_state.tmc_ready = tmc_manager.applyNormalProfile();
+        }
         break;
       case CommandType::POS: {
         Diagnostics::printPosition(currentStatus());

@@ -106,6 +106,21 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--set-config",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help=(
+            "Send CONFIG_SET KEY VALUE before the main input. May be repeated for "
+            "debug runtime overrides from PlotterConfig.h defaults."
+        ),
+    )
+    parser.add_argument(
+        "--reset-config",
+        action="store_true",
+        help="Send CONFIG_RESET before --set-config and the main input.",
+    )
+    parser.add_argument(
         "--port",
         help="Serial port path, for example /dev/cu.usbserial-0001.",
     )
@@ -371,6 +386,35 @@ def load_gcode_rows(gcode_path: Path, default_delay_ms: int) -> list[CommandRow]
 
 def load_input_rows(args: argparse.Namespace) -> list[CommandRow]:
     rows: list[CommandRow] = []
+    if getattr(args, "reset_config", False):
+        rows.append(
+            CommandRow(
+                line_number=0,
+                command="CONFIG_RESET",
+                delay_ms=args.default_delay_ms,
+                expect="CONFIG_RESET complete",
+                comment="reset runtime firmware config",
+                source="config",
+            )
+        )
+    for index, assignment in enumerate(getattr(args, "set_config", []) or [], start=1):
+        if "=" not in assignment:
+            raise ValueError("--set-config must use KEY=VALUE")
+        key, value = assignment.split("=", maxsplit=1)
+        key = key.strip().upper()
+        value = value.strip()
+        if not key or not value:
+            raise ValueError("--set-config must use KEY=VALUE")
+        rows.append(
+            CommandRow(
+                line_number=0,
+                command=f"CONFIG_SET {key} {value}",
+                delay_ms=args.default_delay_ms,
+                expect=f"CONFIG_SET {key}=",
+                comment=f"runtime config override {index}",
+                source="config",
+            )
+        )
     if args.preamble_csv is not None:
         rows.extend(load_command_rows(args.preamble_csv, args.default_delay_ms))
     if args.csv is not None:

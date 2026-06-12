@@ -72,6 +72,19 @@ Core2はシリアルポートを開いた時にリセットされることがあ
 このツールは既定ではDTR/RTSを変更しません。USBシリアルアダプタに合わせて必要な場合だけ`--dtr`、`--no-dtr`、`--rts`、`--no-rts`を指定してください。
 macOSで`/dev/cu.*`が不安定な場合は、対応する`/dev/tty.*`も試してください。
 
+デバッグ用に`PlotterConfig.h`由来のruntime configを一時変更したい場合は、入力CSV/G-codeの前に`--reset-config`と`--set-config KEY=VALUE`を指定できます。変更はRAM上だけで、再起動すると`PlotterConfig.h`の既定値へ戻ります。
+
+```bash
+python tools/serial_tool/serial_send.py \
+  --port /dev/cu.usbserial-0001 \
+  --csv tools/serial_tool/examples/config_check.csv \
+  --reset-config \
+  --set-config DEFAULT_FEED_MM_MIN=900 \
+  --set-config PEN_DOWN_ANGLE_DEG=72 \
+  --startup-delay 4 \
+  --echo
+```
+
 応答が空のままの場合は、PlatformIO monitorなど別プロセスが同じポートを開いていないか確認してください。
 
 ```bash
@@ -117,6 +130,7 @@ python tools/serial_tool/serial_send.py \
 | [Look-ahead Check](docs/lookahead-check.md) | JunctionPlanner、junction deviation、連続XYバッチの確認 | `examples/lookahead_check.csv` |
 | [G-code Check](docs/gcode-check.md) | Phase 7の最小G-code parser/interpreter確認 | `examples/gcode_check.csv` |
 | [Job Lifecycle Check](docs/job-lifecycle-check.md) | Phase 10.5のG-codeジョブ開始/終了処理確認 | `examples/job_lifecycle_check.csv` |
+| [Runtime Config Check](docs/runtime-config-check.md) | `PlotterConfig.h`由来debug configのSerial runtime override確認 | `examples/runtime_config_check.csv` |
 | [High-Speed Check](docs/high-speed-check.md) | homing後の通常XY移動を上限feed付近で確認 | `examples/high_speed_check.csv`, `examples/high_speed_sweep_check.csv` |
 | [Concentric Squares Check](docs/concentric-squares-check.md) | 動き出し・動き終わりの線歪みを5重正方形で調査 | `examples/concentric_squares_check.csv`, `examples/concentric_squares_clockwise_check.csv`, `examples/concentric_squares_high_speed_check.csv` |
 | [Diagnostic AB_TIMED Square Draw](docs/diagnostic-ab-timed-square-draw.md) | `AB_TIMED`でA/Bを直接timed実行して四角の歪みを比較 | `examples/diagnostic_ab_timed_square_draw.csv` |
@@ -176,6 +190,8 @@ G-code行の送信中に`NACK`、`REJECT:`、alarm、`ERROR:`を検出した場�
 `JOB_BEGIN`はファームウェア側でalarm、TMC ready、homed、pen up、motion queue idleを確認します。TMC未readyなら自動で`TMC_INIT`相当を実行します。`JOB_BEGIN_AUTO_HOME=false`では未homed時に拒否し、`JOB_BEGIN_AUTO_HOME=true`では未homed時にHOME相当を自動実行します。
 `JOB_BEGIN`は自動HOMEを含む場合があるため、`--timeout`の既定値に関係なく最大60秒まで`JOB_BEGIN OK`を待ちます。
 `JOB_END`はpen up後に`X=5mm, Y=Y_MAX_MM-5mm`へ退避し、A/B両モータで短い終了ジングルを鳴らします。
+
+`--reset-config`と`--set-config KEY=VALUE`は、CSV/G-code本文より前に`CONFIG_RESET`と`CONFIG_SET`を送ります。複数の`--set-config`は指定順に実行されます。TMC関連keyを変更した場合、ファームウェア側でTMC初期化済みなら通常profileを再適用します。
 
 ファームウェアはparseとキュー投入に成功したコマンドへ`ACK QUEUED <command>`を返します。
 XY移動はmotion側で受理されると`ACK_XY target=(x,y) A=a_steps B=b_steps F=feed`も返します。

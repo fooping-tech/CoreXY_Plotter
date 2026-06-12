@@ -48,6 +48,7 @@ void publishStatus() {
 }
 
 void setup() {
+  resetRuntimeConfig();
   Serial.begin(SERIAL_BAUD);
   command_queue = xQueueCreate(COMMAND_QUEUE_LENGTH, sizeof(CommandMessage));
   status_queue = xQueueCreate(1, sizeof(StatusMessage));

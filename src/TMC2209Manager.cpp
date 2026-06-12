@@ -7,14 +7,20 @@
 #include "PlotterConfig.h"
 
 namespace {
-constexpr TMC2209Profile NORMAL_PROFILE = {
-    TMC_NORMAL_MICROSTEPS, TMC_NORMAL_RMS_CURRENT_MA, TMC_NORMAL_SPREADCYCLE};
-constexpr TMC2209Profile MELODY_PROFILE = {
-    MOTOR_MELODY_MICROSTEPS, MOTOR_MELODY_RMS_CURRENT_MA,
-    MOTOR_MELODY_SPREADCYCLE};
+TMC2209Profile normalProfile() {
+  return TMC2209Profile{runtime_config.tmc_normal_microsteps,
+                        runtime_config.tmc_normal_rms_current_ma,
+                        runtime_config.tmc_normal_spreadcycle};
+}
+
+TMC2209Profile melodyProfile() {
+  return TMC2209Profile{runtime_config.motor_melody_microsteps,
+                        runtime_config.motor_melody_rms_current_ma,
+                        runtime_config.motor_melody_spreadcycle};
+}
 
 uint8_t rmsMaToCurrentScale(float rms_ma) {
-  const float vfs = TMC_CURRENT_VSENSE ? 0.180f : 0.325f;
+  const float vfs = runtime_config.tmc_current_vsense ? 0.180f : 0.325f;
   long current_scale = lroundf(32.0f * 1.41421f * rms_ma / 1000.0f *
                                (TMC_R_SENSE_OHM + 0.02f) / vfs - 1.0f);
   if (current_scale < 0) current_scale = 0;
@@ -24,7 +30,9 @@ uint8_t rmsMaToCurrentScale(float rms_ma) {
 }
 
 TMC2209Manager::TMC2209Manager(HardwareSerial& serial)
-    : serial_(serial), current_profile_(NORMAL_PROFILE) {
+    : serial_(serial),
+      current_profile_({TMC_NORMAL_MICROSTEPS, TMC_NORMAL_RMS_CURRENT_MA,
+                        TMC_NORMAL_SPREADCYCLE}) {
   static TMC2209Stepper driver_a(&serial, TMC_R_SENSE_OHM,
                                   TMC_A_UART_ADDRESS);
   static TMC2209Stepper driver_b(&serial, TMC_R_SENSE_OHM,
@@ -60,9 +68,10 @@ bool TMC2209Manager::configureDrivers() {
 #if SIMULATION_MODE
   return applyNormalProfile();
 #else
-  applyDriverConfig(*driver_a_, NORMAL_PROFILE);
-  applyDriverConfig(*driver_b_, NORMAL_PROFILE);
-  current_profile_ = NORMAL_PROFILE;
+  const TMC2209Profile profile = normalProfile();
+  applyDriverConfig(*driver_a_, profile);
+  applyDriverConfig(*driver_b_, profile);
+  current_profile_ = profile;
   return true;
 #endif
 }
@@ -74,19 +83,19 @@ void TMC2209Manager::applyDriverConfig(TMC2209Stepper& driver,
   driver.pdn_disable(true);
   driver.mstep_reg_select(true);
   driver.multistep_filt(true);
-  driver.TPOWERDOWN(TMC_TPOWERDOWN);
-  driver.toff(TMC_TOFF);
-  driver.hstrt(TMC_HSTRT);
-  driver.hend(TMC_HEND);
-  driver.tbl(TMC_TBL);
+  driver.TPOWERDOWN(runtime_config.tmc_tpowerdown);
+  driver.toff(runtime_config.tmc_toff);
+  driver.hstrt(runtime_config.tmc_hstrt);
+  driver.hend(runtime_config.tmc_hend);
+  driver.tbl(runtime_config.tmc_tbl);
   driver.microsteps(profile.microsteps);
   driver.intpol(true);
   driver.en_spreadCycle(profile.spread_cycle);
   driver.pwm_autoscale(true);
   driver.pwm_autograd(false);
   driver.semin(0);
-  driver.SGTHRS(TMC_SGTHRS_DEFAULT);
-  driver.TCOOLTHRS(TMC_TCOOLTHRS_DEFAULT);
+  driver.SGTHRS(runtime_config.tmc_sgthrs);
+  driver.TCOOLTHRS(runtime_config.tmc_tcoolthrs);
 
   // Apply current last because CHOPCONF writes can overwrite vsense.
   applyDriverCurrent(driver, profile.rms_current_ma);
@@ -94,10 +103,11 @@ void TMC2209Manager::applyDriverConfig(TMC2209Stepper& driver,
 
 void TMC2209Manager::applyDriverCurrent(TMC2209Stepper& driver,
                                         uint16_t rms_current_ma) {
-  driver.vsense(TMC_CURRENT_VSENSE);
+  driver.vsense(runtime_config.tmc_current_vsense);
   driver.irun(rmsMaToCurrentScale(static_cast<float>(rms_current_ma)));
-  driver.ihold(rmsMaToCurrentScale(rms_current_ma * TMC_HOLD_MULTIPLIER));
-  driver.iholddelay(TMC_IHOLDDELAY);
+  driver.ihold(rmsMaToCurrentScale(rms_current_ma *
+                                   runtime_config.tmc_hold_multiplier));
+  driver.iholddelay(runtime_config.tmc_iholddelay);
 }
 
 bool TMC2209Manager::applyProfile(const TMC2209Profile& profile,
@@ -122,11 +132,11 @@ bool TMC2209Manager::applyProfile(const TMC2209Profile& profile,
 }
 
 bool TMC2209Manager::applyNormalProfile() {
-  return applyProfile(NORMAL_PROFILE, "normal");
+  return applyProfile(normalProfile(), "normal");
 }
 
 bool TMC2209Manager::applyMelodyProfile() {
-  return applyProfile(MELODY_PROFILE, "melody");
+  return applyProfile(melodyProfile(), "melody");
 }
 
 bool TMC2209Manager::refreshConnectionStatus() {

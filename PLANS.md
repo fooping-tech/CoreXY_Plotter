@@ -71,6 +71,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | Job Lifecycle | `JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`を実装済み、motionを伴う実機確認は未完了 |
 | look-ahead | 実装済み、実機未確認 |
 | junction deviation | 実装済み、実機未確認 |
+| Runtime Config | `PlotterConfig.h`由来debug configのRAM上overrideをSerial/WebUIへ追加。実機確認は未完了 |
 
 現在の最優先作業:
 
@@ -1441,7 +1442,7 @@ PC画面で状態、ログ、G-code preview、ジョブ送信を扱えるよう�
 - [x] Manual Control: `HOME`、`ALARM_CLEAR`、`PENUP`、`PENDOWN`、上下左右jog、jog step
 - [x] Job: G-code file選択、preview、bounds、warning、send、abort
 - [x] Console: firmware log、送信command、ACK/NACK/ERROR、手動command入力
-- [x] Settings: serial port、baudrate、startup delay、queue mode、stream motion mode
+- [x] Settings: serial port、baudrate、startup delay、queue mode、stream motion mode、runtime debug config editor
 
 ### 11.1.3 Host bridge
 
@@ -1453,6 +1454,7 @@ PC画面で状態、ログ、G-code preview、ジョブ送信を扱えるよう�
 - [x] `serial_send.py`のstdout/stderrをBrowserへstreamする
 - [x] `NACK`、`REJECT:`、`ERROR:`、`ALARM=YES`をfailure表示に分類する
 - [x] Job失敗時の`JOB_ABORT`送信は`serial_send.py --job-lifecycle`へ委譲する
+- [x] `CONFIG_GET` / `CONFIG_SET` / `CONFIG_RESET`をWebUI Settingsから実行できる
 
 ### 11.1.4 G-code preview
 
@@ -1474,6 +1476,7 @@ PC画面で状態、ログ、G-code preview、ジョブ送信を扱えるよう�
 - [x] WebUIから既存`serial_send.py`経由でG-code jobを送れる
 - [x] Job中のlog、ACK/NACK/ERRORが画面へstreamされる
 - [x] `JOB_ABORT`をWebUIから実行できる
+- [x] WebUI Settingsからruntime configを個別変更できる
 - [x] `PLANS.md`と`SPEC.md`が実装内容に追従している
 
 ### 補正
@@ -2104,6 +2107,7 @@ Phase 6.9を実装してください。
 | R34 | [-] | `JOB_BEGIN_AUTO_HOME`で未homed時の自動HOMEを切り替えられるが、true時の実機安全確認は未完了 | limit switch方向、E-stop可能状態、HOME失敗時の`auto_home_failed`、成功時の`JOB_BEGIN OK`を低速で確認してから正式運用でtrueにする |
 | R35 | [ ] | `JOB_END`退避移動とA/B両モータ終了ジングルはbuild/upload済みだが、実機での脱調、音量、TMC温度、退避位置の機械干渉が未確認 | `job_lifecycle_check.csv`を低速・E-stop可能な状態で実行し、退避位置、ジングル音量、モータ/TMC温度を確認する |
 | R36 | [ ] | `JOB_BEGIN`のTMC自動初期化と`JOB_BEGIN_AUTO_HOME`はbuild/upload後のSerial再確認が未完了 | `JOB_BEGIN_AUTO_HOME=false`で未homedなら`not_homed`拒否、trueで未homedなら`JOB_BEGIN AUTO_HOME start`からHOME実行へ進むことを安全状態で確認する |
+| R37 | [ ] | Runtime ConfigはRAM上overrideとして実装済みだが、実機でのWebUI操作、TMC再適用、幾何パラメータ変更後の復旧手順は未確認 | `runtime_config_check.csv`とWebUI Settingsで低リスク項目から確認し、`STEPS_PER_MM`やsoft limit変更後は`ZERO`/`HOME`で基準を取り直す |
 
 ---
 
@@ -2176,6 +2180,7 @@ Phase 6.9を実装してください。
 | 2026-06-11 | look-ahead中にG-code由来`M5`をpendingへ退避した後、XY正常完了時のqueue clearでpendingも消えて`PEN UP`が実行されない実機ログを受け、XY正常完了時はpending commandを保持するよう修正 | Codex |
 | 2026-06-12 | maze G-code先頭の`G0 X0 Y0 F8000`がゼロ距離MotionBlockとしてJunctionPlannerに拒否される実機ログを受け、ゼロ距離`XY`/`G0`/`G1`はplannerへ投入せずno-op ACKとして扱う仕様を追加 | Codex |
 | 2026-06-12 | Serial ToolがCSV `XY`、G-code `G0/G1`、`G4`から実行時間を概算し、`推定motion時間 + --motion-timeout-margin`でtimeoutを自動延長するよう修正。stream motionの累積推定時間を次の非stream行へ引き継ぐ仕様を追加 | Codex |
+| 2026-06-12 | `PlotterConfig.h`由来debug configをRAM上で個別overrideする`CONFIG_GET`/`CONFIG_SET`/`CONFIG_RESET`を追加し、Serial Toolの`--set-config`/`--reset-config`とWebUI SettingsのRuntime Config editorへ接続 | Codex |
 
 ---
 

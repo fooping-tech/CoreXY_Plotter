@@ -456,6 +456,9 @@ Core 0へ表示するときはStatusQueueを通す。
 |---|---|
 | `HELP` | コマンド一覧 |
 | `CONFIG` | ピン、定数、Core割り付け表示 |
+| `CONFIG_GET` | 実行時debug config override可能項目を`CONFIG_VALUE key=value`で表示 |
+| `CONFIG_SET <key> <value>` | `PlotterConfig.h`由来の一部debug configをRAM上で個別変更 |
+| `CONFIG_RESET` | 実行時debug configを`PlotterConfig.h`の既定値へ戻す |
 | `POS` | 現在位置と状態 |
 | `ZERO` | 論理原点リセット。homingではない |
 | `TEST_A <steps>` | Aモータ単独テスト |
@@ -494,6 +497,12 @@ Core 0へ表示するときはStatusQueueを通す。
 - `AB_TIMED`は診断専用であり、`XY`、`CoreXYKinematics`、`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`をバイパスする。`a_steps`、`b_steps`、`duration_us`を直接`StepperBackendFastAccel`のtimed segment経路へ渡す。
 - `AB_TIMED`は片側stepが0でも許可するが、A/B両方0、`duration_us < AB_TIMED_MIN_DURATION_US`、alarm中、backend未初期化、backend投入失敗の場合は`NACK_AB_TIMED reason=...`を返す。
 - `AB_TIMED`成功時は、queue前後の`micros()`、queue結果、A/B running状態、A/B queue entriesをログし、完了後に`ACK_AB_TIMED`を返す。
+- `CONFIG_GET`は`CONFIG_VALUE KEY=value`形式で、実行時変更可能な現在値を表示する。
+- `CONFIG_SET`はdebug/bring-up用のRAM上overrideであり、再起動または`CONFIG_RESET`で失われる。Flash/NVSへ保存しない。
+- `CONFIG_SET`対象はmotion速度/加速度、soft limit、job end退避、pen角度、homing、TMC通常profile、motor melodyなどの動作パラメータに限る。GPIO、UART baud、task配置、queue容量、compile-time safety guardは対象外とし、必要なら`PlotterConfig.h`を編集して再ビルドする。
+- `CONFIG_SET`がTMCまたはmotor melody関連keyを変更し、TMCが初期化済みの場合は通常TMC profileを再適用する。
+- `CONFIG_SET`はkey不明、値範囲外、`X_MIN_MM >= X_MAX_MM`、`Y_MIN_MM >= Y_MAX_MM`、`DEFAULT_FEED_MM_MIN > MAX_FEED_MM_MIN`、`DEFAULT_ACCEL_MM_S2 > MAX_ACCEL_MM_S2`などの矛盾を拒否し、変更前の値へ戻す。
+- `STEPS_PER_MM`、soft limit、homing set positionなどの幾何パラメータを変更した場合、既存の論理座標と実位置の整合は保証しない。原則としてidle中に変更し、`ZERO`、`HOME`、または再起動で基準を取り直す。
 
 脱調や手動停止により論理座標が信用できない状態から再homingする場合は、`ALARM_CLEAR`の前に`ZERO`を実行して現在の論理座標とhomed状態を破棄する。
 HOMEを扱うserial check CSVでは、原則として`ZERO -> ALARM_CLEAR -> HOME`の順にする。
@@ -526,6 +535,8 @@ homing完了直後など、通常移動開始時に原点limitがONで、かつ�
 - `--motion-timeout-margin`: Serial Toolが推定したmotion時間へ足す余裕時間。既定値は5秒
 - `--estimate-feed-mm-min`: feed未指定motionのホスト側timeout推定に使うfeed。既定値は1200mm/min
 - `--no-auto-motion-timeout`: XY/G-code motion時間によるtimeout自動延長を無効化する
+- `--reset-config`: 入力CSV/G-codeの前に`CONFIG_RESET`を送る
+- `--set-config KEY=VALUE`: 入力CSV/G-codeの前に`CONFIG_SET KEY VALUE`を送る。複数回指定でき、`--reset-config`より後、`--preamble-csv`より前に実行する
 - CSV `delay_ms`: 各コマンド送信後の最小読み取り時間
 - 各行の最大待ち時間は`max(delay_ms, --timeout, 推定motion時間 + --motion-timeout-margin)`
 - 推定対象はCSV `XY`、G-code `G0`/`G1`、`G4`である。G-codeでは`G20`/`G21`、`G90`/`G91`、modal feedを追跡する。ファームウェア仕様に合わせ、`G20`時も`F`はmm/minのまま扱い、X/Yだけinchからmmへ変換する
@@ -797,7 +808,7 @@ Browser
 | Manual Control | `HOME`、`ALARM_CLEAR`、`PENUP`、`PENDOWN`、上下左右jogを提供する |
 | Job | G-codeファイル選択、G-code preview、`JOB_BEGIN`/送信/`JOB_END`、`JOB_ABORT`を提供する |
 | Console | firmware log、送信行、ACK/NACK/ERROR、手動command入力を表示する |
-| Settings | Serial port、baudrate、jog step、送信mode、startup delayなどを設定する |
+| Settings | Serial port、baudrate、jog step、送信mode、startup delay、runtime debug configを設定する |
 
 ### 20.2 操作ルール
 
@@ -807,6 +818,8 @@ Browser
 - Job実行中はmanual jogをdisabledにする
 - Host側状態が不明、Serial切断、または状態取得失敗時はmotionを伴う操作をdisabledにする
 - 危険操作の最終判定はfirmware側の既存`CommandMessage`/`MotionTask`/`SafetyManager`に委ねる
+- Settingsのruntime config editorは`CONFIG_GET`、`CONFIG_SET`、`CONFIG_RESET`を使い、firmware側の値範囲検査と安全判定を迂回しない
+- WebUIで変更したruntime configはRAM上のdebug overrideであり、再起動後は`PlotterConfig.h`の既定値へ戻る
 
 ### 20.3 既存Serial Tool再利用
 

@@ -462,6 +462,57 @@ def test_load_input_rows_prepends_preamble_csv_to_gcode(tmp_path: Path) -> None:
     assert rows[2].expect == "units=MM"
 
 
+def test_load_input_rows_prepends_runtime_config_rows(tmp_path: Path) -> None:
+    csv_path = tmp_path / "commands.csv"
+    csv_path.write_text(
+        "command,delay_ms,expect,comment\n"
+        "CONFIG_GET,250,CONFIG_VALUE,read config\n",
+        encoding="utf-8",
+    )
+    args = argparse.Namespace(
+        preamble_csv=None,
+        csv=csv_path,
+        gcode=None,
+        default_delay_ms=250,
+        reset_config=True,
+        set_config=[
+            "default_feed_mm_min=900",
+            "PEN_DOWN_ANGLE_DEG=72",
+        ],
+    )
+
+    rows = serial_send.load_input_rows(args)
+
+    assert [row.command for row in rows] == [
+        "CONFIG_RESET",
+        "CONFIG_SET DEFAULT_FEED_MM_MIN 900",
+        "CONFIG_SET PEN_DOWN_ANGLE_DEG 72",
+        "CONFIG_GET",
+    ]
+    assert [row.expect for row in rows[:3]] == [
+        "CONFIG_RESET complete",
+        "CONFIG_SET DEFAULT_FEED_MM_MIN=",
+        "CONFIG_SET PEN_DOWN_ANGLE_DEG=",
+    ]
+    assert [row.source for row in rows[:3]] == ["config", "config", "config"]
+
+
+def test_load_input_rows_rejects_malformed_runtime_config_arg(tmp_path: Path) -> None:
+    csv_path = tmp_path / "commands.csv"
+    csv_path.write_text("command\nCONFIG_GET\n", encoding="utf-8")
+    args = argparse.Namespace(
+        preamble_csv=None,
+        csv=csv_path,
+        gcode=None,
+        default_delay_ms=250,
+        reset_config=False,
+        set_config=["DEFAULT_FEED_MM_MIN"],
+    )
+
+    with pytest.raises(ValueError, match="KEY=VALUE"):
+        serial_send.load_input_rows(args)
+
+
 def test_load_input_rows_wraps_gcode_with_job_lifecycle(tmp_path: Path) -> None:
     gcode_path = tmp_path / "drawing.gcode"
     gcode_path.write_text("; drawing\nG21\nG90\n", encoding="utf-8")

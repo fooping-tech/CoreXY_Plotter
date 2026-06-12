@@ -1,0 +1,8 @@
+command,delay_ms,expect,comment
+CONFIG_GET,500,CONFIG_VALUE DEFAULT_FEED_MM_MIN=,Read current runtime config values
+CONFIG_SET DEFAULT_FEED_MM_MIN 900,500,CONFIG_SET DEFAULT_FEED_MM_MIN=900,Override default feed for this boot session
+CONFIG_GET,500,CONFIG_VALUE DEFAULT_FEED_MM_MIN=900.000000,Verify default feed override
+CONFIG_SET PEN_DOWN_ANGLE_DEG 72,500,CONFIG_SET PEN_DOWN_ANGLE_DEG=72,Override pen down angle
+CONFIG_GET,500,CONFIG_VALUE PEN_DOWN_ANGLE_DEG=72,Verify pen angle override
+CONFIG_RESET,500,CONFIG_RESET complete,Restore PlotterConfig.h defaults
+CONFIG_GET,500,CONFIG_VALUE DEFAULT_FEED_MM_MIN=,Read restored default feed

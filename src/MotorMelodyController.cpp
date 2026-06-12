@@ -49,7 +49,7 @@ bool MotorMelodyController::play(StepperBackendFastAccel& backend,
   logMessage("ERROR: MELODY unavailable in SIMULATION_MODE");
   return false;
 #else
-  if (!MOTOR_MELODY_ENABLED) {
+  if (!runtime_config.motor_melody_enabled) {
     logMessage("ERROR: MELODY disabled by config");
     return false;
   }
@@ -110,7 +110,7 @@ bool MotorMelodyController::play(StepperBackendFastAccel& backend,
     }
     backend.endDiagnosticTone();
     if (!completed) break;
-    vTaskDelay(pdMS_TO_TICKS(MOTOR_MELODY_NOTE_GAP_MS));
+    vTaskDelay(pdMS_TO_TICKS(runtime_config.motor_melody_note_gap_ms));
   }
   tmc.applyNormalProfile();
   logMessage("MELODY %s; normal TMC profile restored",
@@ -129,11 +129,11 @@ bool MotorMelodyController::playJobEndJingle(StepperBackendFastAccel& backend,
   logMessage("SIMULATION_MODE: JOB_END_JINGLE no motor output");
   return true;
 #else
-  if (!JOB_END_JINGLE_ENABLED) {
+  if (!runtime_config.job_end_jingle_enabled) {
     logMessage("JOB_END_JINGLE skipped: disabled by config");
     return true;
   }
-  if (!MOTOR_MELODY_ENABLED) {
+  if (!runtime_config.motor_melody_enabled) {
     logMessage("ERROR: JOB_END_JINGLE melody disabled by config");
     return false;
   }
@@ -219,7 +219,7 @@ bool MotorMelodyController::playJobEndJingle(StepperBackendFastAccel& backend,
     }
     backend.endDiagnosticChord();
     if (!completed) break;
-    vTaskDelay(pdMS_TO_TICKS(MOTOR_MELODY_NOTE_GAP_MS));
+    vTaskDelay(pdMS_TO_TICKS(runtime_config.motor_melody_note_gap_ms));
   }
   tmc.applyNormalProfile();
   logMessage("JOB_END_JINGLE %s; normal TMC profile restored",

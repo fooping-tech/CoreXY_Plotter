@@ -342,8 +342,12 @@ void queueJog(const StatusMessage& status, float dx_mm, float dy_mm) {
   CommandMessage command{};
   command.type = CommandType::XY;
   snprintf(command.name, sizeof(command.name), "UI_JOG");
-  command.x_mm = clampFloat(ui_jog_base_x_mm + dx_mm, X_MIN_MM, X_MAX_MM);
-  command.y_mm = clampFloat(ui_jog_base_y_mm + dy_mm, Y_MIN_MM, Y_MAX_MM);
+  command.x_mm = clampFloat(ui_jog_base_x_mm + dx_mm,
+                            runtime_config.x_min_mm,
+                            runtime_config.x_max_mm);
+  command.y_mm = clampFloat(ui_jog_base_y_mm + dy_mm,
+                            runtime_config.y_min_mm,
+                            runtime_config.y_max_mm);
   command.feed_mm_min = UI_JOG_FEED_MM_MIN;
   if (fabsf(command.x_mm - ui_jog_base_x_mm) < 0.001f &&
       fabsf(command.y_mm - ui_jog_base_y_mm) < 0.001f) {

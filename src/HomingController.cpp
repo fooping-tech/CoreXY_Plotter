@@ -14,20 +14,22 @@ namespace {
 constexpr uint32_t kMovePollMs = 1;
 
 int32_t absoluteASteps(float x_mm, float y_mm) {
-  return lroundf((x_mm + y_mm) * STEPS_PER_MM);
+  return lroundf((x_mm + y_mm) * runtime_config.steps_per_mm);
 }
 
 int32_t absoluteBSteps(float x_mm, float y_mm) {
-  return lroundf((x_mm - y_mm) * STEPS_PER_MM);
+  return lroundf((x_mm - y_mm) * runtime_config.steps_per_mm);
 }
 
 float maxTravelForAxis(HomingController::Axis axis) {
-  return axis == HomingController::Axis::X ? HOMING_MAX_TRAVEL_X_MM
-                                           : HOMING_MAX_TRAVEL_Y_MM;
+  return axis == HomingController::Axis::X
+             ? runtime_config.homing_max_travel_x_mm
+             : runtime_config.homing_max_travel_y_mm;
 }
 
 int8_t directionForAxis(HomingController::Axis axis) {
-  return axis == HomingController::Axis::X ? HOMING_X_DIR : HOMING_Y_DIR;
+  return axis == HomingController::Axis::X ? runtime_config.homing_x_dir
+                                           : runtime_config.homing_y_dir;
 }
 
 const char* axisName(HomingController::Axis axis) {
@@ -39,9 +41,11 @@ void applyABStepDeltaToMachine(int32_t delta_a_steps, int32_t delta_b_steps,
   machine.a_steps += delta_a_steps;
   machine.b_steps += delta_b_steps;
   machine.x_mm +=
-      static_cast<float>(delta_a_steps + delta_b_steps) / (2.0f * STEPS_PER_MM);
+      static_cast<float>(delta_a_steps + delta_b_steps) /
+      (2.0f * runtime_config.steps_per_mm);
   machine.y_mm +=
-      static_cast<float>(delta_a_steps - delta_b_steps) / (2.0f * STEPS_PER_MM);
+      static_cast<float>(delta_a_steps - delta_b_steps) /
+      (2.0f * runtime_config.steps_per_mm);
 }
 }
 
@@ -150,7 +154,8 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
   bool other_limit_allowed_active = otherLimitAnyActive(axis, safety);
   const bool target_limit_active_at_start = targetLimitAnyActive(axis, safety);
   const float backoff_limit_mm =
-      target_limit_active_at_start ? HOMING_START_BACKOFF_MM : HOMING_BACKOFF_MM;
+      target_limit_active_at_start ? runtime_config.homing_start_backoff_mm
+                                   : runtime_config.homing_backoff_mm;
 
   State seek_fast = axis == Axis::X ? State::SeekFastX : State::SeekFastY;
   State backoff = axis == Axis::X ? State::BackoffX : State::BackoffY;
@@ -159,8 +164,8 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
 
   setState(seek_fast, machine, "START");
   logMessage("HOME_%s started direction=%d fast=%.3f slow=%.3f backoff=%.3f max=%.3f limitRaw=%s limitDebounced=%s",
-             axisName(axis), seek_dir, HOMING_SEEK_FEED_MM_MIN,
-             HOMING_SLOW_FEED_MM_MIN, backoff_limit_mm,
+             axisName(axis), seek_dir, runtime_config.homing_seek_feed_mm_min,
+             runtime_config.homing_slow_feed_mm_min, backoff_limit_mm,
              maxTravelForAxis(axis),
              targetLimitRawActive(axis, safety) ? "ON" : "OFF",
              targetLimitActive(axis, safety) ? "ON" : "OFF");
@@ -199,7 +204,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
           break;
         }
         if (!moveUntilCondition(axis, seek_dir, maxTravelForAxis(axis),
-                                HOMING_SEEK_FEED_MM_MIN,
+                                runtime_config.homing_seek_feed_mm_min,
                                 MoveStopCondition::TargetAnyActive, backend,
                                 safety, machine, other_limit_allowed_active,
                                 stop_condition_met)) {
@@ -219,7 +224,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
           break;
         }
         if (!moveUntilCondition(axis, -seek_dir, backoff_limit_mm,
-                                HOMING_SEEK_FEED_MM_MIN,
+                                runtime_config.homing_seek_feed_mm_min,
                                 MoveStopCondition::TargetAnyReleased, backend,
                                 safety, machine, other_limit_allowed_active,
                                 stop_condition_met)) {
@@ -239,7 +244,7 @@ bool HomingController::homeAxis(Axis axis, StepperBackendFastAccel& backend,
           break;
         }
         if (!moveUntilCondition(axis, seek_dir, maxTravelForAxis(axis),
-                                HOMING_SLOW_FEED_MM_MIN,
+                                runtime_config.homing_slow_feed_mm_min,
                                 MoveStopCondition::TargetDebouncedActive,
                                 backend, safety, machine,
                                 other_limit_allowed_active,
@@ -285,7 +290,8 @@ bool HomingController::moveUntilCondition(
                           ? static_cast<float>(direction) * distance_limit_mm
                           : 0.0f;
   const CoreXYDelta delta =
-      CoreXYKinematics::xyDeltaToABSteps(dx_mm, dy_mm, STEPS_PER_MM);
+      CoreXYKinematics::xyDeltaToABSteps(dx_mm, dy_mm,
+                                         runtime_config.steps_per_mm);
 
 #if SIMULATION_MODE
   logMessage("SIMULATION_MODE: HOMING move axis=%s dx=%.3f dy=%.3f A=%ld B=%ld F=%.3f",
@@ -423,10 +429,10 @@ void HomingController::setState(State state, MachineState& machine,
 
 void HomingController::setCompletePosition(Axis axis, MachineState& machine) {
   if (axis == Axis::X) {
-    machine.x_mm = HOMING_SET_X_MM;
+    machine.x_mm = runtime_config.homing_set_x_mm;
     machine.x_homed = true;
   } else {
-    machine.y_mm = HOMING_SET_Y_MM;
+    machine.y_mm = runtime_config.homing_set_y_mm;
     machine.y_homed = true;
   }
   machine.homed = machine.x_homed && machine.y_homed;

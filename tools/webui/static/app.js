@@ -4,6 +4,35 @@ const JOG_FEED_MM_MIN = 900;
 const PREVIEW_SIZE = { width: 960, height: 640, pad: 36 };
 const LAST_PORT_KEY = "corexy.webui.lastPort";
 const LAYOUT_FILE_SUFFIX = ".gcode";
+const CONFIG_FIELDS = [
+  ["Motion", "STEPS_PER_MM"], ["Motion", "MAX_MOTOR_SPEED_STEPS_S"],
+  ["Motion", "MAX_FEED_MM_MIN"], ["Motion", "DEFAULT_FEED_MM_MIN"],
+  ["Motion", "DEFAULT_ACCEL_MM_S2"], ["Motion", "MAX_ACCEL_MM_S2"],
+  ["Motion", "JUNCTION_DEVIATION_MM"], ["Motion", "CLASSIC_JERK_LIMIT_MM_S"],
+  ["Motion", "LOOKAHEAD_BATCH_COLLECT_MS"], ["Motion", "AB_TIMED_MIN_DURATION_US"],
+  ["Soft Limit", "X_MIN_MM"], ["Soft Limit", "X_MAX_MM"],
+  ["Soft Limit", "Y_MIN_MM"], ["Soft Limit", "Y_MAX_MM"],
+  ["Job", "JOB_BEGIN_AUTO_HOME"], ["Job", "JOB_END_PARK_ENABLED"],
+  ["Job", "JOB_END_PARK_X_MM"], ["Job", "JOB_END_PARK_Y_MM"],
+  ["Job", "JOB_END_PARK_FEED_MM_MIN"], ["Job", "JOB_END_JINGLE_ENABLED"],
+  ["Pen", "PEN_UP_ANGLE_DEG"], ["Pen", "PEN_DOWN_ANGLE_DEG"],
+  ["Homing", "HOMING_ENABLED"], ["Homing", "HOMING_X_DIR"], ["Homing", "HOMING_Y_DIR"],
+  ["Homing", "HOMING_SEEK_FEED_MM_MIN"], ["Homing", "HOMING_SLOW_FEED_MM_MIN"],
+  ["Homing", "HOMING_BACKOFF_MM"], ["Homing", "HOMING_START_BACKOFF_MM"],
+  ["Homing", "HOMING_MAX_TRAVEL_X_MM"], ["Homing", "HOMING_MAX_TRAVEL_Y_MM"],
+  ["Homing", "HOMING_SET_X_MM"], ["Homing", "HOMING_SET_Y_MM"],
+  ["Homing", "HOMING_LIMIT_DEBOUNCE_MS"], ["Homing", "HARD_LIMIT_UNEXPECTED_ALARM_MS"],
+  ["Homing", "NORMAL_MOVE_LIMIT_RELEASE_MM"], ["Homing", "HOMING_REQUIRE_HOMED_FOR_XY_MOVE"],
+  ["TMC", "TMC_NORMAL_MICROSTEPS"], ["TMC", "TMC_NORMAL_RMS_CURRENT_MA"],
+  ["TMC", "TMC_NORMAL_SPREADCYCLE"], ["TMC", "TMC_HOLD_MULTIPLIER"],
+  ["TMC", "TMC_CURRENT_VSENSE"], ["TMC", "TMC_IHOLDDELAY"],
+  ["TMC", "TMC_TPOWERDOWN"], ["TMC", "TMC_TOFF"], ["TMC", "TMC_HSTRT"],
+  ["TMC", "TMC_HEND"], ["TMC", "TMC_TBL"], ["TMC", "TMC_SGTHRS_DEFAULT"],
+  ["TMC", "TMC_TCOOLTHRS_DEFAULT"],
+  ["Melody", "MOTOR_MELODY_ENABLED"], ["Melody", "MOTOR_MELODY_MICROSTEPS"],
+  ["Melody", "MOTOR_MELODY_RMS_CURRENT_MA"], ["Melody", "MOTOR_MELODY_SPREADCYCLE"],
+  ["Melody", "MOTOR_MELODY_NOTE_GAP_MS"],
+];
 
 const app = {
   page: "dashboard",
@@ -18,6 +47,7 @@ const app = {
   selectedLayoutId: null,
   nextLayoutId: 1,
   drag: null,
+  config: {},
 };
 
 const $ = (id) => document.getElementById(id);
@@ -138,6 +168,8 @@ function updateStateUI() {
   $("sendJobBtn").disabled = !canSendJob();
   $("abortJobBtn").disabled = !isConnected();
   $("topAbortBtn").disabled = !isConnected();
+  $("refreshConfigBtn").disabled = !isConnected();
+  $("resetConfigBtn").disabled = !isConnected();
 }
 
 function canSendJob() {
@@ -181,6 +213,119 @@ async function api(path, options = {}) {
 async function refreshState() {
   app.state = await api("/api/state");
   updateStateUI();
+}
+
+function syncSoftLimitFromConfig() {
+  if (typeof app.config.X_MIN_MM === "number") SOFT_LIMIT.minX = app.config.X_MIN_MM;
+  if (typeof app.config.X_MAX_MM === "number") SOFT_LIMIT.maxX = app.config.X_MAX_MM;
+  if (typeof app.config.Y_MIN_MM === "number") SOFT_LIMIT.minY = app.config.Y_MIN_MM;
+  if (typeof app.config.Y_MAX_MM === "number") SOFT_LIMIT.maxY = app.config.Y_MAX_MM;
+}
+
+function configInputType(value) {
+  return typeof value === "boolean" ? "checkbox" : "number";
+}
+
+function configInputStep(key, value) {
+  if (typeof value === "boolean") return "";
+  if (key.endsWith("_MS") || key.endsWith("_US") || key.includes("MICROSTEPS") || key.includes("CURRENT") || key.includes("ANGLE") || key.includes("DIR")) return "1";
+  return "0.001";
+}
+
+function renderConfigEditor() {
+  const editor = $("configEditor");
+  editor.innerHTML = "";
+  let currentGroup = "";
+  CONFIG_FIELDS.forEach(([group, key]) => {
+    if (group !== currentGroup) {
+      currentGroup = group;
+      const header = document.createElement("div");
+      header.className = "config-group";
+      header.textContent = group;
+      editor.appendChild(header);
+    }
+    const value = app.config[key];
+    const row = document.createElement("div");
+    row.className = "config-row";
+
+    const label = document.createElement("label");
+    label.textContent = key;
+    label.setAttribute("for", `config_${key}`);
+    row.appendChild(label);
+
+    const input = document.createElement("input");
+    input.id = `config_${key}`;
+    input.dataset.key = key;
+    input.type = configInputType(value);
+    if (input.type === "checkbox") {
+      input.checked = Boolean(value);
+    } else {
+      input.step = configInputStep(key, value);
+      input.value = value ?? "";
+    }
+    input.disabled = !isConnected() || value === undefined;
+    row.appendChild(input);
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Apply";
+    button.disabled = input.disabled;
+    button.addEventListener("click", () => applyConfigValue(key, input));
+    row.appendChild(button);
+    editor.appendChild(row);
+  });
+}
+
+async function refreshConfig() {
+  if (!isConnected()) {
+    $("configStatus").textContent = "Connect serial port to read firmware config.";
+    renderConfigEditor();
+    return;
+  }
+  $("configStatus").textContent = "Reading firmware config...";
+  const result = await api("/api/config", { timeoutMs: 10000 });
+  app.config = result.config || {};
+  syncSoftLimitFromConfig();
+  renderConfigEditor();
+  updateJobUI();
+  $("configStatus").textContent = `Loaded ${Object.keys(app.config).length} runtime config values.`;
+}
+
+async function applyConfigValue(key, input) {
+  const value = input.type === "checkbox" ? (input.checked ? "1" : "0") : input.value.trim();
+  if (!value) {
+    showError(new Error(`${key} requires a value`));
+    return;
+  }
+  input.disabled = true;
+  try {
+    const result = await api("/api/config/set", {
+      method: "POST",
+      body: JSON.stringify({ key, value }),
+      timeoutMs: 12000,
+    });
+    app.config = result.config || {};
+    syncSoftLimitFromConfig();
+    renderConfigEditor();
+    updateJobUI();
+    $("configStatus").textContent = `Applied ${key}=${value}`;
+  } catch (error) {
+    showError(error);
+    $("configStatus").textContent = `Failed to apply ${key}.`;
+  } finally {
+    input.disabled = false;
+  }
+}
+
+async function resetConfig() {
+  if (!window.confirm("Reset runtime config to PlotterConfig.h defaults?")) return;
+  $("configStatus").textContent = "Resetting firmware config...";
+  const result = await api("/api/config/reset", { method: "POST", timeoutMs: 12000 });
+  app.config = result.config || {};
+  syncSoftLimitFromConfig();
+  renderConfigEditor();
+  updateJobUI();
+  $("configStatus").textContent = "Runtime config reset to firmware defaults.";
 }
 
 async function refreshPorts() {
@@ -318,6 +463,7 @@ async function connectToPort(port, baud = 115200, button = null) {
     });
     appendLog({ time: Date.now(), kind: "host", message: `Serial target set to ${port} @ ${baud}` });
     updateQuickConnectUI();
+    refreshConfig().catch(showError);
   } catch (error) {
     showError(new Error(`Connect failed: ${error.message || error}`));
   } finally {
@@ -968,8 +1114,10 @@ function bindUI() {
   $("quickConnectBtn").addEventListener("click", () => connectToPort(lastPort(), 115200, $("quickConnectBtn")));
   $("disconnectBtn").addEventListener("click", async () => {
     await api("/api/connect", { method: "POST", body: JSON.stringify({ port: "", baud: 115200 }) });
+    app.config = {};
     await refreshState();
     updateQuickConnectUI();
+    renderConfigEditor();
   });
   $("homeBtn").addEventListener("click", () => sendCommand("HOME").catch(showError));
   $("clearAlarmBtn").addEventListener("click", () => sendCommand("ALARM_CLEAR").catch(showError));
@@ -1024,10 +1172,13 @@ function bindUI() {
   $("sendGcodeBtn").addEventListener("click", () => saveGcode().catch(showError));
   $("abortJobBtn").addEventListener("click", () => api("/api/job/abort", { method: "POST", body: "{}" }).catch(showError));
   $("topAbortBtn").addEventListener("click", () => api("/api/job/abort", { method: "POST", body: "{}" }).catch(showError));
+  $("refreshConfigBtn").addEventListener("click", () => refreshConfig().catch(showError));
+  $("resetConfigBtn").addEventListener("click", () => resetConfig().catch(showError));
 }
 
 async function init() {
   bindUI();
+  renderConfigEditor();
   updateJobUI();
   updateQuickConnectUI();
   await refreshPorts();

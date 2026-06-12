@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include "AppContext.h"
 #include "PlotterConfig.h"
 
 namespace {
@@ -58,13 +59,15 @@ float junctionSpeedLimitMmS(const MotionBlock& previous,
   }
 
   const float acceleration_mm_s2 =
-      constrain(DEFAULT_ACCEL_MM_S2, 0.1f, MAX_ACCEL_MM_S2);
+      constrain(runtime_config.default_accel_mm_s2, 0.1f,
+                runtime_config.max_accel_mm_s2);
   const float junction_speed_mm_s =
-      sqrtf(max(0.0f, acceleration_mm_s2 * JUNCTION_DEVIATION_MM *
+      sqrtf(max(0.0f, acceleration_mm_s2 *
+                          runtime_config.junction_deviation_mm *
                           sin_theta_d2 / (1.0f - sin_theta_d2)));
   const float classic_jerk_limited_mm_s =
-      CLASSIC_JERK_LIMIT_MM_S > 0.0f
-          ? min(junction_speed_mm_s, CLASSIC_JERK_LIMIT_MM_S)
+      runtime_config.classic_jerk_limit_mm_s > 0.0f
+          ? min(junction_speed_mm_s, runtime_config.classic_jerk_limit_mm_s)
           : junction_speed_mm_s;
   return min(classic_jerk_limited_mm_s,
              min(previous.nominal_speed_mm_s, current.nominal_speed_mm_s));
@@ -79,10 +82,12 @@ bool JunctionPlanner::plan(PlannerQueue& queue) const {
     MotionBlock* block = queue.at(index);
     if (block == nullptr || block->length_mm < MIN_BLOCK_LENGTH_MM) return false;
     block->nominal_speed_mm_min =
-        constrain(block->nominal_speed_mm_min, 0.0f, MAX_FEED_MM_MIN);
+        constrain(block->nominal_speed_mm_min, 0.0f,
+                  runtime_config.max_feed_mm_min);
     block->nominal_speed_mm_s = block->nominal_speed_mm_min / 60.0f;
     block->acceleration_mm_s2 =
-        constrain(DEFAULT_ACCEL_MM_S2, 0.1f, MAX_ACCEL_MM_S2);
+        constrain(runtime_config.default_accel_mm_s2, 0.1f,
+                  runtime_config.max_accel_mm_s2);
     block->entry_speed_mm_s = 0.0f;
     block->exit_speed_mm_s = 0.0f;
     block->entry_speed_mm_min = 0.0f;

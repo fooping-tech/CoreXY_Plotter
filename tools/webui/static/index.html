@@ -230,6 +230,20 @@
               <label><input type="checkbox" checked disabled /> job lifecycle</label>
             </div>
           </article>
+          <article class="panel settings-panel">
+            <div class="panel-header">
+              <div>
+                <div class="label">Runtime Config</div>
+                <h2>Debug Overrides</h2>
+              </div>
+              <div class="button-row">
+                <button id="refreshConfigBtn" class="secondary" type="button">Refresh</button>
+                <button id="resetConfigBtn" class="danger" type="button">Reset</button>
+              </div>
+            </div>
+            <div id="configStatus" class="muted">Connect serial port to read firmware config.</div>
+            <div id="configEditor" class="config-editor"></div>
+          </article>
         </section>
       </main>
     </div>

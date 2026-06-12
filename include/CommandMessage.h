@@ -19,5 +19,7 @@ struct CommandMessage {
   uint32_t dwell_ms = 0;
   LedCommand led;
   ParsedGcode gcode;
+  char config_key[40] = {};
+  char config_value[24] = {};
   char error[96] = {};
 };

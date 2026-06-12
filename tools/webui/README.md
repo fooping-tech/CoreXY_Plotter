@@ -86,6 +86,11 @@ POS
 
 Manual jog commands from the WebUI use `900 mm/min` by default.
 
+The Settings page also has a Runtime Config editor. It reads firmware values with
+`CONFIG_GET`, applies individual changes with `CONFIG_SET <KEY> <VALUE>`, and restores
+defaults with `CONFIG_RESET`. These overrides are for debug and bring-up only; they are
+stored in RAM and disappear after the Core2 restarts.
+
 ## G-code layout
 
 The Job page can load multiple G-code files, place them in the preview, scale
@@ -111,6 +116,7 @@ previewed, saved with the layout, and sent with the normal `SEND JOB` flow.
 - Job sending through `serial_send.py`
 - Console log stream
 - Serial target settings
+- Runtime Config editor backed by `CONFIG_GET` / `CONFIG_SET` / `CONFIG_RESET`
 
 ## Job Send Defaults
 

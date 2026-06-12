@@ -1,0 +1,68 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: CoreXY Plotter
+    - generic [ref=e5]: NEED HOME
+    - generic [ref=e6]:
+      - generic [ref=e7]: X
+      - strong [ref=e8]: "--"
+    - generic [ref=e9]:
+      - generic [ref=e10]: "Y"
+      - strong [ref=e11]: "--"
+    - generic [ref=e12]:
+      - generic [ref=e13]: Pen
+      - strong [ref=e14]: UNKNOWN
+    - generic [ref=e15]: Disconnected
+    - button "Settings" [ref=e16] [cursor=pointer]: ⚙
+  - complementary [ref=e17]:
+    - button "Dashboard" [ref=e18] [cursor=pointer]
+    - button "Control" [ref=e19] [cursor=pointer]
+    - button "Job" [ref=e20] [cursor=pointer]
+    - button "Console 0" [ref=e21] [cursor=pointer]:
+      - text: Console
+      - generic [ref=e22]: "0"
+    - button "Settings" [ref=e23] [cursor=pointer]
+  - main [ref=e24]:
+    - generic [ref=e25]:
+      - generic [ref=e26]:
+        - article [ref=e27]:
+          - generic [ref=e28]: Machine State
+          - generic [ref=e29]: NEED HOME
+          - generic [ref=e30]: Home required before motion
+          - button "Settings" [ref=e32] [cursor=pointer]
+        - article [ref=e33]:
+          - generic [ref=e34]: Position
+          - generic [ref=e35]:
+            - generic [ref=e36]: X
+            - strong [ref=e37]: "--"
+            - generic [ref=e38]: mm
+          - generic [ref=e39]:
+            - generic [ref=e40]: "Y"
+            - strong [ref=e41]: "--"
+            - generic [ref=e42]: mm
+        - article [ref=e43]:
+          - generic [ref=e44]: Connection
+          - strong [ref=e45]: No saved port
+          - button "Connect" [disabled] [ref=e46]
+      - generic [ref=e47]:
+        - article [ref=e48]:
+          - generic [ref=e49]: Pen
+          - strong [ref=e50]: UNKNOWN
+        - article [ref=e51]:
+          - generic [ref=e52]: Home
+          - strong [ref=e53]: NOT HOMED
+        - article [ref=e54]:
+          - generic [ref=e55]: Limits
+          - strong [ref=e56]: X UNKNOWN / Y UNKNOWN
+        - article [ref=e57]:
+          - generic [ref=e58]: TMC
+          - strong [ref=e59]: UNKNOWN
+      - article [ref=e60]:
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]: Recent Log
+            - heading "Firmware Stream" [level=2] [ref=e64]
+          - button "Open Console" [ref=e65] [cursor=pointer]
+        - generic [ref=e66]:
+          - generic [ref=e67]: 20:35:09 Refreshing serial ports
+          - generic [ref=e68]: 20:35:09 Found 4 serial port(s)
+          - generic [ref=e69]: 20:35:09 Event stream connected

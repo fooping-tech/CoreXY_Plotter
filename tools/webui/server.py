@@ -74,6 +74,7 @@ ALARM_REASON_RE = re.compile(r'ALARM_REASON="([^"]*)"|ALARM_REASON=([^\s]+)', re
 PEN_RE = re.compile(r"PEN=(UP|DOWN)|pen:\s*(UP|DOWN)|PEN\s+(UP|DOWN)", re.IGNORECASE)
 LIMIT_RE = re.compile(r"LIMIT_X=(OPEN|ACTIVE|ON|OFF).*LIMIT_Y=(OPEN|ACTIVE|ON|OFF)", re.IGNORECASE)
 TMC_RE = re.compile(r"TMC[:=]\s*(READY|NOT READY|OFF)", re.IGNORECASE)
+CONFIG_VALUE_RE = re.compile(r"CONFIG_VALUE\s+([A-Z0-9_]+)=([^\s]+)")
 
 
 def now_ms() -> int:
@@ -206,13 +207,92 @@ def run_serial_send(args: list[str], *, label: str) -> int:
     return exit_code
 
 
-def write_command_csv(command: str) -> Path:
+def run_serial_send_capture(args: list[str], *, label: str) -> tuple[int, str]:
+    cmd = [sys.executable, str(SERIAL_SEND), *args]
+    emit("host", f"Starting {label}: {' '.join(cmd)}")
+    result = subprocess.run(
+        cmd,
+        cwd=REPO_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=False,
+    )
+    for line in result.stdout.splitlines():
+        emit(classify_line(line), line)
+    emit("host", f"{label} exited with code {result.returncode}", exitCode=result.returncode)
+    with state_lock:
+        state["lastExitCode"] = result.returncode
+    return result.returncode, result.stdout
+
+
+def write_command_csv(command: str, *, delay_ms: int = 0, expect: str = "") -> Path:
     temp = tempfile.NamedTemporaryFile("w", newline="", suffix=".csv", delete=False)
     with temp:
         writer = csv.DictWriter(temp, fieldnames=["command", "delay_ms", "expect", "comment"])
         writer.writeheader()
-        writer.writerow({"command": command, "delay_ms": "0", "expect": "", "comment": "webui"})
+        writer.writerow(
+            {
+                "command": command,
+                "delay_ms": str(delay_ms),
+                "expect": expect,
+                "comment": "webui",
+            }
+        )
     return Path(temp.name)
+
+
+def config_command_expect(command: str) -> str:
+    if command == "CONFIG_GET":
+        return "CONFIG_VALUE MOTOR_MELODY_NOTE_GAP_MS="
+    if command == "CONFIG_RESET":
+        return "CONFIG_RESET complete"
+    if command.startswith("CONFIG_SET "):
+        parts = command.split()
+        if len(parts) >= 2:
+            return f"CONFIG_SET {parts[1]}="
+    return ""
+
+
+def run_config_command(port: str, baud: int, command: str) -> str:
+    csv_path = write_command_csv(
+        command,
+        delay_ms=100,
+        expect=config_command_expect(command),
+    )
+    exit_code, output = run_serial_send_capture(
+        command_args(port, baud, csv_path),
+        label=f"config {command}",
+    )
+    if exit_code != 0:
+        raise ValueError(f"{command} failed with code {exit_code}")
+    return output
+
+
+def parse_config_values(output: str) -> dict[str, object]:
+    values: dict[str, object] = {}
+    for line in output.splitlines():
+        match = CONFIG_VALUE_RE.search(line)
+        if not match:
+            continue
+        key, raw = match.group(1), match.group(2)
+        if raw in {"0", "1"} and (
+            key.endswith("ENABLED")
+            or key.endswith("SPREADCYCLE")
+            or key.startswith("JOB_")
+            or key.startswith("HOMING_REQUIRE")
+            or key == "TMC_CURRENT_VSENSE"
+            or key == "MOTOR_MELODY_ENABLED"
+        ):
+            values[key] = raw == "1"
+            continue
+        try:
+            number = float(raw)
+        except ValueError:
+            values[key] = raw
+            continue
+        values[key] = int(number) if number.is_integer() else number
+    return values
 
 
 def command_args(port: str, baud: int, csv_path: Path) -> list[str]:
@@ -354,18 +434,25 @@ class WebUIHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path == "/api/ports":
-            send_json(self, {"ports": list_ports()})
-            return
-        if parsed.path == "/api/state":
-            send_json(self, snapshot_state())
-            return
-        if parsed.path == "/api/events":
-            self.handle_events()
-            return
-        if parsed.path == "/":
-            self.path = "/index.html"
-        super().do_GET()
+        try:
+            if parsed.path == "/api/ports":
+                send_json(self, {"ports": list_ports()})
+                return
+            if parsed.path == "/api/state":
+                send_json(self, snapshot_state())
+                return
+            if parsed.path == "/api/config":
+                self.handle_config_get()
+                return
+            if parsed.path == "/api/events":
+                self.handle_events()
+                return
+            if parsed.path == "/":
+                self.path = "/index.html"
+            super().do_GET()
+        except Exception as exc:  # Keep UI failures visible without crashing the server.
+            emit("error", f"Host error: {exc}")
+            send_json(self, {"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -374,6 +461,10 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 self.handle_connect()
             elif parsed.path == "/api/command":
                 self.handle_command()
+            elif parsed.path == "/api/config/set":
+                self.handle_config_set()
+            elif parsed.path == "/api/config/reset":
+                self.handle_config_reset()
             elif parsed.path == "/api/job":
                 self.handle_job()
             elif parsed.path == "/api/job/abort":
@@ -399,16 +490,20 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         emit("host", f"Serial target set to {port or 'disconnected'} @ {baud}")
         send_json(self, {"ok": True})
 
-    def handle_command(self) -> None:
-        body = read_json(self)
-        command = str(body.get("command", "")).strip()
-        if not command:
-            raise ValueError("command is required")
+    def configured_serial(self) -> tuple[str, int]:
         with state_lock:
             port = str(state.get("port", ""))
             baud = int(state.get("baud", DEFAULT_BAUD))
         if not port:
             raise ValueError("serial port is not configured")
+        return port, baud
+
+    def handle_command(self) -> None:
+        body = read_json(self)
+        command = str(body.get("command", "")).strip()
+        if not command:
+            raise ValueError("command is required")
+        port, baud = self.configured_serial()
         csv_path = write_command_csv(command)
         threading.Thread(
             target=run_serial_send,
@@ -417,6 +512,34 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             daemon=True,
         ).start()
         send_json(self, {"ok": True})
+
+    def handle_config_get(self) -> None:
+        port, baud = self.configured_serial()
+        output = run_config_command(port, baud, "CONFIG_GET")
+        send_json(self, {"ok": True, "config": parse_config_values(output)})
+
+    def handle_config_set(self) -> None:
+        body = read_json(self)
+        key = str(body.get("key", "")).strip().upper()
+        value = str(body.get("value", "")).strip()
+        if not key or not value:
+            raise ValueError("key and value are required")
+        if not re.fullmatch(r"[A-Z0-9_]+", key):
+            raise ValueError("invalid config key")
+        if not re.fullmatch(r"[-+A-Za-z0-9_.]+", value):
+            raise ValueError("invalid config value")
+        port, baud = self.configured_serial()
+        output = run_config_command(port, baud, f"CONFIG_SET {key} {value}")
+        if "ERROR: CONFIG_SET" in output:
+            raise ValueError(output.strip().splitlines()[-1])
+        refreshed = run_config_command(port, baud, "CONFIG_GET")
+        send_json(self, {"ok": True, "config": parse_config_values(refreshed)})
+
+    def handle_config_reset(self) -> None:
+        port, baud = self.configured_serial()
+        run_config_command(port, baud, "CONFIG_RESET")
+        output = run_config_command(port, baud, "CONFIG_GET")
+        send_json(self, {"ok": True, "config": parse_config_values(output)})
 
     def handle_job(self) -> None:
         global job_process

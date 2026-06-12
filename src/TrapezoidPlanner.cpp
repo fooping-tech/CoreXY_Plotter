@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include "AppContext.h"
 #include "PlotterConfig.h"
 
 namespace {
@@ -27,14 +28,16 @@ bool TrapezoidPlanner::plan(MotionBlock& block) const {
   }
 
   block.nominal_speed_mm_min =
-      constrain(block.nominal_speed_mm_min, 0.0f, MAX_FEED_MM_MIN);
+      constrain(block.nominal_speed_mm_min, 0.0f,
+                runtime_config.max_feed_mm_min);
   block.nominal_speed_mm_s = block.nominal_speed_mm_min / 60.0f;
   block.entry_speed_mm_s =
       constrain(block.entry_speed_mm_min / 60.0f, 0.0f, block.nominal_speed_mm_s);
   block.exit_speed_mm_s =
       constrain(block.exit_speed_mm_min / 60.0f, 0.0f, block.nominal_speed_mm_s);
   block.acceleration_mm_s2 =
-      constrain(DEFAULT_ACCEL_MM_S2, 0.1f, MAX_ACCEL_MM_S2);
+      constrain(runtime_config.default_accel_mm_s2, 0.1f,
+                runtime_config.max_accel_mm_s2);
 
   if (block.nominal_speed_mm_s <= 0.0f || block.acceleration_mm_s2 <= 0.0f) {
     return false;

@@ -9,6 +9,7 @@
 #include "NeoPixelController.h"
 #include "MotorMelodyController.h"
 #include "PenController.h"
+#include "RuntimeConfig.h"
 #include "SafetyManager.h"
 #include "StepperBackendFastAccel.h"
 #include "TMC2209Manager.h"

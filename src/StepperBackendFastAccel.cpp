@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <FastAccelStepper.h>
 #include <math.h>
+#include "AppContext.h"
 #include "Core2PinMap.h"
 #include "PlotterConfig.h"
 
@@ -12,7 +13,7 @@ constexpr uint8_t TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN = 2;
 StepperBackend::DiagnosticPulseResult queueDiagnosticPulseOnMotor(
     FastAccelStepper* motor, bool& direction_positive, uint32_t frequency_hz) {
   if (motor == nullptr || frequency_hz == 0 ||
-      frequency_hz > MAX_MOTOR_SPEED_STEPS_S) {
+      frequency_hz > runtime_config.max_motor_speed_steps_s) {
     return StepperBackend::DiagnosticPulseResult::ERROR;
   }
   const uint32_t ticks = TICKS_PER_S / frequency_hz;
@@ -44,7 +45,7 @@ bool StepperBackendFastAccel::begin() {
                             DIR_CHANGE_DELAY_US);
   motor_b_->setDirectionPin(MOTOR_B_DIR_PIN, MOTOR_B_DIRECTION_INVERTED,
                             DIR_CHANGE_DELAY_US);
-  configureSpeed(DEFAULT_FEED_MM_MIN);
+  configureSpeed(runtime_config.default_feed_mm_min);
 #endif
   ready_ = true;
   return true;
@@ -54,12 +55,18 @@ bool StepperBackendFastAccel::isReady() const { return ready_; }
 
 void StepperBackendFastAccel::configureSpeed(float feed_mm_min) {
 #if !SIMULATION_MODE
-  uint32_t speed_steps_s = lroundf(feed_mm_min * STEPS_PER_MM / 60.0f);
-  speed_steps_s = constrain(speed_steps_s, 1U, MAX_MOTOR_SPEED_STEPS_S);
+  uint32_t speed_steps_s =
+      lroundf(feed_mm_min * runtime_config.steps_per_mm / 60.0f);
+  speed_steps_s = constrain(speed_steps_s, 1U,
+                            runtime_config.max_motor_speed_steps_s);
   motor_a_->setSpeedInHz(speed_steps_s);
   motor_b_->setSpeedInHz(speed_steps_s);
-  motor_a_->setAcceleration(DEFAULT_MOTOR_ACCEL_STEPS_S2);
-  motor_b_->setAcceleration(DEFAULT_MOTOR_ACCEL_STEPS_S2);
+  const uint32_t accel_steps_s2 = static_cast<uint32_t>(
+      runtime_config.default_accel_mm_s2 * runtime_config.steps_per_mm *
+          COREXY_MAX_MOTOR_GAIN +
+      0.5f);
+  motor_a_->setAcceleration(accel_steps_s2);
+  motor_b_->setAcceleration(accel_steps_s2);
 #endif
 }
 

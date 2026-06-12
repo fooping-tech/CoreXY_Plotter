@@ -1,5 +1,6 @@
 #include "PenController.h"
 #include <Arduino.h>
+#include "AppContext.h"
 #include "Core2PinMap.h"
 #include "PlotterConfig.h"
 
@@ -22,12 +23,12 @@ void PenController::writeAngle(unsigned angle_deg) {
 }
 
 void PenController::penUp() {
-  writeAngle(PEN_UP_ANGLE_DEG);
+  writeAngle(runtime_config.pen_up_angle_deg);
   pen_down_ = false;
 }
 
 void PenController::penDown() {
-  writeAngle(PEN_DOWN_ANGLE_DEG);
+  writeAngle(runtime_config.pen_down_angle_deg);
   pen_down_ = true;
 }
 

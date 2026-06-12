@@ -1,6 +1,7 @@
 #include "CommandDispatcher.h"
 #include "GcodeParser.h"
 #include "PlotterConfig.h"
+#include "RuntimeConfig.h"
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
@@ -54,6 +55,17 @@ CommandMessage CommandDispatcher::parse(const char* line) {
   }
   else if (strcmp(name, "HELP") == 0) command.type = CommandType::HELP;
   else if (strcmp(name, "CONFIG") == 0) command.type = CommandType::CONFIG;
+  else if (strcmp(name, "CONFIG_GET") == 0) command.type = CommandType::CONFIG_GET;
+  else if (strcmp(name, "CONFIG_RESET") == 0) command.type = CommandType::CONFIG_RESET;
+  else if (strcmp(name, "CONFIG_SET") == 0) {
+    if (sscanf(line, "%*s %39s %23s", command.config_key,
+               command.config_value) != 2) {
+      snprintf(command.error, sizeof(command.error),
+               "CONFIG_SET requires <key> <value>");
+      return command;
+    }
+    command.type = CommandType::CONFIG_SET;
+  }
   else if (strcmp(name, "POS") == 0) command.type = CommandType::POS;
   else if (strcmp(name, "ZERO") == 0) command.type = CommandType::ZERO;
   else if (strcmp(name, "PENUP") == 0) command.type = CommandType::PEN_UP;
@@ -171,7 +183,7 @@ CommandMessage CommandDispatcher::parse(const char* line) {
                "XY requires <x_mm> <y_mm> [feed_mm_min]");
       return command;
     }
-    if (parsed == 2) command.feed_mm_min = DEFAULT_FEED_MM_MIN;
+    if (parsed == 2) command.feed_mm_min = runtime_config.default_feed_mm_min;
     command.type = CommandType::XY;
   } else {
     snprintf(command.error, sizeof(command.error), "unknown command: %s", name);
