@@ -84,7 +84,7 @@ python tools/serial_tool/serial_send.py \
   --echo
 ```
 
-`--stream-gcode-motion`では、G-codeの`G0/G1`は`ACK QUEUED`後に先行投入し、`M3/M5`、`G4`、`G21/G90`、`JOB_BEGIN/JOB_END`は完了ログを待ちます。前の移動が長く、`M3/M5`の完了ログがtimeoutする場合は、`--timeout`を長くしてください。
+`--stream-gcode-motion`では、G-codeの`G0/G1`は`ACK QUEUED`後に先行投入し、`M3/M5`、`G4`、`G21/G90`、`JOB_BEGIN/JOB_END`は完了ログを待ちます。前の移動が長い場合、Serial Toolは推定motion時間を次の非motion行のtimeoutへ自動で足します。実機が推定より大幅に遅い場合は`--motion-timeout-margin`を長くしてください。
 
 CSVも生成したい場合は`--output`を追加します。
 

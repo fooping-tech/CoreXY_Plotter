@@ -1,0 +1,437 @@
+command,delay_ms,expect,comment
+SELFTEST,500,SELFTEST PASS,Validate CoreXY conversion before maze drawing
+ZERO,500,ZERO,Forget stale logical position before homing
+ALARM_CLEAR,500,ALARM_CLEAR complete,Clear previous alarm before homing
+LIMIT_STATUS,500,LIMIT_STATUS,Record limit state before homing
+HOME,500,HOME complete,Home before maze drawing
+POS,500,HOMED=YES,Confirm homed state before maze drawing
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:3
+XY 0.000 0.000 8000,0,,from maze_5mm_full_area.gcode:9
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:10
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:11
+XY 60.000 0.000 3000,0,,from maze_5mm_full_area.gcode:12
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:13
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:14
+XY 0.000 5.000 8000,0,,from maze_5mm_full_area.gcode:15
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:16
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:17
+XY 5.000 5.000 3000,0,,from maze_5mm_full_area.gcode:18
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:19
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:20
+XY 15.000 5.000 8000,0,,from maze_5mm_full_area.gcode:21
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:22
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:23
+XY 30.000 5.000 3000,0,,from maze_5mm_full_area.gcode:24
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:25
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:26
+XY 5.000 10.000 8000,0,,from maze_5mm_full_area.gcode:27
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:28
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:29
+XY 10.000 10.000 3000,0,,from maze_5mm_full_area.gcode:30
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:31
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:32
+XY 25.000 10.000 8000,0,,from maze_5mm_full_area.gcode:33
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:34
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:35
+XY 35.000 10.000 3000,0,,from maze_5mm_full_area.gcode:36
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:37
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:38
+XY 45.000 10.000 8000,0,,from maze_5mm_full_area.gcode:39
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:40
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:41
+XY 55.000 10.000 3000,0,,from maze_5mm_full_area.gcode:42
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:43
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:44
+XY 5.000 15.000 8000,0,,from maze_5mm_full_area.gcode:45
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:46
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:47
+XY 20.000 15.000 3000,0,,from maze_5mm_full_area.gcode:48
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:49
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:50
+XY 30.000 15.000 8000,0,,from maze_5mm_full_area.gcode:51
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:52
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:53
+XY 50.000 15.000 3000,0,,from maze_5mm_full_area.gcode:54
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:55
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:56
+XY 0.000 20.000 8000,0,,from maze_5mm_full_area.gcode:57
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:58
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:59
+XY 5.000 20.000 3000,0,,from maze_5mm_full_area.gcode:60
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:61
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:62
+XY 25.000 20.000 8000,0,,from maze_5mm_full_area.gcode:63
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:64
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:65
+XY 30.000 20.000 3000,0,,from maze_5mm_full_area.gcode:66
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:67
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:68
+XY 40.000 20.000 8000,0,,from maze_5mm_full_area.gcode:69
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:70
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:71
+XY 45.000 20.000 3000,0,,from maze_5mm_full_area.gcode:72
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:73
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:74
+XY 5.000 25.000 8000,0,,from maze_5mm_full_area.gcode:75
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:76
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:77
+XY 15.000 25.000 3000,0,,from maze_5mm_full_area.gcode:78
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:79
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:80
+XY 30.000 25.000 8000,0,,from maze_5mm_full_area.gcode:81
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:82
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:83
+XY 40.000 25.000 3000,0,,from maze_5mm_full_area.gcode:84
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:85
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:86
+XY 45.000 25.000 8000,0,,from maze_5mm_full_area.gcode:87
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:88
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:89
+XY 50.000 25.000 3000,0,,from maze_5mm_full_area.gcode:90
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:91
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:92
+XY 5.000 30.000 8000,0,,from maze_5mm_full_area.gcode:93
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:94
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:95
+XY 10.000 30.000 3000,0,,from maze_5mm_full_area.gcode:96
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:97
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:98
+XY 20.000 30.000 8000,0,,from maze_5mm_full_area.gcode:99
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:100
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:101
+XY 30.000 30.000 3000,0,,from maze_5mm_full_area.gcode:102
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:103
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:104
+XY 40.000 30.000 8000,0,,from maze_5mm_full_area.gcode:105
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:106
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:107
+XY 45.000 30.000 3000,0,,from maze_5mm_full_area.gcode:108
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:109
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:110
+XY 50.000 30.000 8000,0,,from maze_5mm_full_area.gcode:111
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:112
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:113
+XY 55.000 30.000 3000,0,,from maze_5mm_full_area.gcode:114
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:115
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:116
+XY 0.000 35.000 8000,0,,from maze_5mm_full_area.gcode:117
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:118
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:119
+XY 5.000 35.000 3000,0,,from maze_5mm_full_area.gcode:120
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:121
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:122
+XY 10.000 35.000 8000,0,,from maze_5mm_full_area.gcode:123
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:124
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:125
+XY 15.000 35.000 3000,0,,from maze_5mm_full_area.gcode:126
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:127
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:128
+XY 25.000 35.000 8000,0,,from maze_5mm_full_area.gcode:129
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:130
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:131
+XY 40.000 35.000 3000,0,,from maze_5mm_full_area.gcode:132
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:133
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:134
+XY 55.000 35.000 8000,0,,from maze_5mm_full_area.gcode:135
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:136
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:137
+XY 60.000 35.000 3000,0,,from maze_5mm_full_area.gcode:138
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:139
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:140
+XY 5.000 40.000 8000,0,,from maze_5mm_full_area.gcode:141
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:142
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:143
+XY 10.000 40.000 3000,0,,from maze_5mm_full_area.gcode:144
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:145
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:146
+XY 15.000 40.000 8000,0,,from maze_5mm_full_area.gcode:147
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:148
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:149
+XY 25.000 40.000 3000,0,,from maze_5mm_full_area.gcode:150
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:151
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:152
+XY 40.000 40.000 8000,0,,from maze_5mm_full_area.gcode:153
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:154
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:155
+XY 45.000 40.000 3000,0,,from maze_5mm_full_area.gcode:156
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:157
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:158
+XY 50.000 40.000 8000,0,,from maze_5mm_full_area.gcode:159
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:160
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:161
+XY 55.000 40.000 3000,0,,from maze_5mm_full_area.gcode:162
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:163
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:164
+XY 10.000 45.000 8000,0,,from maze_5mm_full_area.gcode:165
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:166
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:167
+XY 15.000 45.000 3000,0,,from maze_5mm_full_area.gcode:168
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:169
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:170
+XY 30.000 45.000 8000,0,,from maze_5mm_full_area.gcode:171
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:172
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:173
+XY 35.000 45.000 3000,0,,from maze_5mm_full_area.gcode:174
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:175
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:176
+XY 40.000 45.000 8000,0,,from maze_5mm_full_area.gcode:177
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:178
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:179
+XY 50.000 45.000 3000,0,,from maze_5mm_full_area.gcode:180
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:181
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:182
+XY 15.000 50.000 8000,0,,from maze_5mm_full_area.gcode:183
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:184
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:185
+XY 20.000 50.000 3000,0,,from maze_5mm_full_area.gcode:186
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:187
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:188
+XY 25.000 50.000 8000,0,,from maze_5mm_full_area.gcode:189
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:190
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:191
+XY 30.000 50.000 3000,0,,from maze_5mm_full_area.gcode:192
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:193
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:194
+XY 35.000 50.000 8000,0,,from maze_5mm_full_area.gcode:195
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:196
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:197
+XY 45.000 50.000 3000,0,,from maze_5mm_full_area.gcode:198
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:199
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:200
+XY 50.000 50.000 8000,0,,from maze_5mm_full_area.gcode:201
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:202
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:203
+XY 55.000 50.000 3000,0,,from maze_5mm_full_area.gcode:204
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:205
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:206
+XY 0.000 55.000 8000,0,,from maze_5mm_full_area.gcode:207
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:208
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:209
+XY 60.000 55.000 3000,0,,from maze_5mm_full_area.gcode:210
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:211
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:212
+XY 0.000 5.000 8000,0,,from maze_5mm_full_area.gcode:213
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:214
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:215
+XY 0.000 55.000 3000,0,,from maze_5mm_full_area.gcode:216
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:217
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:218
+XY 5.000 10.000 8000,0,,from maze_5mm_full_area.gcode:219
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:220
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:221
+XY 5.000 15.000 3000,0,,from maze_5mm_full_area.gcode:222
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:223
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:224
+XY 5.000 20.000 8000,0,,from maze_5mm_full_area.gcode:225
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:226
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:227
+XY 5.000 25.000 3000,0,,from maze_5mm_full_area.gcode:228
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:229
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:230
+XY 5.000 40.000 8000,0,,from maze_5mm_full_area.gcode:231
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:232
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:233
+XY 5.000 50.000 3000,0,,from maze_5mm_full_area.gcode:234
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:235
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:236
+XY 10.000 0.000 8000,0,,from maze_5mm_full_area.gcode:237
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:238
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:239
+XY 10.000 10.000 3000,0,,from maze_5mm_full_area.gcode:240
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:241
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:242
+XY 10.000 15.000 8000,0,,from maze_5mm_full_area.gcode:243
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:244
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:245
+XY 10.000 20.000 3000,0,,from maze_5mm_full_area.gcode:246
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:247
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:248
+XY 10.000 30.000 8000,0,,from maze_5mm_full_area.gcode:249
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:250
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:251
+XY 10.000 40.000 3000,0,,from maze_5mm_full_area.gcode:252
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:253
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:254
+XY 10.000 45.000 8000,0,,from maze_5mm_full_area.gcode:255
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:256
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:257
+XY 10.000 50.000 3000,0,,from maze_5mm_full_area.gcode:258
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:259
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:260
+XY 15.000 5.000 8000,0,,from maze_5mm_full_area.gcode:261
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:262
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:263
+XY 15.000 10.000 3000,0,,from maze_5mm_full_area.gcode:264
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:265
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:266
+XY 15.000 20.000 8000,0,,from maze_5mm_full_area.gcode:267
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:268
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:269
+XY 15.000 35.000 3000,0,,from maze_5mm_full_area.gcode:270
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:271
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:272
+XY 15.000 40.000 8000,0,,from maze_5mm_full_area.gcode:273
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:274
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:275
+XY 15.000 45.000 3000,0,,from maze_5mm_full_area.gcode:276
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:277
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:278
+XY 15.000 50.000 8000,0,,from maze_5mm_full_area.gcode:279
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:280
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:281
+XY 15.000 55.000 3000,0,,from maze_5mm_full_area.gcode:282
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:283
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:284
+XY 20.000 5.000 8000,0,,from maze_5mm_full_area.gcode:285
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:286
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:287
+XY 20.000 40.000 3000,0,,from maze_5mm_full_area.gcode:288
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:289
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:290
+XY 20.000 45.000 8000,0,,from maze_5mm_full_area.gcode:291
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:292
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:293
+XY 20.000 50.000 3000,0,,from maze_5mm_full_area.gcode:294
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:295
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:296
+XY 25.000 10.000 8000,0,,from maze_5mm_full_area.gcode:297
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:298
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:299
+XY 25.000 25.000 3000,0,,from maze_5mm_full_area.gcode:300
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:301
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:302
+XY 25.000 40.000 8000,0,,from maze_5mm_full_area.gcode:303
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:304
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:305
+XY 25.000 50.000 3000,0,,from maze_5mm_full_area.gcode:306
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:307
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:308
+XY 30.000 25.000 8000,0,,from maze_5mm_full_area.gcode:309
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:310
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:311
+XY 30.000 30.000 3000,0,,from maze_5mm_full_area.gcode:312
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:313
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:314
+XY 30.000 35.000 8000,0,,from maze_5mm_full_area.gcode:315
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:316
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:317
+XY 30.000 45.000 3000,0,,from maze_5mm_full_area.gcode:318
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:319
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:320
+XY 35.000 0.000 8000,0,,from maze_5mm_full_area.gcode:321
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:322
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:323
+XY 35.000 10.000 3000,0,,from maze_5mm_full_area.gcode:324
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:325
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:326
+XY 35.000 15.000 8000,0,,from maze_5mm_full_area.gcode:327
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:328
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:329
+XY 35.000 20.000 3000,0,,from maze_5mm_full_area.gcode:330
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:331
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:332
+XY 35.000 30.000 8000,0,,from maze_5mm_full_area.gcode:333
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:334
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:335
+XY 35.000 40.000 3000,0,,from maze_5mm_full_area.gcode:336
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:337
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:338
+XY 35.000 45.000 8000,0,,from maze_5mm_full_area.gcode:339
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:340
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:341
+XY 35.000 55.000 3000,0,,from maze_5mm_full_area.gcode:342
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:343
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:344
+XY 40.000 5.000 8000,0,,from maze_5mm_full_area.gcode:345
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:346
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:347
+XY 40.000 15.000 3000,0,,from maze_5mm_full_area.gcode:348
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:349
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:350
+XY 40.000 20.000 8000,0,,from maze_5mm_full_area.gcode:351
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:352
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:353
+XY 40.000 30.000 3000,0,,from maze_5mm_full_area.gcode:354
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:355
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:356
+XY 40.000 40.000 8000,0,,from maze_5mm_full_area.gcode:357
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:358
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:359
+XY 40.000 45.000 3000,0,,from maze_5mm_full_area.gcode:360
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:361
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:362
+XY 45.000 5.000 8000,0,,from maze_5mm_full_area.gcode:363
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:364
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:365
+XY 45.000 10.000 3000,0,,from maze_5mm_full_area.gcode:366
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:367
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:368
+XY 45.000 25.000 8000,0,,from maze_5mm_full_area.gcode:369
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:370
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:371
+XY 45.000 40.000 3000,0,,from maze_5mm_full_area.gcode:372
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:373
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:374
+XY 50.000 0.000 8000,0,,from maze_5mm_full_area.gcode:375
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:376
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:377
+XY 50.000 5.000 3000,0,,from maze_5mm_full_area.gcode:378
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:379
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:380
+XY 50.000 15.000 8000,0,,from maze_5mm_full_area.gcode:381
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:382
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:383
+XY 50.000 25.000 3000,0,,from maze_5mm_full_area.gcode:384
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:385
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:386
+XY 50.000 35.000 8000,0,,from maze_5mm_full_area.gcode:387
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:388
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:389
+XY 50.000 40.000 3000,0,,from maze_5mm_full_area.gcode:390
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:391
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:392
+XY 50.000 45.000 8000,0,,from maze_5mm_full_area.gcode:393
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:394
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:395
+XY 50.000 50.000 3000,0,,from maze_5mm_full_area.gcode:396
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:397
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:398
+XY 55.000 5.000 8000,0,,from maze_5mm_full_area.gcode:399
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:400
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:401
+XY 55.000 35.000 3000,0,,from maze_5mm_full_area.gcode:402
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:403
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:404
+XY 55.000 40.000 8000,0,,from maze_5mm_full_area.gcode:405
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:406
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:407
+XY 55.000 50.000 3000,0,,from maze_5mm_full_area.gcode:408
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:409
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:410
+XY 60.000 0.000 8000,0,,from maze_5mm_full_area.gcode:411
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:412
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:413
+XY 60.000 50.000 3000,0,,from maze_5mm_full_area.gcode:414
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:415
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:416
+XY 4.000 4.200 8000,0,,from maze_5mm_full_area.gcode:419
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:420
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:421
+XY 1.200 4.200 2000,0,,from maze_5mm_full_area.gcode:422
+XY 1.200 2.500 2000,0,,from maze_5mm_full_area.gcode:423
+XY 4.000 2.500 2000,0,,from maze_5mm_full_area.gcode:424
+XY 4.000 0.800 2000,0,,from maze_5mm_full_area.gcode:425
+XY 1.200 0.800 2000,0,,from maze_5mm_full_area.gcode:426
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:427
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:428
+XY 59.000 54.200 8000,0,,from maze_5mm_full_area.gcode:431
+PENDOWN,80,PEN DOWN,from maze_5mm_full_area.gcode:432
+G4 P80,80,DWELL,from maze_5mm_full_area.gcode:433
+XY 56.200 54.200 2000,0,,from maze_5mm_full_area.gcode:434
+XY 56.200 50.800 2000,0,,from maze_5mm_full_area.gcode:435
+XY 59.000 50.800 2000,0,,from maze_5mm_full_area.gcode:436
+XY 59.000 52.500 2000,0,,from maze_5mm_full_area.gcode:437
+XY 57.600 52.500 2000,0,,from maze_5mm_full_area.gcode:438
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:439
+G4 P40,40,DWELL,from maze_5mm_full_area.gcode:440
+PENUP,40,PEN UP,from maze_5mm_full_area.gcode:441

@@ -1809,6 +1809,8 @@ python tools/serial_tool/serial_send.py \
 - [x] high-speed / homing系CSVのHOME行を、固定長待ちからexpect主体の短い`delay_ms`へ整理する
 - [x] 各CSV行の実行開始時に、最初のコマンド開始を0とした`TIMING START`を表示する
 - [x] 各CSV行の実行終了時に、相対時刻、行内経過時間、status付きの`TIMING END`を表示する
+- [x] Serial ToolがCSV `XY`、G-code `G0/G1`、`G4`の実行時間を概算し、`推定motion時間 + --motion-timeout-margin`でtimeoutを自動延長する
+- [x] stream motion先行投入時は、累積した推定motion時間を次の非stream行のtimeoutへ足す
 
 ## 12.9 脱調後の再homing復旧順序
 
@@ -1837,6 +1839,17 @@ python tools/serial_tool/serial_send.py \
 - [x] `ABORT`後はalarm状態にし、homed状態を無効化する
 - [x] `serial_send.py`の`Ctrl-C`時に`ABORT`を送ってからserial portを閉じる
 - [ ] 実機で長いXY移動中またはHOME中に`Ctrl-C`し、次回serial commandが応答することを確認する
+
+## 12.10.1 ゼロ距離XY/G-code移動のno-op扱い
+
+maze G-codeの先頭などで、homing後の現在位置と同じ`G0 X0 Y0`が送られる場合がある。
+この移動はplannerへ渡す必要がなく、ゼロ距離MotionBlockをJunctionPlannerへ投入すると拒否されるため、ファームウェア側でno-opとしてACKする。
+
+チェック:
+
+- [x] ゼロ距離`XY`/`G0`/`G1`はplanner/segmentへ投入しない
+- [x] no-opでもfeedは更新し、`ACK_XY target=(...) A=0 B=0 F=...`を返す
+- [x] 実機でmaze G-code先頭の`G0 X0 Y0 F8000`が`NACK_XY reason=planner`にならないことを確認する
 
 ## 12.11 KST32B Text Tool / 日本語G-code生成
 
@@ -2161,6 +2174,8 @@ Phase 6.9を実装してください。
 | 2026-06-10 | UI jogで左右のステップ量が違うように見える実機症状を調査。CoreXY式、A/B pin、motor invert、StepperBackendはmainと一致し、原因はTMC未初期化状態でmotionしていたこと。`XY`、G-code由来`G0/G1`、`HOME`、`AB_TIMED`の前にTMC未readyなら自動`TMC_INIT`するよう修正し、実機で動作改善を確認 | Codex |
 | 2026-06-11 | `--stream-gcode-motion`中に`M3`の`PEN DOWN`待ちが既定timeoutで失敗した実機ログを受け、Serial Toolの期待ログ未検出エラーをtimeout到達時は`timeout after ... waiting for ...`と表示するよう修正。ファームウェア拒否とホスト側待ち時間切れを区別する方針をSPEC/READMEへ反映 | Codex |
 | 2026-06-11 | look-ahead中にG-code由来`M5`をpendingへ退避した後、XY正常完了時のqueue clearでpendingも消えて`PEN UP`が実行されない実機ログを受け、XY正常完了時はpending commandを保持するよう修正 | Codex |
+| 2026-06-12 | maze G-code先頭の`G0 X0 Y0 F8000`がゼロ距離MotionBlockとしてJunctionPlannerに拒否される実機ログを受け、ゼロ距離`XY`/`G0`/`G1`はplannerへ投入せずno-op ACKとして扱う仕様を追加 | Codex |
+| 2026-06-12 | Serial ToolがCSV `XY`、G-code `G0/G1`、`G4`から実行時間を概算し、`推定motion時間 + --motion-timeout-margin`でtimeoutを自動延長するよう修正。stream motionの累積推定時間を次の非stream行へ引き継ぐ仕様を追加 | Codex |
 
 ---
 

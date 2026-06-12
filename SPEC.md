@@ -490,6 +490,7 @@ Core 0へ表示するときはStatusQueueを通す。
 - `JOB_ABORT`はjob中断用であり、job外では`JOB_ABORT rejected reason=no_active_job`を返し低レベル停止は行わない。
 - parse失敗またはキュー満杯の場合は`ERROR: ...`を返し、`ACK QUEUED`は返さない。
 - motion側で安全確認または実行投入に失敗した場合は`REJECT: ...`または`ERROR: ...`に加えて、XYでは`NACK_XY ...`を返す。
+- 現在位置と同じ座標を指定するゼロ距離`XY`または`G0`/`G1`は、planner/segmentへ投入せずno-opとして扱い、feedを更新して`ACK_XY target=(...) A=0 B=0 F=...`を返す。
 - `AB_TIMED`は診断専用であり、`XY`、`CoreXYKinematics`、`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`をバイパスする。`a_steps`、`b_steps`、`duration_us`を直接`StepperBackendFastAccel`のtimed segment経路へ渡す。
 - `AB_TIMED`は片側stepが0でも許可するが、A/B両方0、`duration_us < AB_TIMED_MIN_DURATION_US`、alarm中、backend未初期化、backend投入失敗の場合は`NACK_AB_TIMED reason=...`を返す。
 - `AB_TIMED`成功時は、queue前後の`micros()`、queue結果、A/B running状態、A/B queue entriesをログし、完了後に`ACK_AB_TIMED`を返す。
@@ -522,13 +523,19 @@ homing完了直後など、通常移動開始時に原点limitがONで、かつ�
 - `--startup-delay`: serial port open後、最初のコマンド送信前に固定で待つ時間
 - `--startup-drain`: `--startup-delay`後に起動ログを読み捨てる最大時間
 - `--timeout`: 各コマンド応答の最大待ち時間。既定値は30秒
+- `--motion-timeout-margin`: Serial Toolが推定したmotion時間へ足す余裕時間。既定値は5秒
+- `--estimate-feed-mm-min`: feed未指定motionのホスト側timeout推定に使うfeed。既定値は1200mm/min
+- `--no-auto-motion-timeout`: XY/G-code motion時間によるtimeout自動延長を無効化する
 - CSV `delay_ms`: 各コマンド送信後の最小読み取り時間
-- 各行の最大待ち時間は`max(delay_ms, --timeout)`
+- 各行の最大待ち時間は`max(delay_ms, --timeout, 推定motion時間 + --motion-timeout-margin)`
+- 推定対象はCSV `XY`、G-code `G0`/`G1`、`G4`である。G-codeでは`G20`/`G21`、`G90`/`G91`、modal feedを追跡する。ファームウェア仕様に合わせ、`G20`時も`F`はmm/minのまま扱い、X/Yだけinchからmmへ変換する
+- `--queue-mode`のcompletion待ちは、上記に加えて`HOME`、`G28`、`JOB_BEGIN`、`JOB_END`、`M3`、`M5`などのコマンド別下限timeoutも考慮する
 - `expect`が指定されている場合、`delay_ms`経過後に`expect`を受信済みで、受信が短時間idleになったら次の行へ進む
 - `--queue-mode`: 各行を送信後、`ACK QUEUED`または`ACK ABORT requested`を受信してから次行へ進む
 - `--queue-mode`中に`ERROR: CommandQueue full`を受信した場合は、同じ行を`--queue-retry-delay-ms`間隔で再送する
 - `--queue-mode`でも`HOME`、`HOME_X`、`HOME_Y`は後続motionを先に積まないよう、queue投入後に完了ログまで待つ
 - `--stream-xy-motion`: `--queue-mode`時、CSV由来の`XY`を`ACK QUEUED`確認だけで先行送信し、`ACK_XY target=`完了ログとserial idleを待たない
+- `--stream-gcode-motion`または`--stream-xy-motion`では、先行投入したstream motionの推定時間を次の非stream行のtimeoutへ足す。これにより長いtravel move直後の`M3`/`M5`/`JOB_END`が、前段motion完了前にホスト側timeoutになることを避ける
 - `Ctrl-C`で中断された場合、serial portを閉じる前に`ABORT`を送信して短時間応答を読む
 
 タイムスタンプ:
@@ -539,7 +546,7 @@ homing完了直後など、通常移動開始時に原点limitがONで、かつ�
 - `TIMING END`には、その行の開始から終了までの経過時間`dt`と`status`を表示する
 - `--stream-xy-motion`対象の`XY`は送信速度を優先し、成功時の`TIMING START/END`、`--echo`表示、ACK表示を抑制する
 
-`--timeout`は`HOME`や長いXY移動の最大待ち時間として使う。
+`--timeout`は各行の基準最大待ち時間として使う。長いXY/G-code motionでは推定motion時間と`--motion-timeout-margin`で自動延長する。
 起動ログ読み捨て時間には使わない。
 
 ---

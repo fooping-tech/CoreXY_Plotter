@@ -43,12 +43,18 @@ def make_args(
     stream_gcode_motion: bool = False,
     stream_xy_motion: bool = False,
     queue_mode: bool = True,
+    motion_timeout_margin: float = 5.0,
+    estimate_feed_mm_min: float = 1200.0,
+    no_auto_motion_timeout: bool = False,
 ) -> argparse.Namespace:
     return argparse.Namespace(
         timeout=timeout,
         stream_gcode_motion=stream_gcode_motion,
         stream_xy_motion=stream_xy_motion,
         queue_mode=queue_mode,
+        motion_timeout_margin=motion_timeout_margin,
+        estimate_feed_mm_min=estimate_feed_mm_min,
+        no_auto_motion_timeout=no_auto_motion_timeout,
     )
 
 
@@ -75,6 +81,65 @@ def test_non_homing_queue_completion_timeout_uses_timeout_or_delay() -> None:
     )
 
     assert serial_send.queue_completion_timeout_s(row, make_args(timeout=2.0)) == 2.0
+
+
+def test_queue_completion_timeout_uses_estimated_motion_plus_margin() -> None:
+    row = serial_send.CommandRow(
+        line_number=12,
+        command="XY 0 100 600",
+        delay_ms=250,
+        expect="ACK_XY target=",
+        comment="long move",
+        estimated_motion_s=10.0,
+    )
+
+    assert serial_send.queue_completion_timeout_s(
+        row,
+        make_args(timeout=2.0, motion_timeout_margin=3.0),
+    ) == 13.0
+
+
+def test_annotate_motion_estimates_tracks_csv_xy_absolute_position() -> None:
+    rows = [
+        serial_send.CommandRow(1, "ZERO", 0, "ZERO", "", source="csv"),
+        serial_send.CommandRow(2, "XY 0 100 600", 0, "ACK_XY target=", "", source="csv"),
+        serial_send.CommandRow(3, "XY 100 100 1200", 0, "ACK_XY target=", "", source="csv"),
+        serial_send.CommandRow(4, "G4 P80", 0, "DWELL", "", source="csv"),
+    ]
+
+    annotated = serial_send.annotate_motion_estimates(rows, make_args(timeout=2.0))
+
+    assert [row.estimated_motion_s for row in annotated[:3]] == [0.0, 10.0, 5.0]
+    assert annotated[3].estimated_motion_s == pytest.approx(0.08)
+
+
+def test_annotate_motion_estimates_carries_stream_backlog_to_next_sync_row() -> None:
+    rows = [
+        serial_send.CommandRow(1, "G90", 0, "distance=ABSOLUTE", "", source="gcode"),
+        serial_send.CommandRow(2, "G1 X0 Y60 F600", 0, "ACK_XY target=", "", source="gcode"),
+        serial_send.CommandRow(3, "G1 X60 Y60 F600", 0, "ACK_XY target=", "", source="gcode"),
+        serial_send.CommandRow(4, "M3", 0, "PEN DOWN", "", source="gcode"),
+    ]
+
+    annotated = serial_send.annotate_motion_estimates(
+        rows,
+        make_args(timeout=2.0, stream_gcode_motion=True),
+    )
+
+    assert [row.estimated_motion_s for row in annotated] == [0.0, 6.0, 6.0, 0.0]
+    assert [row.preceding_stream_motion_s for row in annotated] == [0.0, 0.0, 0.0, 12.0]
+
+
+def test_annotate_motion_estimates_tracks_gcode_relative_and_units() -> None:
+    rows = [
+        serial_send.CommandRow(1, "G20", 0, "units=INCH", "", source="gcode"),
+        serial_send.CommandRow(2, "G91", 0, "distance=RELATIVE", "", source="gcode"),
+        serial_send.CommandRow(3, "G1 X1 F60", 0, "ACK_XY target=", "", source="gcode"),
+    ]
+
+    annotated = serial_send.annotate_motion_estimates(rows, make_args(timeout=2.0))
+
+    assert annotated[2].estimated_motion_s == pytest.approx(25.4)
 
 
 def test_g28_queue_completion_uses_homing_floor() -> None:
@@ -254,11 +319,15 @@ def test_stream_gcode_motion_retries_command_queue_full() -> None:
 def test_stream_gcode_motion_returns_on_queue_ack_without_idle_wait(monkeypatch) -> None:
     calls: list[bool] = []
 
-    def fake_read_response_text(*args, **kwargs):
+    def fake_read_response_result(*args, **kwargs):
         calls.append(kwargs["return_on_stop"])
-        return "ACK QUEUED G1 X10 Y20 F3000\n"
+        return serial_send.SerialReadResult(
+            "ACK QUEUED G1 X10 Y20 F3000\n",
+            False,
+            kwargs["max_duration_s"],
+        )
 
-    monkeypatch.setattr(serial_send, "read_response_text", fake_read_response_text)
+    monkeypatch.setattr(serial_send, "read_response_result", fake_read_response_result)
     row = serial_send.CommandRow(
         line_number=7,
         command="G1 X10 Y20 F3000",
@@ -283,11 +352,15 @@ def test_stream_gcode_motion_returns_on_queue_ack_without_idle_wait(monkeypatch)
 def test_non_stream_motion_keeps_idle_wait_before_queue_ack(monkeypatch) -> None:
     calls: list[bool] = []
 
-    def fake_read_response_text(*args, **kwargs):
+    def fake_read_response_result(*args, **kwargs):
         calls.append(kwargs["return_on_stop"])
-        return "ACK QUEUED G1 X10 Y20 F3000\nACK_XY target=(10.000,20.000)\n"
+        return serial_send.SerialReadResult(
+            "ACK QUEUED G1 X10 Y20 F3000\nACK_XY target=(10.000,20.000)\n",
+            False,
+            kwargs["max_duration_s"],
+        )
 
-    monkeypatch.setattr(serial_send, "read_response_text", fake_read_response_text)
+    monkeypatch.setattr(serial_send, "read_response_result", fake_read_response_result)
     row = serial_send.CommandRow(
         line_number=7,
         command="G1 X10 Y20 F3000",
@@ -312,11 +385,15 @@ def test_non_stream_motion_keeps_idle_wait_before_queue_ack(monkeypatch) -> None
 def test_stream_xy_motion_returns_on_queue_ack_without_idle_wait(monkeypatch) -> None:
     calls: list[bool] = []
 
-    def fake_read_response_text(*args, **kwargs):
+    def fake_read_response_result(*args, **kwargs):
         calls.append(kwargs["return_on_stop"])
-        return "ACK QUEUED XY 10 20 3000\n"
+        return serial_send.SerialReadResult(
+            "ACK QUEUED XY 10 20 3000\n",
+            False,
+            kwargs["max_duration_s"],
+        )
 
-    monkeypatch.setattr(serial_send, "read_response_text", fake_read_response_text)
+    monkeypatch.setattr(serial_send, "read_response_result", fake_read_response_result)
     row = serial_send.CommandRow(
         line_number=7,
         command="XY 10 20 3000",

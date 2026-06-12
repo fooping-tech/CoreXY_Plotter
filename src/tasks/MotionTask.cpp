@@ -21,6 +21,8 @@ PlannerQueue planner_queue;
 CommandMessage pending_command;
 bool has_pending_command = false;
 
+constexpr float MIN_XY_MOVE_LENGTH_MM = 0.0001f;
+
 const char* timedSegmentResultName(StepperBackend::TimedSegmentResult result) {
   switch (result) {
     case StepperBackend::TimedSegmentResult::QUEUED:
@@ -320,6 +322,25 @@ bool buildXYBlock(const CommandMessage& command, float start_x_mm,
   return true;
 }
 
+bool isNoOpXYBlock(const MotionBlock& block) {
+  return block.length_mm < MIN_XY_MOVE_LENGTH_MM && block.a_steps == 0 &&
+         block.b_steps == 0;
+}
+
+void acknowledgeNoOpXY(const MotionBlock& block, bool update_machine_state) {
+  if (update_machine_state) {
+    machine_state.x_mm = block.target_x_mm;
+    machine_state.y_mm = block.target_y_mm;
+    machine_state.feed_mm_min = block.nominal_speed_mm_min;
+  }
+  logMessage("XY no-op current=(%.3f,%.3f) target=(%.3f,%.3f) F=%.3f",
+             block.start_x_mm, block.start_y_mm, block.target_x_mm,
+             block.target_y_mm, block.nominal_speed_mm_min);
+  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
+             block.target_x_mm, block.target_y_mm, block.a_steps,
+             block.b_steps, block.nominal_speed_mm_min);
+}
+
 bool planQueuedBlocks() {
   if (!junction_planner.plan(planner_queue)) {
     logMessage("ERROR: junction planner rejected XY batch");
@@ -425,10 +446,14 @@ bool handleXYBatch(const CommandMessage& first_command) {
     clearMotionQueues("XY build first failed");
     return false;
   }
-  if (!planner_queue.enqueue(block)) {
-    logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
-               first_command.x_mm, first_command.y_mm);
-    return false;
+  if (isNoOpXYBlock(block)) {
+    acknowledgeNoOpXY(block, true);
+  } else {
+    if (!planner_queue.enqueue(block)) {
+      logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
+                 first_command.x_mm, first_command.y_mm);
+      return false;
+    }
   }
   planned_x_mm = first_command.x_mm;
   planned_y_mm = first_command.y_mm;
@@ -474,14 +499,22 @@ bool handleXYBatch(const CommandMessage& first_command) {
       clearMotionQueues("XY build batch failed");
       return false;
     }
-    if (!planner_queue.enqueue(next_block)) {
-      logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
-                 next_command.x_mm, next_command.y_mm);
-      return false;
+    if (isNoOpXYBlock(next_block)) {
+      acknowledgeNoOpXY(next_block, planner_queue.isEmpty());
+    } else {
+      if (!planner_queue.enqueue(next_block)) {
+        logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
+                   next_command.x_mm, next_command.y_mm);
+        return false;
+      }
     }
     planned_x_mm = next_command.x_mm;
     planned_y_mm = next_command.y_mm;
     planned_feed_mm_min = next_command.feed_mm_min;
+  }
+
+  if (planner_queue.isEmpty()) {
+    return true;
   }
 
   if (!planQueuedBlocks()) {
@@ -506,6 +539,7 @@ bool handleXYBatch(const CommandMessage& first_command) {
       return false;
     }
   }
+  machine_state.feed_mm_min = planned_feed_mm_min;
   clearMotionQueues("XY complete", false);
   return true;
 }

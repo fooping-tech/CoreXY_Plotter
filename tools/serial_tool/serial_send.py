@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
+import re
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
@@ -21,6 +23,8 @@ DEFAULT_OPEN_RETRIES = 3
 DEFAULT_CLOSE_DELAY_S = 0.3
 DEFAULT_QUEUE_RETRY_DELAY_MS = 100
 DEFAULT_QUEUE_RETRY_TIMEOUT_S = 30.0
+DEFAULT_MOTION_TIMEOUT_MARGIN_S = 5.0
+DEFAULT_ESTIMATE_FEED_MM_MIN = 1200.0
 READ_DRAIN_S = 0.2
 READ_IDLE_S = 0.15
 INTERRUPT_ABORT_TIMEOUT_S = 1.0
@@ -67,6 +71,8 @@ class CommandRow:
     expect: str
     comment: str
     source: str = "csv"
+    estimated_motion_s: float = 0.0
+    preceding_stream_motion_s: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -114,6 +120,31 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=DEFAULT_TIMEOUT_S,
         help=f"Maximum response wait in seconds per command. Default: {DEFAULT_TIMEOUT_S}.",
+    )
+    parser.add_argument(
+        "--motion-timeout-margin",
+        type=float,
+        default=DEFAULT_MOTION_TIMEOUT_MARGIN_S,
+        help=(
+            "Seconds added to the estimated XY/G-code motion time when auto-extending "
+            f"per-command timeout. Default: {DEFAULT_MOTION_TIMEOUT_MARGIN_S}."
+        ),
+    )
+    parser.add_argument(
+        "--estimate-feed-mm-min",
+        type=float,
+        default=DEFAULT_ESTIMATE_FEED_MM_MIN,
+        help=(
+            "Fallback feed used only for host-side timeout estimates when a motion "
+            f"command has no F/feed value. Default: {DEFAULT_ESTIMATE_FEED_MM_MIN}."
+        ),
+    )
+    parser.add_argument(
+        "--no-auto-motion-timeout",
+        action="store_true",
+        help=(
+            "Disable host-side timeout extension from estimated XY/G-code motion time."
+        ),
     )
     parser.add_argument(
         "--startup-delay",
@@ -371,6 +402,177 @@ def load_input_rows(args: argparse.Namespace) -> list[CommandRow]:
     return rows
 
 
+GCODE_WORD_RE = re.compile(r"([A-Za-z])\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+))")
+
+
+@dataclass
+class MotionEstimateState:
+    x_mm: float = 0.0
+    y_mm: float = 0.0
+    feed_mm_min: float = DEFAULT_ESTIMATE_FEED_MM_MIN
+    absolute_mode: bool = True
+    units_to_mm: float = 1.0
+    position_known: bool = True
+
+
+def strip_host_gcode_comments(command: str) -> str:
+    no_semicolon = command.split(";", maxsplit=1)[0]
+    return re.sub(r"\([^)]*\)", "", no_semicolon)
+
+
+def gcode_words(command: str) -> dict[str, float]:
+    return {
+        match.group(1).upper(): float(match.group(2))
+        for match in GCODE_WORD_RE.finditer(strip_host_gcode_comments(command))
+    }
+
+
+def positive_or_zero(value_s: float) -> float:
+    if not math.isfinite(value_s):
+        return 0.0
+    return max(0.0, value_s)
+
+
+def estimate_linear_move_s(
+    state: MotionEstimateState,
+    target_x_mm: float,
+    target_y_mm: float,
+    feed_mm_min: float,
+) -> float:
+    if feed_mm_min <= 0.0 or not state.position_known:
+        return 0.0
+    distance_mm = math.hypot(target_x_mm - state.x_mm, target_y_mm - state.y_mm)
+    return positive_or_zero(distance_mm / (feed_mm_min / 60.0))
+
+
+def estimate_csv_xy_motion_s(
+    row: CommandRow,
+    state: MotionEstimateState,
+    fallback_feed_mm_min: float,
+) -> float:
+    parts = row.command.split()
+    if len(parts) < 3:
+        return 0.0
+    try:
+        target_x_mm = float(parts[1])
+        target_y_mm = float(parts[2])
+        feed_mm_min = float(parts[3]) if len(parts) >= 4 else fallback_feed_mm_min
+    except ValueError:
+        return 0.0
+    estimate_s = estimate_linear_move_s(state, target_x_mm, target_y_mm, feed_mm_min)
+    state.x_mm = target_x_mm
+    state.y_mm = target_y_mm
+    state.feed_mm_min = feed_mm_min
+    state.position_known = True
+    return estimate_s
+
+
+def estimate_gcode_motion_s(row: CommandRow, state: MotionEstimateState) -> float:
+    name = command_name(row.command)
+    words = gcode_words(row.command)
+    if "F" in words:
+        state.feed_mm_min = words["F"]
+    if name == "G20":
+        state.units_to_mm = 25.4
+        return 0.0
+    if name == "G21":
+        state.units_to_mm = 1.0
+        return 0.0
+    if name == "G90":
+        state.absolute_mode = True
+        return 0.0
+    if name == "G91":
+        state.absolute_mode = False
+        return 0.0
+    if name == "G28":
+        state.x_mm = 0.0
+        state.y_mm = 0.0
+        state.position_known = True
+        return 0.0
+    if name == "G4":
+        return positive_or_zero(words.get("P", 0.0) / 1000.0)
+    if name not in ("G0", "G1"):
+        return 0.0
+
+    x_word = words.get("X")
+    y_word = words.get("Y")
+    target_x_mm = state.x_mm
+    target_y_mm = state.y_mm
+    if x_word is not None:
+        x_mm = x_word * state.units_to_mm
+        target_x_mm = x_mm if state.absolute_mode else state.x_mm + x_mm
+    if y_word is not None:
+        y_mm = y_word * state.units_to_mm
+        target_y_mm = y_mm if state.absolute_mode else state.y_mm + y_mm
+
+    estimate_s = estimate_linear_move_s(
+        state,
+        target_x_mm,
+        target_y_mm,
+        state.feed_mm_min,
+    )
+    state.x_mm = target_x_mm
+    state.y_mm = target_y_mm
+    state.position_known = True
+    return estimate_s
+
+
+def estimate_row_motion_s(
+    row: CommandRow,
+    state: MotionEstimateState,
+    fallback_feed_mm_min: float,
+) -> float:
+    name = command_name(row.command)
+    if name in ("ZERO", "HOME", "HOME_X", "HOME_Y"):
+        state.x_mm = 0.0
+        state.y_mm = 0.0
+        state.position_known = True
+        return 0.0
+    if name == "G4":
+        return positive_or_zero(gcode_words(row.command).get("P", 0.0) / 1000.0)
+    if is_csv_xy_command(row):
+        return estimate_csv_xy_motion_s(row, state, fallback_feed_mm_min)
+    if row.source == "gcode":
+        return estimate_gcode_motion_s(row, state)
+    return 0.0
+
+
+def estimated_timeout_s(row: CommandRow, args: argparse.Namespace) -> float:
+    if getattr(args, "no_auto_motion_timeout", False):
+        return 0.0
+    estimated_s = row.estimated_motion_s + row.preceding_stream_motion_s
+    if estimated_s <= 0.0:
+        return 0.0
+    return estimated_s + getattr(args, "motion_timeout_margin", DEFAULT_MOTION_TIMEOUT_MARGIN_S)
+
+
+def annotate_motion_estimates(
+    rows: list[CommandRow],
+    args: argparse.Namespace,
+) -> list[CommandRow]:
+    if getattr(args, "no_auto_motion_timeout", False):
+        return rows
+    state = MotionEstimateState(feed_mm_min=args.estimate_feed_mm_min)
+    annotated: list[CommandRow] = []
+    pending_stream_motion_s = 0.0
+    for row in rows:
+        estimate_s = estimate_row_motion_s(row, state, args.estimate_feed_mm_min)
+        preceding_s = pending_stream_motion_s
+        if stream_motion_enabled(args, row):
+            pending_stream_motion_s += estimate_s
+            preceding_s = 0.0
+        elif preceding_s > 0.0:
+            pending_stream_motion_s = 0.0
+        annotated.append(
+            replace(
+                row,
+                estimated_motion_s=estimate_s,
+                preceding_stream_motion_s=preceding_s,
+            )
+        )
+    return annotated
+
+
 def validate_args(args: argparse.Namespace) -> None:
     if getattr(args, "job_lifecycle", False) and getattr(args, "gcode", None) is None:
         raise ValueError("--job-lifecycle requires --gcode")
@@ -380,14 +582,24 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--stream-gcode-motion requires --queue-mode")
     if getattr(args, "stream_xy_motion", False) and not getattr(args, "queue_mode", False):
         raise ValueError("--stream-xy-motion requires --queue-mode")
+    if getattr(args, "motion_timeout_margin", 0.0) < 0:
+        raise ValueError("--motion-timeout-margin must be >= 0")
+    if getattr(args, "estimate_feed_mm_min", 0.0) <= 0:
+        raise ValueError("--estimate-feed-mm-min must be > 0")
 
 
 def print_plan(rows: Iterable[CommandRow]) -> None:
     for index, row in enumerate(rows, start=1):
         suffix = f" # {row.comment}" if row.comment else ""
+        estimate = ""
+        if row.estimated_motion_s > 0.0 or row.preceding_stream_motion_s > 0.0:
+            estimate = (
+                f" estimate_s={row.estimated_motion_s:.3f}"
+                f" preceding_stream_s={row.preceding_stream_motion_s:.3f}"
+            )
         print(
             f"{index:03d} line={row.line_number} delay_ms={row.delay_ms} "
-            f"expect={row.expect!r} command={row.command!r}{suffix}"
+            f"expect={row.expect!r}{estimate} command={row.command!r}{suffix}"
         )
 
 
@@ -768,6 +980,7 @@ def queue_completion_timeout_s(row: CommandRow, args: argparse.Namespace) -> flo
         args.timeout,
         row.delay_ms / 1000.0,
         SYNC_COMPLETION_TIMEOUT_S_BY_COMMAND.get(command_name(row.command), 0.0),
+        estimated_timeout_s(row, args),
     )
 
 
@@ -911,7 +1124,7 @@ def send_row_standard_mode(serial_port, args: argparse.Namespace, index: int, ro
     read_result = read_response_result(
         serial_port,
         min_duration_s=delay_s,
-        max_duration_s=max(args.timeout, delay_s),
+        max_duration_s=max(args.timeout, delay_s, estimated_timeout_s(row, args)),
         stop_on=stop_patterns_with_failures(row.expect),
     )
     response = read_result.text
@@ -1027,6 +1240,7 @@ def main() -> int:
     try:
         validate_args(args)
         rows = load_input_rows(args)
+        rows = annotate_motion_estimates(rows, args)
         if args.dry_run:
             print_plan(rows)
             return 0
