@@ -397,16 +397,24 @@ XY座標とA/B stepを曖昧な変数名で混ぜてはいけない。
 
 ## 13. CoreXY変換仕様
 
+`CoreXYKinematics`は、差分mmからA/B差分stepを求める従来APIに加え、
+XY絶対座標からA/B絶対step座標を求めるAPIを持つ。
+
 ```cpp
-dx_mm = target_x_mm - current_x_mm;
-dy_mm = target_y_mm - current_y_mm;
+target_a_steps = round((target_x_mm + target_y_mm) * steps_per_mm);
+target_b_steps = round((target_x_mm - target_y_mm) * steps_per_mm);
 
-da_mm = dx_mm + dy_mm;
-db_mm = dx_mm - dy_mm;
-
-a_steps = round(da_mm * steps_per_mm);
-b_steps = round(db_mm * steps_per_mm);
+a_steps = target_a_steps - planned_a_steps;
+b_steps = target_b_steps - planned_b_steps;
 ```
+
+通常XY/G-code motionの`MotionBlock`は、ブロック単位の`a_steps`/`b_steps`
+だけでなく、`target_a_steps`/`target_b_steps`を保持する。これにより、
+微小線分を大量にstreamしても、ブロックごとのfloat差分丸め誤差を累積させず、
+端数は次ブロック以降の絶対stepターゲットで自然に回収される。
+
+no-op判定はmm長ではなく`a_steps == 0 && b_steps == 0`で行う。
+no-opでも`MachineState`のX/Y指令座標、feed、A/B絶対step座標は整合するよう更新する。
 
 確認ケース:
 
@@ -488,7 +496,9 @@ Core 0へ表示するときはStatusQueueを通す。
 - parseに成功し、対象キューへ投入できたコマンドは`ACK QUEUED <command>`を返す。
 - `ABORT`はcommandTaskで即時停止要求flagを立てる。CommandQueueへ投入できない場合も`ACK ABORT requested`を返し、motion/homing側のpollで停止を試みる。
 - `JOB_ABORT`はjob中断用であり、job外では`JOB_ABORT rejected reason=no_active_job`を返し低レベル停止は行わない。
-- parse失敗またはキュー満杯の場合は`ERROR: ...`を返し、`ACK QUEUED`は返さない。
+- parse失敗または非motion系コマンドのキュー満杯の場合は`ERROR: ...`を返し、`ACK QUEUED`は返さない。
+- G-code streamで座標を失うことを避けるため、`GCODE`、`XY`、`AB_TIMED`、`JOB_END`などmotionに関係するコマンドはCommandQueue満杯でも破棄しない。commandTaskは`CommandQueue full; waiting to queue ...`をログし、投入成功まで待ってから`ACK QUEUED`を返す。
+- serial入力行が長すぎる場合は`ERROR: input line too long`を出し、その行の残りを次の改行まで読み捨てる。途中から別コマンドとして解釈してはいけない。
 - motion側で安全確認または実行投入に失敗した場合は`REJECT: ...`または`ERROR: ...`に加えて、XYでは`NACK_XY ...`を返す。
 - 現在位置と同じ座標を指定するゼロ距離`XY`または`G0`/`G1`は、planner/segmentへ投入せずno-opとして扱い、feedを更新して`ACK_XY target=(...) A=0 B=0 F=...`を返す。
 - `AB_TIMED`は診断専用であり、`XY`、`CoreXYKinematics`、`TrapezoidPlanner`、`SegmentGenerator`、`SegmentQueue`をバイパスする。`a_steps`、`b_steps`、`duration_us`を直接`StepperBackendFastAccel`のtimed segment経路へ渡す。
@@ -504,6 +514,7 @@ HomingのSeekFast、Backoff、SeekSlowは短い固定距離moveの反復では�
 停止後のMachineStateはFastAccelStepperのA/B現在ステップ差分から更新する。
 通常XY/timed segment実行中も、FastAccelStepperの現在A/Bステップ差分からMachineStateのX/Y概算位置を更新しながらSafetyManagerをpollする。
 これにより、ブロック完了前でも原点から離れた位置でlimit activeが継続した場合にhard limit alarmへ入れる。
+XY batch完了時には、ジョブ開始、HOME、ZEROなどで揃えたbackend基準からの相対A/B stepとMachineStateの相対A/B stepを比較する。不一致があれば`WARN: DRIFT a=... b=...`をログし、timed segment部分投入や状態更新漏れの再発を検出する。
 homing完了直後など、通常移動開始時に原点limitがONで、かつ移動方向がそのlimitから離れる方向の場合は、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範囲だけlimit ONを一時許容する。
 この範囲内にraw/debouncedがOFFへ戻れば通常移動を継続し、OFFへ戻らない場合は`X home limit did not release`または`Y home limit did not release`でalarm停止する。
 `ABORT`で停止した場合は実位置が論理座標と一致する保証がないため、homed状態を無効化しalarm状態にする。復旧は`ZERO -> ALARM_CLEAR -> HOME`の順に行う。
@@ -598,6 +609,12 @@ SIMULATION_MODE: no motor output
 実機ではFastAccelStepperの`moveTimed()`経路でA/Bを同じsegment durationへ投入し、CoreXYの直線性を保つ。
 
 timed segment実行中もSafetyManagerを定期pollし、alarm発生時はStepperBackendを停止する。
+
+`StepperBackendFastAccel::queueTimedSegment()`は、A/B両モーターへのsegment投入を
+「両方成功」または「位置を信用しないalarm停止」へ寄せる。A側投入成功後にB側が
+`RETRY`を返した場合、B側だけを短時間リトライする。B側が`ERROR`を返した場合、
+またはリトライtimeoutに達した場合はbackendを停止し、呼び出し側はbackend現在stepから
+`MachineState`を再同期したうえでhomedを無効化し、位置の信頼性が失われたことをログする。
 
 ---
 

@@ -65,6 +65,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | Homing bring-up | `HOME`/`HOME_X`/`HOME_Y`、二段階homing、hard limit alarmを実装済み、HOME実機確認完了 |
 | 台形加減速 | `TrapezoidPlanner`でTRAPEZOID/TRIANGULAR profileを実装済み |
 | timed segment | `SegmentGenerator`とFastAccelStepper `moveTimed()`によるA/B同期実行を実装済み |
+| streaming drift対策 | timed segment部分投入対策、絶対step座標化、CommandQueue backpressureを実装済み |
 | 脱調対策 | 描画用の保守的な速度/加速度/電流/ペン圧設定とcenter shapes実機確認を追加 |
 | 正式描画入力 | G-codeを基本とする方針へ整理。`XY`は診断/bring-up用として維持 |
 | G-code parser | Phase 7最小G-codeを実装済み、実機確認は未完了 |
@@ -1136,6 +1137,46 @@ Phase 9のtimed segment実装後、中心図形描画で一部脱調および原
 - [ ] 実機で通常XY版CSVとAB_TIMED版CSVを同じ紙面条件で比較する
 - [ ] AB_TIMEDの閉じズレ、方向依存、サイズ依存を記録する
 
+## 9.2 stream G-code motion座標ドリフト対策
+
+G-codeを高速streamして連続描画する場合の座標ドリフト要因を潰す。
+
+### 9.2.1 FastAccelStepper timed segment部分投入対策
+
+- [x] A側`moveTimed()`成功後にB側が`RETRY`した場合、B側だけを`vTaskDelay(1)`を挟んでリトライする
+- [x] B側`ERROR`またはリトライtimeout時はbackendを停止する
+- [x] 呼び出し側はbackend現在stepから`MachineState`を再同期し、homedを無効化してalarmへ入れる
+- [x] `MOVE_TIMED_OK`、`MOVE_TIMED_EMPTY`、`DirPin2msPauseAdded`を`QUEUED`扱いする既存分類を維持する
+- [x] SIMULATION_MODEとint16 step制限を維持する
+
+### 9.2.2 絶対step座標化
+
+- [x] `CoreXYKinematics::xyPositionToABSteps()`を追加し、`round((x+y)*steps_per_mm)`、`round((x-y)*steps_per_mm)`で絶対A/B stepを算出する
+- [x] `MotionBlock`へ`target_a_steps`/`target_b_steps`を追加する
+- [x] `buildXYBlock()`はplanned A/B絶対stepからの差分として`a_steps`/`b_steps`を作る
+- [x] look-ahead batch中に`planned_x_mm`/`planned_y_mm`と並行して`planned_a_steps`/`planned_b_steps`を伝搬する
+- [x] block成功後の`MachineState.a_steps/b_steps`は差分加算ではなくblockの絶対targetへ代入する
+- [x] no-op判定を`a_steps == 0 && b_steps == 0`へ変更し、mm長だけで微小stepを捨てない
+- [x] HOME、ZERO、JOB_BEGINでdrift検出用backend基準を揃える
+- [x] XY batch完了時にMachineStateとbackendのジョブ開始基準相対A/B差分を比較し、不一致なら`WARN: DRIFT ...`を出す
+
+### 9.2.3 CommandQueue満杯時の無音ドロップ防止
+
+- [x] G-code/XY等のmotion関連コマンドはCommandQueue満杯でも破棄せず、投入成功まで待つ
+- [x] ABORT/JOB_ABORTの即時停止要求flag設定は維持する
+- [x] input line overflow後は次の改行まで読み捨て、行後半を別コマンドとして扱わない
+
+### 9.2.4 回帰テスト・確認
+
+- [x] ホストnativeテスト`test/native/test_motion_drift.cpp`を追加する
+- [x] ランダム微小閉路で絶対step差分の累積A/Bが0へ戻ることを確認する
+- [x] `SegmentGenerator`出力segment合計が`MotionBlock.a_steps/b_steps`に厳密一致することを確認する
+- [x] `tools/run_native_motion_tests.sh`でnativeテストを実行できる
+- [x] `platformio.ini`へ`m5stack-core2-sim`環境を追加し、SIMULATION_MODE buildを明示実行できる
+- [x] `pio run`、`pio run -e m5stack-core2-sim`、`pio run -e m5stack-core2 --target upload`が成功
+- [x] 実機Serialで`CONFIG`、`POS`、`SELFTEST`、`TMC_INIT`、`TMC_STATUS`が成功
+- [ ] 実G-code stream jobで長時間描画し、`WARN: DRIFT`が出ないことと閉じ位置を確認する
+
 ---
 
 # Phase 10: look-ahead / junction deviation
@@ -2104,6 +2145,8 @@ Phase 6.9を実装してください。
 | R34 | [-] | `JOB_BEGIN_AUTO_HOME`で未homed時の自動HOMEを切り替えられるが、true時の実機安全確認は未完了 | limit switch方向、E-stop可能状態、HOME失敗時の`auto_home_failed`、成功時の`JOB_BEGIN OK`を低速で確認してから正式運用でtrueにする |
 | R35 | [ ] | `JOB_END`退避移動とA/B両モータ終了ジングルはbuild/upload済みだが、実機での脱調、音量、TMC温度、退避位置の機械干渉が未確認 | `job_lifecycle_check.csv`を低速・E-stop可能な状態で実行し、退避位置、ジングル音量、モータ/TMC温度を確認する |
 | R36 | [ ] | `JOB_BEGIN`のTMC自動初期化と`JOB_BEGIN_AUTO_HOME`はbuild/upload後のSerial再確認が未完了 | `JOB_BEGIN_AUTO_HOME=false`で未homedなら`not_homed`拒否、trueで未homedなら`JOB_BEGIN AUTO_HOME start`からHOME実行へ進むことを安全状態で確認する |
+| R37 | [ ] | stream G-code drift対策はbuild、upload、SELFTEST、native closed-loopテストまで完了したが、実際の長時間stream描画での閉じ位置と`WARN: DRIFT`未発生は未確認 | `--gcode --queue-mode --stream-gcode-motion --job-lifecycle`で長い微小線分ジョブを低速から実行し、DRIFTログ、閉じ位置、脱調、pen timingを確認する |
+| R38 | [ ] | timed segment部分投入失敗時は位置信頼性喪失としてalarm停止するが、意図的にFastAccelStepper queueを詰めた再現試験は未実施 | queue余裕が少ない高密度segment条件またはテスト用fault injectionを用意し、部分投入失敗時のstop、再同期、homed無効化ログを確認する |
 
 ---
 
@@ -2176,6 +2219,7 @@ Phase 6.9を実装してください。
 | 2026-06-11 | look-ahead中にG-code由来`M5`をpendingへ退避した後、XY正常完了時のqueue clearでpendingも消えて`PEN UP`が実行されない実機ログを受け、XY正常完了時はpending commandを保持するよう修正 | Codex |
 | 2026-06-12 | maze G-code先頭の`G0 X0 Y0 F8000`がゼロ距離MotionBlockとしてJunctionPlannerに拒否される実機ログを受け、ゼロ距離`XY`/`G0`/`G1`はplannerへ投入せずno-op ACKとして扱う仕様を追加 | Codex |
 | 2026-06-12 | Serial ToolがCSV `XY`、G-code `G0/G1`、`G4`から実行時間を概算し、`推定motion時間 + --motion-timeout-margin`でtimeoutを自動延長するよう修正。stream motionの累積推定時間を次の非stream行へ引き継ぐ仕様を追加 | Codex |
+| 2026-06-13 | stream G-code motionの座標ドリフト対策を追加。timed segment部分投入時のB側リトライ/失敗時再同期alarm、XY blockの絶対A/B step target化、CommandQueue満杯時のmotion行backpressure、native motion drift test、SIMULATION_MODE build環境を実装。`pio run`、`pio run -e m5stack-core2-sim`、upload、`CONFIG`/`POS`/`SELFTEST`/`TMC_INIT`/`TMC_STATUS`確認が成功 | Codex |
 
 ---
 
