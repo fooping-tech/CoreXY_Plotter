@@ -8,6 +8,7 @@
 namespace {
 FastAccelStepperEngine engine;
 constexpr uint8_t TIMED_SEGMENT_DIRECTION_ENTRY_MARGIN = 2;
+constexpr uint32_t TIMED_SEGMENT_PARTIAL_RETRY_TIMEOUT_MS = 1000;
 
 StepperBackend::DiagnosticPulseResult queueDiagnosticPulseOnMotor(
     FastAccelStepper* motor, bool& direction_positive, uint32_t frequency_hz) {
@@ -145,9 +146,28 @@ StepperBackend::TimedSegmentResult StepperBackendFastAccel::queueTimedSegment(
   const MoveTimedResultCode result_b = motor_b_->moveTimed(
       static_cast<int16_t>(segment.b_steps), duration_ticks, &actual_b_ticks,
       start);
-  const TimedSegmentResult mapped_b =
+  TimedSegmentResult mapped_b =
       mapMoveTimedResult(static_cast<int8_t>(result_b));
-  if (mapped_b != TimedSegmentResult::QUEUED) return mapped_b;
+  if (mapped_b == TimedSegmentResult::ERROR) {
+    stop();
+    return TimedSegmentResult::ERROR;
+  }
+  const uint32_t retry_start_ms = millis();
+  while (mapped_b == TimedSegmentResult::RETRY) {
+    if (millis() - retry_start_ms >= TIMED_SEGMENT_PARTIAL_RETRY_TIMEOUT_MS) {
+      stop();
+      return TimedSegmentResult::ERROR;
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+    const MoveTimedResultCode retry_b = motor_b_->moveTimed(
+        static_cast<int16_t>(segment.b_steps), duration_ticks, &actual_b_ticks,
+        start);
+    mapped_b = mapMoveTimedResult(static_cast<int8_t>(retry_b));
+    if (mapped_b == TimedSegmentResult::ERROR) {
+      stop();
+      return TimedSegmentResult::ERROR;
+    }
+  }
 
   return TimedSegmentResult::QUEUED;
 #endif
