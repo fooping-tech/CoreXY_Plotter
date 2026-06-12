@@ -1922,6 +1922,7 @@ KST32Bストロークフォントデータをホスト側で読み、日本語�
 - [x] stream modeでも`M3/M5`、`G4`、`G28`、`M114`、modal G-codeは従来通り完了ログを待つ
 - [x] `serial_send.py --stream-xy-motion`を追加し、CSV由来の`XY`も`ACK QUEUED`確認で先行投入できるようにする
 - [x] stream対象のCSV `XY`は`ACK QUEUED`検出後のserial idle待ちを省き、行別`TIMING`、`--echo`、ACK表示を抑制して送信遅延を減らす
+- [x] CSF/1のX move命令を現在Y上の即時ペンアップ移動として扱い、`高`の上点やASCII `l`が斜め線へ化けないよう修正する
 - [ ] 生成G-codeを実機へ送信し、濁点、半濁点、小さい文字、dwell、feedを調整する
 
 ---
@@ -2220,6 +2221,7 @@ Phase 6.9を実装してください。
 | 2026-06-12 | maze G-code先頭の`G0 X0 Y0 F8000`がゼロ距離MotionBlockとしてJunctionPlannerに拒否される実機ログを受け、ゼロ距離`XY`/`G0`/`G1`はplannerへ投入せずno-op ACKとして扱う仕様を追加 | Codex |
 | 2026-06-12 | Serial ToolがCSV `XY`、G-code `G0/G1`、`G4`から実行時間を概算し、`推定motion時間 + --motion-timeout-margin`でtimeoutを自動延長するよう修正。stream motionの累積推定時間を次の非stream行へ引き継ぐ仕様を追加 | Codex |
 | 2026-06-13 | stream G-code motionの座標ドリフト対策を追加。timed segment部分投入時のB側リトライ/失敗時再同期alarm、XY blockの絶対A/B step target化、CommandQueue満杯時のmotion行backpressure、native motion drift test、SIMULATION_MODE build環境を実装。`pio run`、`pio run -e m5stack-core2-sim`、upload、`CONFIG`/`POS`/`SELFTEST`/`TMC_INIT`/`TMC_STATUS`確認が成功 | Codex |
+| 2026-06-13 | KST32B Text ToolのCSF/1 X move解釈を修正。X moveを現在Y上の即時ペンアップ移動として扱い、`高`の上点、ASCII `H`/`L`/`l`が斜め線になる問題を修正。回帰テストを追加 | Codex |
 
 ---
 

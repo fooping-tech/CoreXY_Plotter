@@ -516,7 +516,7 @@ h2 {
 
 .bounds {
   fill: none;
-  stroke: rgba(244, 247, 251, 0.42);
+  stroke: rgba(244, 247, 251, 0.28);
   stroke-width: 1;
   stroke-dasharray: 5 4;
 }
@@ -535,8 +535,9 @@ h2 {
 
 .travel-path {
   stroke: var(--preview-travel);
-  stroke-width: 1.1;
-  stroke-dasharray: 6 6;
+  stroke-width: 0.75;
+  stroke-dasharray: 3 8;
+  opacity: 0.52;
 }
 
 .error-path {

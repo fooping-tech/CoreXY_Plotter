@@ -603,11 +603,15 @@ function renderPreview() {
     const active = item.id === app.selectedLayoutId ? " active" : "";
     const bounds = placedBounds(item);
     parts.push(`<g class="layout-shape${active}" data-id="${item.id}">`);
-    item.preview.segments.forEach((segment) => {
-      if (segment.type === "draw") parts.push(line(segment, "draw-path", item));
-      else if (segment.type === "travel") parts.push(line(segment, "travel-path", item));
-      else if (segment.type === "out") parts.push(line(segment, "error-path", item));
-    });
+    item.preview.segments
+      .filter((segment) => segment.type === "travel")
+      .forEach((segment) => parts.push(line(segment, "travel-path", item)));
+    item.preview.segments
+      .filter((segment) => segment.type === "draw")
+      .forEach((segment) => parts.push(line(segment, "draw-path", item)));
+    item.preview.segments
+      .filter((segment) => segment.type === "out")
+      .forEach((segment) => parts.push(line(segment, "error-path", item)));
     parts.push(
       `<rect class="bounds" x="${tx(bounds.minX)}" y="${ty(bounds.maxY)}" width="${(bounds.maxX - bounds.minX) * geom.scale}" height="${(bounds.maxY - bounds.minY) * geom.scale}" />`,
     );

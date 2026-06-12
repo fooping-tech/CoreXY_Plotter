@@ -97,8 +97,7 @@ def decode_csf1(payload: bytes, advance_units: int) -> Glyph:
 
         value = x_from_move(byte)
         if value is not None:
-            target_x = value
-            current_stroke = None
+            move_to(value, current_y)
             continue
 
         value = y_from_move(byte)
