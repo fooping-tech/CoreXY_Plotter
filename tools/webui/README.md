@@ -111,6 +111,7 @@ previewed, saved with the layout, and sent with the normal `SEND JOB` flow.
 - Job sending through `serial_send.py`
 - Console log stream
 - Serial target settings
+- WebUI-editable send timeout and G-code streaming settings
 
 ## Job Send Defaults
 
@@ -122,9 +123,18 @@ tools/serial_tool/serial_send.py
   --port <selected_port>
   --baud 115200
   --queue-mode
-  --stream-gcode-motion
-  --job-lifecycle
+  [--stream-gcode-motion]
+  [--job-lifecycle]
+  --timeout <job_timeout_s>
+  --motion-timeout-margin <seconds>
+  --queue-retry-delay-ms <milliseconds>
+  --queue-retry-timeout <seconds>
 ```
+
+Settings pageの`serial_send.py Defaults`で、manual command用timeout、G-code job用timeout、
+motion timeout margin、queue retry、`--stream-gcode-motion`、`--job-lifecycle`、
+auto motion timeoutを変更できます。保存した値は以後のmanual command、`JOB_ABORT`、
+`SEND JOB`で使われます。
 
 `--stream-gcode-motion`では`G0/G1`を先行投入しますが、`M3/M5`や`G4`は完了ログを待ちます。
 長いtravel move直後の`M3/M5`で`timeout after ... waiting for 'PEN DOWN'`などが出る場合は、

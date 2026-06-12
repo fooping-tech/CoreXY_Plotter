@@ -730,6 +730,15 @@ h2 {
   color: var(--text-secondary);
 }
 
+.send-settings-grid {
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+.send-settings-grid input {
+  width: 100%;
+}
+
 .button-row {
   grid-column: 1 / -1;
   display: flex;
@@ -740,6 +749,11 @@ h2 {
   display: grid;
   gap: 8px;
   color: var(--text-secondary);
+}
+
+.settings-status {
+  margin-top: 12px;
+  min-height: 18px;
 }
 
 @media (max-width: 900px) {

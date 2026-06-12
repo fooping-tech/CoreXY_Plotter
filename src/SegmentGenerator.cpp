@@ -9,17 +9,16 @@ namespace {
 constexpr float DEFAULT_SEGMENT_TIME_S = 0.020f;
 constexpr float MIN_SEGMENT_TIME_S = 0.001f;
 constexpr float MIN_MOVE_TIME_S = 0.000001f;
+constexpr float STEP_ROUNDING_TOLERANCE_STEPS = 0.5f;
 
 bool segmentWithinMotorSpeedLimit(const MotionSegment& segment) {
   if (segment.duration_us == 0) return false;
-  const float a_hz =
-      fabsf(static_cast<float>(segment.a_steps)) * 1000000.0f /
-      static_cast<float>(segment.duration_us);
-  const float b_hz =
-      fabsf(static_cast<float>(segment.b_steps)) * 1000000.0f /
-      static_cast<float>(segment.duration_us);
-  return a_hz <= MAX_MOTOR_SPEED_STEPS_S &&
-         b_hz <= MAX_MOTOR_SPEED_STEPS_S;
+  const float allowed_steps =
+      static_cast<float>(MAX_MOTOR_SPEED_STEPS_S) *
+          static_cast<float>(segment.duration_us) / 1000000.0f +
+      STEP_ROUNDING_TOLERANCE_STEPS;
+  return fabsf(static_cast<float>(segment.a_steps)) <= allowed_steps &&
+         fabsf(static_cast<float>(segment.b_steps)) <= allowed_steps;
 }
 }
 

@@ -32,6 +32,16 @@ QR_TOOL = REPO_ROOT / "tools" / "qr_tool" / "qr_to_plot_csv.py"
 DEFAULT_BAUD = 115200
 MAX_GCODE_BYTES = 2 * 1024 * 1024
 MAX_QR_TEXT_CHARS = 512
+DEFAULT_SEND_SETTINGS: dict[str, object] = {
+    "commandTimeoutS": 5.0,
+    "jobTimeoutS": 30.0,
+    "motionTimeoutMarginS": 5.0,
+    "autoMotionTimeout": True,
+    "streamGcodeMotion": True,
+    "jobLifecycle": True,
+    "queueRetryDelayMs": 250,
+    "queueRetryTimeoutS": 10.0,
+}
 
 
 log_queue: "queue.Queue[dict[str, object]]" = queue.Queue()
@@ -40,6 +50,7 @@ state: dict[str, object] = {
     "connected": False,
     "port": "",
     "baud": DEFAULT_BAUD,
+    "sendSettings": dict(DEFAULT_SEND_SETTINGS),
     "jobRunning": False,
     "lastExitCode": None,
     "machine": {
@@ -215,7 +226,64 @@ def write_command_csv(command: str) -> Path:
     return Path(temp.name)
 
 
-def command_args(port: str, baud: int, csv_path: Path) -> list[str]:
+def clamp_float(value: object, *, name: str, minimum: float, maximum: float) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    if not minimum <= parsed <= maximum:
+        raise ValueError(f"{name} must be between {minimum:g} and {maximum:g}")
+    return parsed
+
+
+def clamp_int(value: object, *, name: str, minimum: int, maximum: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    if not minimum <= parsed <= maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return parsed
+
+
+def bool_setting(value: object, *, name: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    raise ValueError(f"{name} must be true or false")
+
+
+def normalize_send_settings(raw: dict[str, object]) -> dict[str, object]:
+    settings = dict(DEFAULT_SEND_SETTINGS)
+    settings.update(raw)
+    return {
+        "commandTimeoutS": clamp_float(settings["commandTimeoutS"], name="commandTimeoutS", minimum=0.5, maximum=600.0),
+        "jobTimeoutS": clamp_float(settings["jobTimeoutS"], name="jobTimeoutS", minimum=1.0, maximum=3600.0),
+        "motionTimeoutMarginS": clamp_float(
+            settings["motionTimeoutMarginS"],
+            name="motionTimeoutMarginS",
+            minimum=0.0,
+            maximum=600.0,
+        ),
+        "autoMotionTimeout": bool_setting(settings["autoMotionTimeout"], name="autoMotionTimeout"),
+        "streamGcodeMotion": bool_setting(settings["streamGcodeMotion"], name="streamGcodeMotion"),
+        "jobLifecycle": bool_setting(settings["jobLifecycle"], name="jobLifecycle"),
+        "queueRetryDelayMs": clamp_int(settings["queueRetryDelayMs"], name="queueRetryDelayMs", minimum=0, maximum=60000),
+        "queueRetryTimeoutS": clamp_float(
+            settings["queueRetryTimeoutS"],
+            name="queueRetryTimeoutS",
+            minimum=0.5,
+            maximum=600.0,
+        ),
+    }
+
+
+def command_args(port: str, baud: int, csv_path: Path, settings: dict[str, object]) -> list[str]:
     return [
         "--csv",
         str(csv_path),
@@ -228,14 +296,14 @@ def command_args(port: str, baud: int, csv_path: Path) -> list[str]:
         "--startup-drain",
         "0.1",
         "--timeout",
-        "5",
+        str(settings["commandTimeoutS"]),
         "--queue-mode",
         "--echo",
     ]
 
 
-def job_args(port: str, baud: int, gcode_path: Path) -> list[str]:
-    return [
+def job_args(port: str, baud: int, gcode_path: Path, settings: dict[str, object]) -> list[str]:
+    args = [
         "--gcode",
         str(gcode_path),
         "--port",
@@ -243,18 +311,27 @@ def job_args(port: str, baud: int, gcode_path: Path) -> list[str]:
         "--baud",
         str(baud),
         "--queue-mode",
-        "--stream-gcode-motion",
-        "--job-lifecycle",
         "--queue-retry-delay-ms",
-        "250",
+        str(settings["queueRetryDelayMs"]),
         "--queue-retry-timeout",
-        "10",
+        str(settings["queueRetryTimeoutS"]),
+        "--timeout",
+        str(settings["jobTimeoutS"]),
+        "--motion-timeout-margin",
+        str(settings["motionTimeoutMarginS"]),
         "--startup-delay",
         "0",
         "--startup-drain",
         "0.2",
         "--echo",
     ]
+    if settings["streamGcodeMotion"]:
+        args.append("--stream-gcode-motion")
+    if settings["jobLifecycle"]:
+        args.append("--job-lifecycle")
+    if not settings["autoMotionTimeout"]:
+        args.append("--no-auto-motion-timeout")
+    return args
 
 
 def read_json(handler: SimpleHTTPRequestHandler) -> dict[str, object]:
@@ -280,6 +357,7 @@ def snapshot_state() -> dict[str, object]:
             "connected": state["connected"],
             "port": state["port"],
             "baud": state["baud"],
+            "sendSettings": json.loads(json.dumps(state["sendSettings"])),
             "jobRunning": state["jobRunning"],
             "lastExitCode": state["lastExitCode"],
             "machine": json.loads(json.dumps(state["machine"])),
@@ -337,10 +415,10 @@ def stop_host_job_process() -> None:
     emit("host", f"host job sender stopped with code {exit_code}", exitCode=exit_code)
 
 
-def abort_job_thread(port: str, baud: int) -> None:
+def abort_job_thread(port: str, baud: int, settings: dict[str, object]) -> None:
     stop_host_job_process()
     csv_path = write_command_csv("JOB_ABORT")
-    run_serial_send(command_args(port, baud, csv_path), label="JOB_ABORT")
+    run_serial_send(command_args(port, baud, csv_path, settings), label="JOB_ABORT")
 
 
 class WebUIHandler(SimpleHTTPRequestHandler):
@@ -380,6 +458,8 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 self.handle_abort()
             elif parsed.path == "/api/qr/gcode":
                 self.handle_qr_gcode()
+            elif parsed.path == "/api/settings":
+                self.handle_settings()
             else:
                 send_json(self, {"error": "not found"}, HTTPStatus.NOT_FOUND)
         except Exception as exc:  # Keep UI failures visible without crashing the server.
@@ -407,12 +487,13 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         with state_lock:
             port = str(state.get("port", ""))
             baud = int(state.get("baud", DEFAULT_BAUD))
+            settings = dict(state.get("sendSettings", DEFAULT_SEND_SETTINGS))
         if not port:
             raise ValueError("serial port is not configured")
         csv_path = write_command_csv(command)
         threading.Thread(
             target=run_serial_send,
-            args=(command_args(port, baud, csv_path),),
+            args=(command_args(port, baud, csv_path, settings),),
             kwargs={"label": f"command {command}"},
             daemon=True,
         ).start()
@@ -427,6 +508,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         with state_lock:
             port = str(state.get("port", ""))
             baud = int(state.get("baud", DEFAULT_BAUD))
+            settings = dict(state.get("sendSettings", DEFAULT_SEND_SETTINGS))
         if not port:
             raise ValueError("serial port is not configured")
         reap_finished_job_process()
@@ -436,11 +518,19 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         gcode_path = save_gcode(text)
         thread = threading.Thread(
             target=self.run_job_thread,
-            args=(job_args(port, baud, gcode_path),),
+            args=(job_args(port, baud, gcode_path, settings),),
             daemon=True,
         )
         thread.start()
         send_json(self, {"ok": True})
+
+    def handle_settings(self) -> None:
+        body = read_json(self)
+        settings = normalize_send_settings(body)
+        with state_lock:
+            state["sendSettings"] = settings
+        emit("host", "Updated serial_send.py WebUI defaults")
+        send_json(self, {"ok": True, "sendSettings": settings})
 
     def handle_qr_gcode(self) -> None:
         body = read_json(self)
@@ -550,11 +640,12 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         with state_lock:
             port = str(state.get("port", ""))
             baud = int(state.get("baud", DEFAULT_BAUD))
+            settings = dict(state.get("sendSettings", DEFAULT_SEND_SETTINGS))
         if not port:
             raise ValueError("serial port is not configured")
         threading.Thread(
             target=abort_job_thread,
-            args=(port, baud),
+            args=(port, baud, settings),
             daemon=True,
         ).start()
         send_json(self, {"ok": True})

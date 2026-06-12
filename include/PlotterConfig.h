@@ -35,7 +35,7 @@ constexpr float DEFAULT_FEED_RATIO = 1.0f;//0.80f;
 
 // モータSTEP周波数の上限 [steps/s]。
 // 大きすぎると脱調、ノイズ、ドライバ発熱が増える。
-constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 1000;
+constexpr uint32_t MAX_MOTOR_SPEED_STEPS_S = 30000;
 
 // XYコマンドで許可する最大送り速度 [mm/min]。
 // CoreXY最悪条件を考慮し、片側モータstep周波数が
@@ -56,7 +56,7 @@ constexpr uint32_t DEFAULT_MOTOR_SPEED_STEPS_S = static_cast<uint32_t>(
 // TrapezoidPlannerで使うXY空間の加速度 [mm/s^2]。
 // 決め方: 低めから上げ、脱調や振動が出ない値にする。
 // ペンが紙に接触する描画では負荷が増えるため、実機で段階的に確認する。
-constexpr float DEFAULT_ACCEL_MM_S2 = 1000.0f;
+constexpr float DEFAULT_ACCEL_MM_S2 = 10000.0f;
 
 // モータ加速度 [steps/s^2]。
 // CoreXY最悪条件を考慮し、XY空間加速度にsteps/mmとsqrt(2)を掛けて導出する。
@@ -69,15 +69,15 @@ constexpr float MAX_ACCEL_MM_S2 = DEFAULT_ACCEL_MM_S2;
 
 // JunctionPlannerのlook-aheadで使う許容コーナー偏差 [mm]。
 // 小さいほど角で減速し、大きいほど角を速く通過する。実機で角の丸まりと脱調を確認する。
-constexpr float JUNCTION_DEVIATION_MM = 0.001f;
+constexpr float JUNCTION_DEVIATION_MM = 0.05f;
 
 // classic jerk相当の簡易上限 [mm/s]。0以下なら無効。
 // junction deviationだけで角が速すぎる場合の安全側制限として残す。
-constexpr float CLASSIC_JERK_LIMIT_MM_S = 0.0f;
+constexpr float CLASSIC_JERK_LIMIT_MM_S = 80.0f;
 
 // motionTaskが連続XYをPlannerQueueへまとめるために待つ最大時間 [ms]。
 // 0にすると、その時点でCommandQueueに溜まっているXYだけをlook-ahead対象にする。
-constexpr uint32_t LOOKAHEAD_BATCH_COLLECT_MS = 0;
+constexpr uint32_t LOOKAHEAD_BATCH_COLLECT_MS = 15;
 
 static_assert(STEPS_PER_MM > 0.0f, "STEPS_PER_MM must be > 0");
 static_assert(COREXY_MAX_MOTOR_GAIN >= 1.4142f,

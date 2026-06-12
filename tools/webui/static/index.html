@@ -224,11 +224,24 @@
           <article class="panel settings-panel">
             <div class="label">Job Send</div>
             <h2>serial_send.py Defaults</h2>
+            <div class="form-grid send-settings-grid">
+              <label>Command timeout <input id="commandTimeoutS" type="number" min="0.5" max="600" step="0.5" /></label>
+              <label>Job timeout <input id="jobTimeoutS" type="number" min="1" max="3600" step="1" /></label>
+              <label>Motion margin <input id="motionTimeoutMarginS" type="number" min="0" max="600" step="0.5" /></label>
+              <label>Queue retry delay <input id="queueRetryDelayMs" type="number" min="0" max="60000" step="50" /></label>
+              <label>Queue retry timeout <input id="queueRetryTimeoutS" type="number" min="0.5" max="600" step="0.5" /></label>
+            </div>
             <div class="check-list">
               <label><input type="checkbox" checked disabled /> queue mode</label>
-              <label><input type="checkbox" checked disabled /> stream G-code motion</label>
-              <label><input type="checkbox" checked disabled /> job lifecycle</label>
+              <label><input id="streamGcodeMotion" type="checkbox" /> stream G-code motion</label>
+              <label><input id="jobLifecycle" type="checkbox" /> job lifecycle</label>
+              <label><input id="autoMotionTimeout" type="checkbox" /> auto motion timeout</label>
             </div>
+            <div class="button-row">
+              <button id="saveSendSettingsBtn" class="primary" type="button">Save Send Settings</button>
+              <button id="resetSendSettingsBtn" class="secondary" type="button">Reset Defaults</button>
+            </div>
+            <div id="sendSettingsStatus" class="muted settings-status">Using server defaults.</div>
           </article>
         </section>
       </main>

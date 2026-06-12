@@ -4,10 +4,22 @@ const JOG_FEED_MM_MIN = 900;
 const PREVIEW_SIZE = { width: 960, height: 640, pad: 36 };
 const LAST_PORT_KEY = "corexy.webui.lastPort";
 const LAYOUT_FILE_SUFFIX = ".gcode";
+const DEFAULT_SEND_SETTINGS = {
+  commandTimeoutS: 5,
+  jobTimeoutS: 30,
+  motionTimeoutMarginS: 5,
+  autoMotionTimeout: true,
+  streamGcodeMotion: true,
+  jobLifecycle: true,
+  queueRetryDelayMs: 250,
+  queueRetryTimeoutS: 10,
+};
 
 const app = {
   page: "dashboard",
   state: null,
+  sendSettings: { ...DEFAULT_SEND_SETTINGS },
+  sendSettingsDirty: false,
   logs: [],
   errors: 0,
   filter: "all",
@@ -138,6 +150,7 @@ function updateStateUI() {
   $("sendJobBtn").disabled = !canSendJob();
   $("abortJobBtn").disabled = !isConnected();
   $("topAbortBtn").disabled = !isConnected();
+  syncSendSettingsFromState();
 }
 
 function canSendJob() {
@@ -180,7 +193,14 @@ async function api(path, options = {}) {
 
 async function refreshState() {
   app.state = await api("/api/state");
+  syncSendSettingsFromState();
   updateStateUI();
+}
+
+function syncSendSettingsFromState() {
+  if (!app.state?.sendSettings) return;
+  app.sendSettings = { ...DEFAULT_SEND_SETTINGS, ...app.state.sendSettings };
+  if (!app.sendSettingsDirty) renderSendSettings();
 }
 
 async function refreshPorts() {
@@ -231,6 +251,76 @@ function updateQuickConnectUI() {
   $("lastPortText").textContent = port || "No saved port";
   $("quickConnectBtn").disabled = !port || isConnected();
   $("quickConnectBtn").textContent = isConnected() ? "Connected" : "Connect";
+}
+
+function setNumberInput(id, value) {
+  const input = $(id);
+  if (!input) return;
+  input.value = String(value);
+}
+
+function renderSendSettings() {
+  const settings = app.sendSettings;
+  setNumberInput("commandTimeoutS", settings.commandTimeoutS);
+  setNumberInput("jobTimeoutS", settings.jobTimeoutS);
+  setNumberInput("motionTimeoutMarginS", settings.motionTimeoutMarginS);
+  setNumberInput("queueRetryDelayMs", settings.queueRetryDelayMs);
+  setNumberInput("queueRetryTimeoutS", settings.queueRetryTimeoutS);
+  $("streamGcodeMotion").checked = Boolean(settings.streamGcodeMotion);
+  $("jobLifecycle").checked = Boolean(settings.jobLifecycle);
+  $("autoMotionTimeout").checked = Boolean(settings.autoMotionTimeout);
+}
+
+function numberSetting(id, fallback) {
+  const value = Number($(id).value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function sendSettingsPayload() {
+  return {
+    commandTimeoutS: numberSetting("commandTimeoutS", DEFAULT_SEND_SETTINGS.commandTimeoutS),
+    jobTimeoutS: numberSetting("jobTimeoutS", DEFAULT_SEND_SETTINGS.jobTimeoutS),
+    motionTimeoutMarginS: numberSetting("motionTimeoutMarginS", DEFAULT_SEND_SETTINGS.motionTimeoutMarginS),
+    queueRetryDelayMs: Math.round(numberSetting("queueRetryDelayMs", DEFAULT_SEND_SETTINGS.queueRetryDelayMs)),
+    queueRetryTimeoutS: numberSetting("queueRetryTimeoutS", DEFAULT_SEND_SETTINGS.queueRetryTimeoutS),
+    streamGcodeMotion: $("streamGcodeMotion").checked,
+    jobLifecycle: $("jobLifecycle").checked,
+    autoMotionTimeout: $("autoMotionTimeout").checked,
+  };
+}
+
+function markSendSettingsDirty() {
+  app.sendSettingsDirty = true;
+  $("sendSettingsStatus").textContent = "Unsaved send settings.";
+}
+
+async function saveSendSettings(settings = sendSettingsPayload()) {
+  const button = $("saveSendSettingsBtn");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Saving...";
+  try {
+    const result = await api("/api/settings", {
+      method: "POST",
+      body: JSON.stringify(settings),
+      timeoutMs: 3000,
+    });
+    app.sendSettings = { ...DEFAULT_SEND_SETTINGS, ...result.sendSettings };
+    app.sendSettingsDirty = false;
+    renderSendSettings();
+    $("sendSettingsStatus").textContent = "Send settings saved.";
+    appendLog({ time: Date.now(), kind: "host", message: "Saved serial_send.py WebUI defaults" });
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+async function resetSendSettings() {
+  app.sendSettings = { ...DEFAULT_SEND_SETTINGS };
+  app.sendSettingsDirty = true;
+  renderSendSettings();
+  await saveSendSettings(DEFAULT_SEND_SETTINGS);
 }
 
 function appendLog(event) {
@@ -971,6 +1061,21 @@ function bindUI() {
     await refreshState();
     updateQuickConnectUI();
   });
+  [
+    "commandTimeoutS",
+    "jobTimeoutS",
+    "motionTimeoutMarginS",
+    "queueRetryDelayMs",
+    "queueRetryTimeoutS",
+    "streamGcodeMotion",
+    "jobLifecycle",
+    "autoMotionTimeout",
+  ].forEach((id) => {
+    $(id).addEventListener("input", markSendSettingsDirty);
+    $(id).addEventListener("change", markSendSettingsDirty);
+  });
+  $("saveSendSettingsBtn").addEventListener("click", () => saveSendSettings().catch(showError));
+  $("resetSendSettingsBtn").addEventListener("click", () => resetSendSettings().catch(showError));
   $("homeBtn").addEventListener("click", () => sendCommand("HOME").catch(showError));
   $("clearAlarmBtn").addEventListener("click", () => sendCommand("ALARM_CLEAR").catch(showError));
   $("dashboardHomeBtn").addEventListener("click", () => sendCommand("HOME").catch(showError));
