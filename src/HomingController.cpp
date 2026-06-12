@@ -43,6 +43,70 @@ void applyABStepDeltaToMachine(int32_t delta_a_steps, int32_t delta_b_steps,
   machine.y_mm +=
       static_cast<float>(delta_a_steps - delta_b_steps) / (2.0f * STEPS_PER_MM);
 }
+
+void setMachinePosition(float x_mm, float y_mm, MachineState& machine) {
+  machine.x_mm = x_mm;
+  machine.y_mm = y_mm;
+  machine.a_steps = absoluteASteps(machine.x_mm, machine.y_mm);
+  machine.b_steps = absoluteBSteps(machine.x_mm, machine.y_mm);
+}
+
+bool moveToHomePark(StepperBackendFastAccel& backend, SafetyManager& safety,
+                    MachineState& machine) {
+  const float dx_mm = JOB_END_PARK_X_MM - machine.x_mm;
+  const float dy_mm = JOB_END_PARK_Y_MM - machine.y_mm;
+  if (fabsf(dx_mm) < 0.01f && fabsf(dy_mm) < 0.01f) {
+    logMessage("HOME park skipped: already at X=%.3f Y=%.3f",
+               JOB_END_PARK_X_MM, JOB_END_PARK_Y_MM);
+    return true;
+  }
+
+  const CoreXYDelta delta =
+      CoreXYKinematics::xyDeltaToABSteps(dx_mm, dy_mm, STEPS_PER_MM);
+  logMessage("HOME park target=(%.3f,%.3f) dx=%.3f dy=%.3f A=%ld B=%ld F=%.3f",
+             JOB_END_PARK_X_MM, JOB_END_PARK_Y_MM, dx_mm, dy_mm,
+             delta.a_steps, delta.b_steps, JOB_END_PARK_FEED_MM_MIN);
+
+#if SIMULATION_MODE
+  applyABStepDeltaToMachine(delta.a_steps, delta.b_steps, machine);
+#else
+  if (!backend.moveABSteps(delta.a_steps, delta.b_steps,
+                           JOB_END_PARK_FEED_MM_MIN)) {
+    safety.setAlarm("homing park backend rejected move");
+    machine.alarmed = true;
+    logMessage("HOME park failed reason=backend_rejected");
+    return false;
+  }
+  while (backend.isRunning()) {
+    safety.poll();
+    if (safety.isAlarmed()) {
+      backend.stop();
+      backend.waitUntilIdle();
+      machine.alarmed = true;
+      logMessage("HOME park stopped: alarm reason=%s", safety.alarmReason());
+      return false;
+    }
+    if (isMotionAbortRequested()) {
+      backend.stop();
+      backend.waitUntilIdle();
+      clearMotionAbort();
+      safety.setAlarm("abort requested");
+      machine.alarmed = true;
+      logMessage("HOME park stopped: abort requested");
+      return false;
+    }
+    vTaskDelay(pdMS_TO_TICKS(kMovePollMs));
+  }
+#endif
+
+  setMachinePosition(JOB_END_PARK_X_MM, JOB_END_PARK_Y_MM, machine);
+  safety.poll();
+  logMessage("HOME park complete X=%.3f Y=%.3f A=%ld B=%ld limitX=%s limitY=%s",
+             machine.x_mm, machine.y_mm, machine.a_steps, machine.b_steps,
+             safety.xLimitActive() ? "ON" : "OFF",
+             safety.yLimitActive() ? "ON" : "OFF");
+  return true;
+}
 }
 
 bool HomingController::runHomeX(StepperBackendFastAccel& backend,
@@ -84,6 +148,14 @@ bool HomingController::runHome(StepperBackendFastAccel& backend,
     return false;
   }
   machine.homed = machine.x_homed && machine.y_homed;
+  if (machine.homed && !moveToHomePark(backend, safety, machine)) {
+    machine.homed = false;
+    machine.x_homed = false;
+    machine.y_homed = false;
+    safety.setHomingActive(false);
+    machine.homing_active = false;
+    return false;
+  }
   setState(State::Complete, machine, "COMPLETE");
   safety.setHomingActive(false);
   machine.homing_active = false;
