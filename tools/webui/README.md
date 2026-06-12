@@ -109,6 +109,10 @@ The QR panel on the Job page creates QR hatch-fill G-code from text or a URL and
 adds it to the same layout list. The generated QR can be positioned, scaled,
 previewed, saved with the layout, and sent with the normal `SEND JOB` flow.
 The Text Generator panel uses the same layout, preview, save, and send flow.
+The SVG to G-code panel accepts an SVG file or pasted SVG string and creates a
+virtual `.gcode` item in the same layout. It supports SVG `path`, `polyline`,
+`polygon`, `line`, `rect`, `circle`, and `ellipse`; fill, text, gradients, and
+images are ignored with warnings.
 
 Manual UI check after WebUI layout changes:
 
@@ -117,9 +121,11 @@ Manual UI check after WebUI layout changes:
 2. Confirm Select G-code files is the first Job control and has the file icon.
 3. Load two G-code files, select each row, and use up/down/remove controls.
 4. Confirm Send Job and Save G-code have icons and remain below the file list.
-5. Open Text Generator and QR Generator, confirm Create is beside the input.
-6. Generate QR and text G-code, then confirm the preview start point is on the body, not at X0 Y0.
+5. Open Text Generator, QR Generator, and SVG to G-code, confirm Create is beside the input.
+6. Generate QR, text, and SVG G-code, then confirm the preview start point is on the body, not at X0 Y0.
 7. Save the combined G-code and inspect that it starts with G21, G90, M5, G0 to the first draw point, then M3.
+8. Paste an SVG string and also load an `.svg` file, then confirm both generated items can be previewed, saved, and sent.
+9. For real-machine SVG smoke testing, load `tools/webui/examples/svg_check.svg`; it should fit in a 30mm x 30mm canvas and draw six strokes.
 ```
 
 ## Current Scope
@@ -129,6 +135,7 @@ Manual UI check after WebUI layout changes:
 - G-code preview
 - QR G-code creation
 - Text G-code creation
+- SVG G-code creation
 - Job sending through `serial_send.py`
 - Console log stream
 - Serial target settings

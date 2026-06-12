@@ -203,6 +203,37 @@
                     <div id="qrStatus" class="muted qr-status">Ready to generate QR G-code.</div>
                   </div>
                 </section>
+                <section class="generator-panel collapsed" id="svgGeneratorPanel">
+                  <button class="generator-toggle" id="svgGeneratorToggle" type="button" aria-expanded="false" aria-controls="svgGeneratorBody">
+                    <span>
+                      <span class="label">SVG to G-code</span>
+                      <strong>Create SVG G-code</strong>
+                    </span>
+                    <span class="toggle-indicator" aria-hidden="true">▸</span>
+                  </button>
+                  <div class="generator-body" id="svgGeneratorBody">
+                    <div class="inline-create">
+                      <label>SVG file <input id="svgFile" type="file" accept=".svg,image/svg+xml" /></label>
+                      <button id="createSvgBtn" class="secondary" type="button">Create</button>
+                    </div>
+                    <label>SVG input
+                      <textarea id="svgInput" class="svg-input" spellcheck="false" placeholder="<svg viewBox=&quot;0 0 100 100&quot;>...</svg>"></textarea>
+                    </label>
+                    <div class="qr-grid">
+                      <label>Width mm <input id="svgWidthMm" type="number" min="1" step="0.1" value="50" /></label>
+                      <label>Height mm <input id="svgHeightMm" type="number" min="1" step="0.1" value="50" /></label>
+                      <label>Margin mm <input id="svgMarginMm" type="number" min="0" step="0.1" value="5" /></label>
+                      <label>Draw F <input id="svgFeedMmMin" type="number" min="1" step="50" value="800" /></label>
+                      <label>Travel F <input id="svgTravelFeedMmMin" type="number" min="1" step="50" value="1200" /></label>
+                      <label>Simplify mm <input id="svgSimplifyToleranceMm" type="number" min="0" step="0.05" value="0.2" /></label>
+                      <label>Min stroke mm <input id="svgMinStrokeLengthMm" type="number" min="0" step="0.1" value="0.5" /></label>
+                    </div>
+                    <div class="check-list compact-checks">
+                      <label><input id="svgOptimizeStrokeOrder" type="checkbox" checked /> optimize stroke order</label>
+                    </div>
+                    <div id="svgStatus" class="muted qr-status">Ready to generate SVG G-code.</div>
+                  </div>
+                </section>
               </div>
             </article>
             <article class="panel preview-panel">

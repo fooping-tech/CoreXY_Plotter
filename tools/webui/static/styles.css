@@ -641,9 +641,17 @@ h2 {
 }
 
 .generator-body input,
-.generator-body select {
+.generator-body select,
+.generator-body textarea {
   width: 100%;
   background: #090c11;
+}
+
+.generator-body textarea {
+  min-height: 132px;
+  resize: vertical;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  line-height: 1.4;
 }
 
 .inline-create {

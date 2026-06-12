@@ -72,6 +72,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | Job Lifecycle | `JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`を実装済み、motionを伴う実機確認は未完了 |
 | look-ahead | 実装済み、実機未確認 |
 | junction deviation | 実装済み、実機未確認 |
+| Host WebUI SVG to G-code | SVGファイル/文字列から仮想G-codeを生成し、preview/save/sendへ接続済み。小型SVGで実機描画確認済み |
 
 現在の最優先作業:
 
@@ -1507,6 +1508,18 @@ PC画面で状態、ログ、G-code preview、ジョブ送信を扱えるよう�
 - [x] soft limit外segmentをwarning表示する
 - [x] 未対応G-codeをwarning一覧へ出す
 
+### 11.1.4.1 SVG to G-code
+
+- [x] Job画面下部へ折りたたみ可能な`SVG to G-code` panelを追加する
+- [x] SVGファイル選択とSVG文字列貼り付けに対応する
+- [x] `POST /api/gcode/from-svg`を追加する
+- [x] `path`、`polyline`、`polygon`、`line`、`rect`、`circle`、`ellipse`をstroke列へ変換する
+- [x] `translate`、`scale` transformを処理し、未対応SVG機能はwarningを返す
+- [x] bounding box fit、Y反転、短すぎるstroke削除、stroke順最適化を行う
+- [x] 生成G-codeを既存layoutへ仮想`.gcode`として追加し、preview、Save G-code、Send Job導線を再利用する
+- [x] 変換器の単体テストを追加する
+- [x] SVG生成G-codeの実機描画確認
+
 ### 11.1.5 初期完了条件
 
 - [ ] WebUIをPCで起動できる
@@ -2222,6 +2235,8 @@ Phase 6.9を実装してください。
 | 2026-06-12 | Serial ToolがCSV `XY`、G-code `G0/G1`、`G4`から実行時間を概算し、`推定motion時間 + --motion-timeout-margin`でtimeoutを自動延長するよう修正。stream motionの累積推定時間を次の非stream行へ引き継ぐ仕様を追加 | Codex |
 | 2026-06-13 | stream G-code motionの座標ドリフト対策を追加。timed segment部分投入時のB側リトライ/失敗時再同期alarm、XY blockの絶対A/B step target化、CommandQueue満杯時のmotion行backpressure、native motion drift test、SIMULATION_MODE build環境を実装。`pio run`、`pio run -e m5stack-core2-sim`、upload、`CONFIG`/`POS`/`SELFTEST`/`TMC_INIT`/`TMC_STATUS`確認が成功 | Codex |
 | 2026-06-13 | KST32B Text ToolのCSF/1 X move解釈を修正。X moveを現在Y上の即時ペンアップ移動として扱い、`高`の上点、ASCII `H`/`L`/`l`が斜め線になる問題を修正。回帰テストを追加 | Codex |
+| 2026-06-13 | Host WebUIへSVG to G-codeを追加。SVGファイル/文字列入力、`POST /api/gcode/from-svg`、stroke抽出、fit/Y反転/短stroke削除/順序最適化、既存preview/save/send導線への仮想G-code追加、単体テストを実装。実機描画確認は未実施 | Codex |
+| 2026-06-13 | `tools/webui/examples/svg_check.svg`を追加し、SVG変換G-codeを実機へ送信。`JOB_BEGIN` auto-home、6 strokes / 49 segmentsの描画、`JOB_END` park/jingleまで成功し、最終状態`HOMED=YES PEN=UP ALARM=NO TMC=READY`を確認 | Codex |
 
 ---
 

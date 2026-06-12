@@ -35,6 +35,7 @@ DEFAULT_BAUD = 115200
 MAX_GCODE_BYTES = 2 * 1024 * 1024
 MAX_QR_TEXT_CHARS = 512
 MAX_TEXT_GCODE_CHARS = 512
+MAX_SVG_BYTES = 2 * 1024 * 1024
 DEFAULT_SEND_SETTINGS: dict[str, object] = {
     "commandTimeoutS": 5.0,
     "jobTimeoutS": 30.0,
@@ -45,6 +46,11 @@ DEFAULT_SEND_SETTINGS: dict[str, object] = {
     "queueRetryDelayMs": 250,
     "queueRetryTimeoutS": 10.0,
 }
+
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from svg_to_gcode import SvgToGcodeOptions, convert_svg_to_gcode  # noqa: E402
 
 
 log_queue: "queue.Queue[dict[str, object]]" = queue.Queue()
@@ -561,6 +567,8 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 self.handle_qr_gcode()
             elif parsed.path == "/api/text/gcode":
                 self.handle_text_gcode()
+            elif parsed.path == "/api/gcode/from-svg":
+                self.handle_svg_gcode()
             elif parsed.path == "/api/settings":
                 self.handle_settings()
             else:
@@ -804,6 +812,57 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 "name": "text_generated.gcode",
                 "gcode": gcode,
                 "message": output,
+            },
+        )
+
+    def handle_svg_gcode(self) -> None:
+        body = read_json(self)
+        svg = str(body.get("svg", ""))
+        if not svg.strip():
+            raise ValueError("svg is required")
+        if len(svg.encode("utf-8")) > MAX_SVG_BYTES:
+            raise ValueError("SVG input is too large")
+
+        options = SvgToGcodeOptions(
+            width_mm=clamp_float(body.get("width_mm", 50), name="width_mm", minimum=1.0, maximum=1000.0),
+            height_mm=clamp_float(body.get("height_mm", 50), name="height_mm", minimum=1.0, maximum=1000.0),
+            margin_mm=clamp_float(body.get("margin_mm", 5), name="margin_mm", minimum=0.0, maximum=500.0),
+            feed_mm_min=clamp_float(body.get("feed_mm_min", 800), name="feed_mm_min", minimum=1.0, maximum=50000.0),
+            travel_feed_mm_min=clamp_float(
+                body.get("travel_feed_mm_min", 1200),
+                name="travel_feed_mm_min",
+                minimum=1.0,
+                maximum=50000.0,
+            ),
+            simplify_tolerance_mm=clamp_float(
+                body.get("simplify_tolerance_mm", 0.2),
+                name="simplify_tolerance_mm",
+                minimum=0.0,
+                maximum=10.0,
+            ),
+            min_stroke_length_mm=clamp_float(
+                body.get("min_stroke_length_mm", 0.5),
+                name="min_stroke_length_mm",
+                minimum=0.0,
+                maximum=100.0,
+            ),
+            optimize_stroke_order=bool_setting(
+                body.get("optimize_stroke_order", True),
+                name="optimize_stroke_order",
+            ),
+        )
+        result = convert_svg_to_gcode(svg, options)
+        gcode = normalize_generated_gcode_start(result.gcode)
+        if len(gcode.encode("utf-8")) > MAX_GCODE_BYTES:
+            raise ValueError("Generated SVG G-code is too large")
+        send_json(
+            self,
+            {
+                "filename": result.filename,
+                "gcode": gcode,
+                "stroke_count": result.stroke_count,
+                "segment_count": result.segment_count,
+                "warnings": result.warnings,
             },
         )
 

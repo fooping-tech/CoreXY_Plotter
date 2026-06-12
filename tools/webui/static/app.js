@@ -885,6 +885,25 @@ function textPayload() {
   };
 }
 
+function svgNumber(id, fallback) {
+  const value = Number($(id).value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function svgPayload() {
+  return {
+    svg: $("svgInput").value.trim(),
+    width_mm: svgNumber("svgWidthMm", 50),
+    height_mm: svgNumber("svgHeightMm", 50),
+    margin_mm: svgNumber("svgMarginMm", 5),
+    feed_mm_min: svgNumber("svgFeedMmMin", 800),
+    travel_feed_mm_min: svgNumber("svgTravelFeedMmMin", 1200),
+    simplify_tolerance_mm: svgNumber("svgSimplifyToleranceMm", 0.2),
+    min_stroke_length_mm: svgNumber("svgMinStrokeLengthMm", 0.5),
+    optimize_stroke_order: $("svgOptimizeStrokeOrder").checked,
+  };
+}
+
 function safeGeneratedName(prefix, text) {
   const safeName = text
     .replace(/[^a-z0-9]+/gi, "_")
@@ -954,6 +973,44 @@ async function createTextGcode() {
     appendLog({ time: Date.now(), kind: "host", message: `Added text G-code for "${payload.text}"` });
   } catch (error) {
     status.textContent = "Text generation failed.";
+    showError(error);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+async function createSvgGcode() {
+  const button = $("createSvgBtn");
+  const status = $("svgStatus");
+  const payload = svgPayload();
+  if (!payload.svg) {
+    showError(new Error("Choose an SVG file or paste SVG input first"));
+    $("svgInput").focus();
+    return;
+  }
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Creating...";
+  status.textContent = "Generating SVG G-code...";
+  try {
+    const result = await api("/api/gcode/from-svg", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      timeoutMs: 30000,
+    });
+    addGcodeText(result.filename || safeGeneratedName("svg", "generated"), result.gcode);
+    const warnings = Array.isArray(result.warnings) && result.warnings.length > 0
+      ? ` ${result.warnings.length} warning(s).`
+      : "";
+    status.textContent = `SVG G-code added: ${result.stroke_count} stroke(s), ${result.segment_count} segment(s).${warnings}`;
+    appendLog({
+      time: Date.now(),
+      kind: "host",
+      message: `Added SVG G-code (${result.stroke_count} strokes, ${result.segment_count} segments)`,
+    });
+  } catch (error) {
+    status.textContent = "SVG generation failed.";
     showError(error);
   } finally {
     button.disabled = false;
@@ -1198,8 +1255,16 @@ function bindUI() {
   });
   $("createQrBtn").addEventListener("click", () => createQrGcode().catch(showError));
   $("createTextBtn").addEventListener("click", () => createTextGcode().catch(showError));
+  $("createSvgBtn").addEventListener("click", () => createSvgGcode().catch(showError));
   bindGeneratorToggle("qrGeneratorToggle", "qrGeneratorPanel");
   bindGeneratorToggle("textGeneratorToggle", "textGeneratorPanel");
+  bindGeneratorToggle("svgGeneratorToggle", "svgGeneratorPanel");
+  $("svgFile").addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    $("svgInput").value = await file.text();
+    $("svgStatus").textContent = `Loaded ${file.name}.`;
+  });
   $("qrText").addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();

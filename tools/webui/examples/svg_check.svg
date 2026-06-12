@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path d="M10 15 C25 0 40 0 55 15" fill="none" stroke="black" />
+  <polyline points="10,35 20,25 30,35 40,25 50,35" fill="none" stroke="black" />
+  <line x1="60" y1="25" x2="90" y2="25" stroke="black" />
+  <rect x="10" y="50" width="25" height="18" fill="none" stroke="black" />
+  <circle cx="58" cy="59" r="10" fill="none" stroke="black" />
+  <ellipse cx="82" cy="59" rx="12" ry="7" fill="none" stroke="black" />
+</svg>

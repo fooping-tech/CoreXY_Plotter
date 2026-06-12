@@ -804,6 +804,7 @@ Browser
 | `tools/webui/static/index.html` | WebUI shell |
 | `tools/webui/static/styles.css` | Product Design方針に沿ったdark machine UI |
 | `tools/webui/static/app.js` | Client state、SSE log、manual command、G-code preview |
+| `tools/webui/svg_to_gcode.py` | Host側SVG to G-code変換 |
 | `tools/webui/README.md` | 起動手順とMVP範囲 |
 
 ### 20.1 画面構成
@@ -842,6 +843,48 @@ WebUIから使う既定option:
 
 Host bridgeは`serial_send.py`のstdout/stderrをServer-Sent Events等でBrowserへstreamし、`ACK`、`NACK`、`REJECT:`、`ERROR:`、`ALARM=YES`を色分け表示する。
 送信ロジック、queue full retry、HOME/JOB_BEGIN/JOB_END timeout、failure時の`JOB_ABORT`送信は`serial_send.py`の責務として維持する。
+
+### 20.3.1 SVG to G-code API
+
+Host bridgeは`POST /api/gcode/from-svg`を提供する。
+
+request:
+
+```json
+{
+  "svg": "<svg ...>",
+  "width_mm": 50,
+  "height_mm": 50,
+  "margin_mm": 5,
+  "feed_mm_min": 800,
+  "travel_feed_mm_min": 1200,
+  "simplify_tolerance_mm": 0.2,
+  "min_stroke_length_mm": 0.5,
+  "optimize_stroke_order": true
+}
+```
+
+response:
+
+```json
+{
+  "filename": "generated_svg_YYYYMMDD_HHMMSS.gcode",
+  "gcode": "G21\nG90\nM5\n...",
+  "stroke_count": 0,
+  "segment_count": 0,
+  "warnings": []
+}
+```
+
+SVG v1対応要素は`path`、`polyline`、`polygon`、`line`、`rect`、`circle`、`ellipse`とする。
+`fill`、gradient、`text`、`image`は描画対象にせず、必要に応じてwarningを返す。
+`transform`は`translate`と`scale`を処理し、未対応transformはwarningとして無視する。
+Bezier pathは線分近似し、SVG bounding boxを指定`width_mm`/`height_mm`内の`margin_mm`へfitする。
+SVGのY下向き座標はプロッタのY上向き座標へ反転する。
+1点stroke、M moveだけのpath、`min_stroke_length_mm`未満のstrokeは削除する。
+`optimize_stroke_order`有効時は最近傍端点順に並べ、必要ならstrokeを反転する。
+生成G-codeは必ず`G21`、`G90`、`M5`で開始し、各strokeを`M5`、pen-up `G0`、`M3`、`G1...`、`M5`で出力する。
+不要な`G0 X0 Y0`は出力しない。
 
 ### 20.4 G-code preview
 
