@@ -9,6 +9,7 @@ behavior stay in one place.
 from __future__ import annotations
 
 import argparse
+import cgi
 import csv
 import json
 import os
@@ -23,6 +24,8 @@ from http import HTTPStatus
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from datetime import datetime
+from typing import Callable
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -36,6 +39,7 @@ MAX_GCODE_BYTES = 2 * 1024 * 1024
 MAX_QR_TEXT_CHARS = 512
 MAX_TEXT_GCODE_CHARS = 512
 MAX_SVG_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
 DEFAULT_SEND_SETTINGS: dict[str, object] = {
     "commandTimeoutS": 5.0,
     "jobTimeoutS": 30.0,
@@ -51,6 +55,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from svg_to_gcode import SvgToGcodeOptions, convert_svg_to_gcode  # noqa: E402
+from image_to_svg import RasterTraceOptions, trace_mode_from_value, trace_raster_image_to_svg  # noqa: E402
 
 
 log_queue: "queue.Queue[dict[str, object]]" = queue.Queue()
@@ -266,6 +271,136 @@ def bool_setting(value: object, *, name: str) -> bool:
         if normalized in {"0", "false", "no", "off"}:
             return False
     raise ValueError(f"{name} must be true or false")
+
+
+def first_form_value(form: cgi.FieldStorage, name: str, default: object = "") -> object:
+    value = form.getvalue(name)
+    if isinstance(value, list):
+        return value[0] if value else default
+    return default if value is None else value
+
+
+def read_multipart(handler: SimpleHTTPRequestHandler) -> cgi.FieldStorage:
+    content_type = handler.headers.get("Content-Type", "")
+    if not content_type.lower().startswith("multipart/form-data"):
+        raise ValueError("multipart/form-data is required")
+    return cgi.FieldStorage(
+        fp=handler.rfile,
+        headers=handler.headers,
+        environ={
+            "REQUEST_METHOD": "POST",
+            "CONTENT_TYPE": content_type,
+            "CONTENT_LENGTH": handler.headers.get("Content-Length", "0"),
+        },
+    )
+
+
+def svg_options_from_mapping(data: dict[str, object]) -> SvgToGcodeOptions:
+    return SvgToGcodeOptions(
+        width_mm=clamp_float(data.get("width_mm", 50), name="width_mm", minimum=1.0, maximum=1000.0),
+        height_mm=clamp_float(data.get("height_mm", 50), name="height_mm", minimum=1.0, maximum=1000.0),
+        margin_mm=clamp_float(data.get("margin_mm", 5), name="margin_mm", minimum=0.0, maximum=500.0),
+        feed_mm_min=clamp_float(data.get("feed_mm_min", 800), name="feed_mm_min", minimum=1.0, maximum=50000.0),
+        travel_feed_mm_min=clamp_float(
+            data.get("travel_feed_mm_min", 1200),
+            name="travel_feed_mm_min",
+            minimum=1.0,
+            maximum=50000.0,
+        ),
+        simplify_tolerance_mm=clamp_float(
+            data.get("simplify_tolerance_mm", 0.2),
+            name="simplify_tolerance_mm",
+            minimum=0.0,
+            maximum=10.0,
+        ),
+        min_stroke_length_mm=clamp_float(
+            data.get("min_stroke_length_mm", 0.5),
+            name="min_stroke_length_mm",
+            minimum=0.0,
+            maximum=100.0,
+        ),
+        optimize_stroke_order=bool_setting(
+            data.get("optimize_stroke_order", True),
+            name="optimize_stroke_order",
+        ),
+    )
+
+
+def raster_options_from_mapping(data: dict[str, object]) -> RasterTraceOptions:
+    return RasterTraceOptions(
+        trace_mode=trace_mode_from_value(data.get("trace_mode", "line_art")),
+        threshold_mode=str(data.get("threshold_mode", "auto")).strip().lower(),
+        threshold_value=clamp_int(data.get("threshold_value", 128), name="threshold_value", minimum=0, maximum=255),
+        invert=bool_setting(data.get("invert", False), name="invert"),
+        skeletonize=bool_setting(data.get("skeletonize", True), name="skeletonize"),
+        max_segments=clamp_int(data.get("max_segments", 12000), name="max_segments", minimum=1, maximum=200000),
+    )
+
+
+def svg_to_gcode(svg: str, options: SvgToGcodeOptions) -> dict[str, object]:
+    result = convert_svg_to_gcode(svg, options)
+    gcode = normalize_generated_gcode_start(result.gcode)
+    if len(gcode.encode("utf-8")) > MAX_GCODE_BYTES:
+        raise ValueError("Generated SVG G-code is too large")
+    return {
+        "filename": result.filename,
+        "gcode": gcode,
+        "intermediate_svg": svg,
+        "stroke_count": result.stroke_count,
+        "segment_count": result.segment_count,
+        "warnings": result.warnings,
+    }
+
+
+def input_extension(filename: str) -> str:
+    return Path(filename or "").suffix.lower()
+
+
+ProgressCallback = Callable[[str, str, str], None]
+
+
+def convert_image_to_gcode(
+    *,
+    filename: str,
+    content: bytes,
+    gcode_options: SvgToGcodeOptions,
+    raster_options: RasterTraceOptions,
+    progress: ProgressCallback | None = None,
+) -> dict[str, object]:
+    extension = input_extension(filename)
+    if extension == ".svg":
+        if len(content) > MAX_SVG_BYTES:
+            raise ValueError("SVG input is too large")
+        if progress:
+            progress("read", "done", f"Loaded SVG file: {filename}")
+            progress("trace", "done", "Skipped raster trace for SVG input")
+            progress("gcode", "active", "Parsing SVG strokes and generating G-code")
+        svg = content.decode("utf-8")
+        payload = svg_to_gcode(svg, gcode_options)
+        payload["input_type"] = "svg"
+        if progress:
+            progress("gcode", "done", f"SVG to G-code complete: {payload['stroke_count']} strokes, {payload['segment_count']} segments")
+    elif extension in {".png", ".jpg", ".jpeg"}:
+        if len(content) > MAX_IMAGE_BYTES:
+            raise ValueError("Image input is too large")
+        if progress:
+            progress("read", "done", f"Loaded raster file: {filename}")
+            progress("trace", "active", "Tracing raster image to plotter-friendly SVG")
+        trace_result = trace_raster_image_to_svg(content, raster_options)
+        if progress:
+            progress("trace", "done", f"Trace complete: {trace_result.stroke_count} strokes, {trace_result.segment_count} segments")
+            progress("gcode", "active", "Converting intermediate SVG to G-code")
+        payload = svg_to_gcode(trace_result.svg, gcode_options)
+        payload["input_type"] = "raster"
+        payload["intermediate_svg"] = trace_result.svg
+        payload["warnings"] = [*trace_result.warnings, *payload.get("warnings", [])]
+        if progress:
+            progress("gcode", "done", f"SVG to G-code complete: {payload['stroke_count']} strokes, {payload['segment_count']} segments")
+    else:
+        raise ValueError("未対応ファイル形式です。SVG, PNG, JPG, JPEGを選択してください")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    payload["filename"] = f"generated_image_{stamp}.gcode"
+    return payload
 
 
 def normalize_send_settings(raw: dict[str, object]) -> dict[str, object]:
@@ -569,11 +704,22 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 self.handle_text_gcode()
             elif parsed.path == "/api/gcode/from-svg":
                 self.handle_svg_gcode()
+            elif parsed.path == "/api/gcode/from-image":
+                self.handle_image_gcode()
             elif parsed.path == "/api/settings":
                 self.handle_settings()
             else:
                 send_json(self, {"error": "not found"}, HTTPStatus.NOT_FOUND)
         except Exception as exc:  # Keep UI failures visible without crashing the server.
+            if parsed.path == "/api/gcode/from-image":
+                emit(
+                    "progress",
+                    f"Image to G-code failed: {exc}",
+                    area="imageConversion",
+                    stage="failed",
+                    status="failed",
+                    detail=str(exc),
+                )
             emit("error", f"Host error: {exc}")
             send_json(self, {"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
@@ -823,48 +969,53 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         if len(svg.encode("utf-8")) > MAX_SVG_BYTES:
             raise ValueError("SVG input is too large")
 
-        options = SvgToGcodeOptions(
-            width_mm=clamp_float(body.get("width_mm", 50), name="width_mm", minimum=1.0, maximum=1000.0),
-            height_mm=clamp_float(body.get("height_mm", 50), name="height_mm", minimum=1.0, maximum=1000.0),
-            margin_mm=clamp_float(body.get("margin_mm", 5), name="margin_mm", minimum=0.0, maximum=500.0),
-            feed_mm_min=clamp_float(body.get("feed_mm_min", 800), name="feed_mm_min", minimum=1.0, maximum=50000.0),
-            travel_feed_mm_min=clamp_float(
-                body.get("travel_feed_mm_min", 1200),
-                name="travel_feed_mm_min",
-                minimum=1.0,
-                maximum=50000.0,
-            ),
-            simplify_tolerance_mm=clamp_float(
-                body.get("simplify_tolerance_mm", 0.2),
-                name="simplify_tolerance_mm",
-                minimum=0.0,
-                maximum=10.0,
-            ),
-            min_stroke_length_mm=clamp_float(
-                body.get("min_stroke_length_mm", 0.5),
-                name="min_stroke_length_mm",
-                minimum=0.0,
-                maximum=100.0,
-            ),
-            optimize_stroke_order=bool_setting(
-                body.get("optimize_stroke_order", True),
-                name="optimize_stroke_order",
-            ),
+        send_json(self, svg_to_gcode(svg, svg_options_from_mapping(body)))
+
+    def handle_image_gcode(self) -> None:
+        def progress(stage: str, status: str, message: str) -> None:
+            emit(
+                "progress",
+                f"Image to G-code: {message}",
+                area="imageConversion",
+                stage=stage,
+                status=status,
+                detail=message,
+            )
+
+        progress("upload", "active", "Receiving uploaded file and settings")
+        form = read_multipart(self)
+        file_item = form["file"] if "file" in form else None
+        if file_item is None or not getattr(file_item, "filename", ""):
+            raise ValueError("file is required")
+        content = file_item.file.read()
+        if not content:
+            raise ValueError("file is empty")
+        progress("upload", "done", f"Upload received: {file_item.filename} ({len(content)} bytes)")
+        values = {
+            "width_mm": first_form_value(form, "width_mm", 50),
+            "height_mm": first_form_value(form, "height_mm", 50),
+            "margin_mm": first_form_value(form, "margin_mm", 5),
+            "feed_mm_min": first_form_value(form, "feed_mm_min", 800),
+            "travel_feed_mm_min": first_form_value(form, "travel_feed_mm_min", 1200),
+            "simplify_tolerance_mm": first_form_value(form, "simplify_tolerance_mm", 0.2),
+            "min_stroke_length_mm": first_form_value(form, "min_stroke_length_mm", 0.5),
+            "optimize_stroke_order": first_form_value(form, "optimize_stroke_order", "true"),
+            "trace_mode": first_form_value(form, "trace_mode", "line_art"),
+            "threshold_mode": first_form_value(form, "threshold_mode", "auto"),
+            "threshold_value": first_form_value(form, "threshold_value", 128),
+            "invert": first_form_value(form, "invert", "false"),
+            "skeletonize": first_form_value(form, "skeletonize", "true"),
+            "max_segments": first_form_value(form, "max_segments", 12000),
+        }
+        payload = convert_image_to_gcode(
+            filename=str(file_item.filename),
+            content=content,
+            gcode_options=svg_options_from_mapping(values),
+            raster_options=raster_options_from_mapping(values),
+            progress=progress,
         )
-        result = convert_svg_to_gcode(svg, options)
-        gcode = normalize_generated_gcode_start(result.gcode)
-        if len(gcode.encode("utf-8")) > MAX_GCODE_BYTES:
-            raise ValueError("Generated SVG G-code is too large")
-        send_json(
-            self,
-            {
-                "filename": result.filename,
-                "gcode": gcode,
-                "stroke_count": result.stroke_count,
-                "segment_count": result.segment_count,
-                "warnings": result.warnings,
-            },
-        )
+        progress("complete", "done", f"Generated {payload['filename']}")
+        send_json(self, payload)
 
     def run_job_thread(self, args: list[str]) -> None:
         global job_process
@@ -930,6 +1081,12 @@ class WebUIHandler(SimpleHTTPRequestHandler):
 class ReusableThreadingHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
+
+    def handle_error(self, request: object, client_address: object) -> None:
+        exc_type, _, _ = sys.exc_info()
+        if exc_type and issubclass(exc_type, (ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
 
 
 def parse_args() -> argparse.Namespace:

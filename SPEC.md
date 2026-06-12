@@ -886,6 +886,69 @@ SVGのY下向き座標はプロッタのY上向き座標へ反転する。
 生成G-codeは必ず`G21`、`G90`、`M5`で開始し、各strokeを`M5`、pen-up `G0`、`M3`、`G1...`、`M5`で出力する。
 不要な`G0 X0 Y0`は出力しない。
 
+### 20.3.2 Image to G-code API
+
+ユーザー向けJob画面では、従来のSVG to G-codeパネルを`Image to G-code`として表示する。
+同一パネルから`.svg`、`.png`、`.jpg`、`.jpeg`をアップロードできる。
+Generator群の表示順は`Text Generator`、`QR Generator`、`Image to G-code`とし、いずれも折りたたみ可能にする。
+
+内部責務は以下に分離する。
+
+```text
+trace_raster_image_to_svg(...)
+  PNG/JPEG -> plotter-friendly SVG
+svg_to_gcode(...)
+  SVG -> G-code
+convert_image_to_gcode(...)
+  入力種別を判定し、SVGはsvg_to_gcode、PNG/JPEGはtrace_raster_image_to_svg後にsvg_to_gcode
+```
+
+Host bridgeは`POST /api/gcode/from-image`を`multipart/form-data`で提供する。
+
+request fields:
+
+```text
+file
+width_mm
+height_mm
+margin_mm
+feed_mm_min
+travel_feed_mm_min
+simplify_tolerance_mm
+min_stroke_length_mm
+optimize_stroke_order
+trace_mode
+threshold_mode
+threshold_value
+invert
+skeletonize
+max_segments
+```
+
+response:
+
+```json
+{
+  "filename": "generated_image_YYYYMMDD_HHMMSS.gcode",
+  "gcode": "G21\nG90\nM5\n...",
+  "intermediate_svg": "<svg ...>",
+  "input_type": "svg",
+  "stroke_count": 0,
+  "segment_count": 0,
+  "warnings": []
+}
+```
+
+PNG/JPEGは直接G-code化せず、必ず中間SVGを生成してからSVG to G-code処理へ通す。
+中間SVGは`viewBox`を持ち、`fill="none"`、`stroke="black"`を基本に、`polyline`中心の単純な線画とする。
+1点stroke、孤立点、短すぎるstrokeは含めない。
+Line Artはしきい値化後に必要に応じてskeletonizeし、中心線に近いpolylineを出す。
+Outline Traceは黒領域の境界をpolyline化する。
+`max_segments`を超える場合はエラーとして返し、WebUI上に表示する。
+WebUI既定値は`max_segments=12000`とし、細かいラスタ線画が初期設定で過度に失敗しないようにする。
+Image to G-codeパネルは、upload、PNG/JPEG trace、SVG to G-code、layout追加の進行状態を表示する。
+変換失敗時は失敗ステータスと具体的なエラー文をパネル内およびConsole logへ表示する。
+
 ### 20.4 G-code preview
 
 G-code previewはMVPに含める。

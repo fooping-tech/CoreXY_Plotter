@@ -151,7 +151,7 @@
                   <div class="generator-body" id="textGeneratorBody">
                     <div class="inline-create">
                       <label>Text <input id="textGenText" placeholder="ロボット" /></label>
-                      <button id="createTextBtn" class="secondary" type="button">Create</button>
+                      <button id="createTextBtn" class="secondary" type="button">Create Text G-code</button>
                     </div>
                     <div class="qr-grid">
                       <label>X <input id="textOriginX" type="number" step="0.1" value="10" /></label>
@@ -181,7 +181,7 @@
                   <div class="generator-body" id="qrGeneratorBody">
                     <div class="inline-create">
                       <label>QR text <input id="qrText" placeholder="https://example.com" /></label>
-                      <button id="createQrBtn" class="secondary" type="button">Create</button>
+                      <button id="createQrBtn" class="secondary" type="button">Create QR G-code</button>
                     </div>
                     <div class="qr-grid">
                       <label>X <input id="qrOriginX" type="number" step="0.1" value="10" /></label>
@@ -206,32 +206,67 @@
                 <section class="generator-panel collapsed" id="svgGeneratorPanel">
                   <button class="generator-toggle" id="svgGeneratorToggle" type="button" aria-expanded="false" aria-controls="svgGeneratorBody">
                     <span>
-                      <span class="label">SVG to G-code</span>
-                      <strong>Create SVG G-code</strong>
+                      <span class="label">Image to G-code</span>
+                      <strong>Convert image to G-code</strong>
                     </span>
                     <span class="toggle-indicator" aria-hidden="true">▸</span>
                   </button>
                   <div class="generator-body" id="svgGeneratorBody">
+                    <p class="generator-help">Upload SVG, PNG, or JPEG. Raster images are traced to plotter-friendly SVG before G-code generation.</p>
                     <div class="inline-create">
-                      <label>SVG file <input id="svgFile" type="file" accept=".svg,image/svg+xml" /></label>
-                      <button id="createSvgBtn" class="secondary" type="button">Create</button>
+                      <label><span><span class="button-icon" aria-hidden="true">📄</span> Select image file</span>
+                        <input id="svgFile" type="file" accept=".svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg" />
+                      </label>
+                      <button id="createSvgBtn" class="secondary" type="button">Convert to G-code</button>
+                    </div>
+                    <div class="image-progress" id="imageProgress" aria-live="polite">
+                      <div class="progress-step pending" data-stage="upload"><span>1</span><strong>Upload</strong><small>Waiting for file</small></div>
+                      <div class="progress-step pending" data-stage="trace"><span>2</span><strong>Trace SVG</strong><small>Raster only</small></div>
+                      <div class="progress-step pending" data-stage="gcode"><span>3</span><strong>G-code</strong><small>Waiting</small></div>
+                      <div class="progress-step pending" data-stage="complete"><span>4</span><strong>Layout</strong><small>Waiting</small></div>
                     </div>
                     <label>SVG input
                       <textarea id="svgInput" class="svg-input" spellcheck="false" placeholder="<svg viewBox=&quot;0 0 100 100&quot;>...</svg>"></textarea>
                     </label>
                     <div class="qr-grid">
-                      <label>Width mm <input id="svgWidthMm" type="number" min="1" step="0.1" value="50" /></label>
-                      <label>Height mm <input id="svgHeightMm" type="number" min="1" step="0.1" value="50" /></label>
+                      <label>Output width mm <input id="svgWidthMm" type="number" min="1" step="0.1" value="50" /></label>
+                      <label>Output height mm <input id="svgHeightMm" type="number" min="1" step="0.1" value="50" /></label>
                       <label>Margin mm <input id="svgMarginMm" type="number" min="0" step="0.1" value="5" /></label>
-                      <label>Draw F <input id="svgFeedMmMin" type="number" min="1" step="50" value="800" /></label>
-                      <label>Travel F <input id="svgTravelFeedMmMin" type="number" min="1" step="50" value="1200" /></label>
-                      <label>Simplify mm <input id="svgSimplifyToleranceMm" type="number" min="0" step="0.05" value="0.2" /></label>
-                      <label>Min stroke mm <input id="svgMinStrokeLengthMm" type="number" min="0" step="0.1" value="0.5" /></label>
+                      <label>Draw feed mm/min <input id="svgFeedMmMin" type="number" min="1" step="50" value="800" /></label>
+                      <label>Travel feed mm/min <input id="svgTravelFeedMmMin" type="number" min="1" step="50" value="1200" /></label>
+                      <label>Simplify tolerance mm <input id="svgSimplifyToleranceMm" type="number" min="0" step="0.05" value="0.2" /></label>
+                      <label>Min stroke length mm <input id="svgMinStrokeLengthMm" type="number" min="0" step="0.1" value="0.5" /></label>
                     </div>
                     <div class="check-list compact-checks">
                       <label><input id="svgOptimizeStrokeOrder" type="checkbox" checked /> optimize stroke order</label>
                     </div>
-                    <div id="svgStatus" class="muted qr-status">Ready to generate SVG G-code.</div>
+                    <fieldset class="raster-options" id="rasterOptions">
+                      <legend>PNG/JPEG trace</legend>
+                      <div class="qr-grid">
+                        <label>Trace mode
+                          <select id="traceMode">
+                            <option value="line_art" selected>Line Art</option>
+                            <option value="outline">Outline Trace</option>
+                          </select>
+                        </label>
+                        <label>Threshold
+                          <select id="thresholdMode">
+                            <option value="auto" selected>Auto/Otsu</option>
+                            <option value="manual">Manual 0-255</option>
+                          </select>
+                        </label>
+                        <label>Manual threshold <input id="thresholdValue" type="number" min="0" max="255" step="1" value="128" /></label>
+                        <label>Max segments <input id="maxSegments" type="number" min="1" step="100" value="12000" /></label>
+                      </div>
+                      <div class="check-list compact-checks">
+                        <label><input id="traceInvert" type="checkbox" /> invert</label>
+                        <label><input id="traceSkeletonize" type="checkbox" checked /> skeletonize</label>
+                      </div>
+                    </fieldset>
+                    <div class="button-row image-actions">
+                      <button id="downloadIntermediateSvgBtn" class="secondary" type="button" disabled>Preview intermediate SVG</button>
+                    </div>
+                    <div id="svgStatus" class="muted qr-status">Ready to convert image input to G-code.</div>
                   </div>
                 </section>
               </div>

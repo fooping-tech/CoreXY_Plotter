@@ -72,7 +72,7 @@ Codexは作業完了後に、該当するチェックボックスを更新する
 | Job Lifecycle | `JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`を実装済み、motionを伴う実機確認は未完了 |
 | look-ahead | 実装済み、実機未確認 |
 | junction deviation | 実装済み、実機未確認 |
-| Host WebUI SVG to G-code | SVGファイル/文字列から仮想G-codeを生成し、preview/save/sendへ接続済み。小型SVGで実機描画確認済み |
+| Host WebUI Image to G-code | SVG/PNG/JPEGから仮想G-codeを生成し、preview/save/sendへ接続済み。SVGは小型サンプルで実機描画確認済み。PNG/JPEGは実機品質未確認 |
 
 現在の最優先作業:
 
@@ -1508,17 +1508,23 @@ PC画面で状態、ログ、G-code preview、ジョブ送信を扱えるよう�
 - [x] soft limit外segmentをwarning表示する
 - [x] 未対応G-codeをwarning一覧へ出す
 
-### 11.1.4.1 SVG to G-code
+### 11.1.4.1 Image to G-code
 
-- [x] Job画面下部へ折りたたみ可能な`SVG to G-code` panelを追加する
-- [x] SVGファイル選択とSVG文字列貼り付けに対応する
+- [x] Job画面下部へ折りたたみ可能な`Image to G-code` panelを追加する
+- [x] SVG/PNG/JPEGファイル選択とSVG文字列貼り付けに対応する
 - [x] `POST /api/gcode/from-svg`を追加する
+- [x] `POST /api/gcode/from-image`を追加する
+- [x] PNG/JPEGは直接G-code化せず、plotter-friendly SVGへtraceしてから共通SVG to G-code経路へ通す
+- [x] Line Art / Outline Trace、Auto/Otsu / Manual threshold、invert、skeletonize、max segments設定を追加する
+- [x] 中間SVGをresponseへ含め、WebUIからdownloadできる導線を追加する
+- [x] Image変換中のupload、trace、SVG to G-code、layout追加の進捗と失敗理由をWebUIへ表示する
 - [x] `path`、`polyline`、`polygon`、`line`、`rect`、`circle`、`ellipse`をstroke列へ変換する
 - [x] `translate`、`scale` transformを処理し、未対応SVG機能はwarningを返す
 - [x] bounding box fit、Y反転、短すぎるstroke削除、stroke順最適化を行う
 - [x] 生成G-codeを既存layoutへ仮想`.gcode`として追加し、preview、Save G-code、Send Job導線を再利用する
 - [x] 変換器の単体テストを追加する
 - [x] SVG生成G-codeの実機描画確認
+- [ ] PNG/JPEG生成G-codeの実機描画品質確認
 
 ### 11.1.5 初期完了条件
 
@@ -2161,6 +2167,7 @@ Phase 6.9を実装してください。
 | R36 | [ ] | `JOB_BEGIN`のTMC自動初期化と`JOB_BEGIN_AUTO_HOME`はbuild/upload後のSerial再確認が未完了 | `JOB_BEGIN_AUTO_HOME=false`で未homedなら`not_homed`拒否、trueで未homedなら`JOB_BEGIN AUTO_HOME start`からHOME実行へ進むことを安全状態で確認する |
 | R37 | [ ] | stream G-code drift対策はbuild、upload、SELFTEST、native closed-loopテストまで完了したが、実際の長時間stream描画での閉じ位置と`WARN: DRIFT`未発生は未確認 | `--gcode --queue-mode --stream-gcode-motion --job-lifecycle`で長い微小線分ジョブを低速から実行し、DRIFTログ、閉じ位置、脱調、pen timingを確認する |
 | R38 | [ ] | timed segment部分投入失敗時は位置信頼性喪失としてalarm停止するが、意図的にFastAccelStepper queueを詰めた再現試験は未実施 | queue余裕が少ない高密度segment条件またはテスト用fault injectionを用意し、部分投入失敗時のstop、再同期、homed無効化ログを確認する |
+| R39 | [ ] | WebUI Image to G-codeのPNG/JPEG traceはホスト側単体テストのみで、実機での描画品質、線分密度、ペン/紙条件に対する最適設定が未確認 | Line Art/Outline Trace、threshold、skeletonize、max segmentsを小さい画像から確認し、必要ならOpenCV/scikit-imageベースのtraceへ差し替える |
 
 ---
 
@@ -2237,6 +2244,9 @@ Phase 6.9を実装してください。
 | 2026-06-13 | KST32B Text ToolのCSF/1 X move解釈を修正。X moveを現在Y上の即時ペンアップ移動として扱い、`高`の上点、ASCII `H`/`L`/`l`が斜め線になる問題を修正。回帰テストを追加 | Codex |
 | 2026-06-13 | Host WebUIへSVG to G-codeを追加。SVGファイル/文字列入力、`POST /api/gcode/from-svg`、stroke抽出、fit/Y反転/短stroke削除/順序最適化、既存preview/save/send導線への仮想G-code追加、単体テストを実装。実機描画確認は未実施 | Codex |
 | 2026-06-13 | `tools/webui/examples/svg_check.svg`を追加し、SVG変換G-codeを実機へ送信。`JOB_BEGIN` auto-home、6 strokes / 49 segmentsの描画、`JOB_END` park/jingleまで成功し、最終状態`HOMED=YES PEN=UP ALARM=NO TMC=READY`を確認 | Codex |
+| 2026-06-13 | Host WebUIのユーザー向けSVG to G-codeをImage to G-codeへ統合。`.svg/.png/.jpg/.jpeg` upload、`POST /api/gcode/from-image`、PNG/JPEG→plotter SVG→共通SVG G-code経路、Line Art/Outline Trace設定、中間SVG response/download、Pillow requirements、単体テストを追加。実機PNG/JPEG描画品質確認は未実施 | Codex |
+| 2026-06-13 | Image to G-code変換の進捗表示を追加。upload、PNG/JPEG trace、SVG to G-code、layout追加のステップ表示、失敗時のパネル内エラー表示、SSE progress log、ブラウザ接続reset時のサーバ側traceback抑制を実装 | Codex |
+| 2026-06-13 | Image to G-codeの既定`max_segments`を4000から12000へ変更し、5363 segments程度のラスタ変換が初期設定で失敗しないようにした。実行中ボタンのステータス文言とアニメーション、失敗時の`FAIL`表示を追加 | Codex |
 
 ---
 

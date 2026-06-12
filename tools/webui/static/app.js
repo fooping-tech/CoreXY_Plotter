@@ -30,6 +30,10 @@ const app = {
   selectedLayoutId: null,
   nextLayoutId: 1,
   drag: null,
+  imageFile: null,
+  intermediateSvg: "",
+  imageButtonBusyText: "",
+  imageButtonBusyTimer: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -174,8 +178,12 @@ async function api(path, options = {}) {
   const { timeoutMs = API_TIMEOUT_MS, ...fetchOptions } = options;
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const body = fetchOptions.body;
+  const headers = body instanceof FormData
+    ? { ...(fetchOptions.headers || {}) }
+    : { "Content-Type": "application/json", ...(fetchOptions.headers || {}) };
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(fetchOptions.headers || {}) },
+    headers,
     signal: controller.signal,
     ...fetchOptions,
   }).catch((error) => {
@@ -325,11 +333,105 @@ async function resetSendSettings() {
 
 function appendLog(event) {
   if (event.kind === "ping") return;
+  if (event.area === "imageConversion") updateImageProgressFromEvent(event);
   app.logs.push(event);
   if (app.logs.length > 600) app.logs.shift();
   if (event.kind === "error") app.errors += 1;
   $("errorCount").textContent = String(app.errors);
   renderLogs();
+}
+
+function resetImageProgress() {
+  const defaults = {
+    upload: "Waiting for file",
+    trace: "Raster only",
+    gcode: "Waiting",
+    complete: "Waiting",
+  };
+  document.querySelectorAll("#imageProgress .progress-step").forEach((step) => {
+    step.className = "progress-step pending";
+    step.querySelector("small").textContent = defaults[step.dataset.stage] || "Waiting";
+  });
+}
+
+function imageButtonTextForStage(stage, status) {
+  if (stage === "read") stage = "upload";
+  if (stage === "upload") return status === "done" ? "Uploaded" : "Uploading";
+  if (stage === "trace") return status === "done" ? "Trace done" : "Tracing";
+  if (stage === "gcode") return status === "done" ? "G-code done" : "Generating G-code";
+  if (stage === "complete") return status === "done" ? "Added to layout" : "Adding to layout";
+  return "Converting";
+}
+
+function renderBusyImageButton() {
+  const button = $("createSvgBtn");
+  if (!app.imageButtonBusyTimer) return;
+  const ticks = Number(button.dataset.busyTicks || 0) + 1;
+  button.dataset.busyTicks = String(ticks);
+  const dots = ".".repeat((ticks % 3) + 1);
+  button.textContent = `${app.imageButtonBusyText}${dots}`;
+}
+
+function startImageButtonBusy(text) {
+  const button = $("createSvgBtn");
+  app.imageButtonBusyText = text;
+  button.disabled = true;
+  button.classList.add("is-busy");
+  button.dataset.busyTicks = "0";
+  if (app.imageButtonBusyTimer) window.clearInterval(app.imageButtonBusyTimer);
+  app.imageButtonBusyTimer = window.setInterval(renderBusyImageButton, 350);
+  renderBusyImageButton();
+}
+
+function updateImageButtonBusy(text) {
+  if (!app.imageButtonBusyTimer) return;
+  app.imageButtonBusyText = text;
+  $("createSvgBtn").dataset.busyTicks = "0";
+  renderBusyImageButton();
+}
+
+function stopImageButtonBusy(text = "Convert to G-code") {
+  const button = $("createSvgBtn");
+  if (app.imageButtonBusyTimer) {
+    window.clearInterval(app.imageButtonBusyTimer);
+    app.imageButtonBusyTimer = null;
+  }
+  app.imageButtonBusyText = "";
+  button.classList.remove("is-busy");
+  button.disabled = false;
+  button.textContent = text;
+}
+
+function setImageProgress(stage, status, detail) {
+  if (stage === "read") stage = "upload";
+  if (stage === "failed") {
+    const steps = [...document.querySelectorAll("#imageProgress .progress-step")];
+    const failedStep =
+      steps.find((step) => step.classList.contains("active")) ||
+      steps.find((step) => step.classList.contains("pending")) ||
+      steps[steps.length - 1];
+    if (failedStep) {
+      failedStep.className = "progress-step failed";
+      failedStep.querySelector("small").textContent = detail ? `FAIL: ${detail}` : "FAIL";
+    }
+    $("svgStatus").textContent = detail ? `FAIL: ${detail}` : "FAIL: Image conversion failed.";
+    stopImageButtonBusy("Convert to G-code");
+    return;
+  }
+  const step = document.querySelector(`#imageProgress .progress-step[data-stage="${stage}"]`);
+  if (!step) return;
+  step.className = `progress-step ${status || "active"}`;
+  if (detail) step.querySelector("small").textContent = detail;
+  if (status === "active" || app.imageButtonBusyTimer) {
+    updateImageButtonBusy(imageButtonTextForStage(stage, status));
+  }
+}
+
+function updateImageProgressFromEvent(event) {
+  setImageProgress(event.stage, event.status, event.detail || event.message);
+  if (event.status === "active" || event.status === "done") {
+    $("svgStatus").textContent = event.detail || event.message;
+  }
 }
 
 function renderLogs() {
@@ -904,6 +1006,46 @@ function svgPayload() {
   };
 }
 
+function imageExtension() {
+  const name = app.imageFile?.name || "";
+  return name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+}
+
+function updateRasterOptionState() {
+  const isRaster = ["png", "jpg", "jpeg"].includes(imageExtension());
+  $("rasterOptions").classList.toggle("disabled", !isRaster);
+  $("rasterOptions").querySelectorAll("input, select").forEach((control) => {
+    control.disabled = !isRaster;
+  });
+  $("thresholdValue").disabled = !isRaster || $("thresholdMode").value !== "manual";
+}
+
+function imageFormData() {
+  const form = new FormData();
+  if (app.imageFile) {
+    form.append("file", app.imageFile, app.imageFile.name);
+  } else {
+    const svg = $("svgInput").value.trim();
+    if (!svg) throw new Error("Choose an image file or paste SVG input first");
+    form.append("file", new Blob([svg], { type: "image/svg+xml" }), "pasted.svg");
+  }
+  form.append("width_mm", String(svgNumber("svgWidthMm", 50)));
+  form.append("height_mm", String(svgNumber("svgHeightMm", 50)));
+  form.append("margin_mm", String(svgNumber("svgMarginMm", 5)));
+  form.append("feed_mm_min", String(svgNumber("svgFeedMmMin", 800)));
+  form.append("travel_feed_mm_min", String(svgNumber("svgTravelFeedMmMin", 1200)));
+  form.append("simplify_tolerance_mm", String(svgNumber("svgSimplifyToleranceMm", 0.2)));
+  form.append("min_stroke_length_mm", String(svgNumber("svgMinStrokeLengthMm", 0.5)));
+  form.append("optimize_stroke_order", String($("svgOptimizeStrokeOrder").checked));
+  form.append("trace_mode", $("traceMode").value);
+  form.append("threshold_mode", $("thresholdMode").value);
+  form.append("threshold_value", String(svgNumber("thresholdValue", 128)));
+  form.append("invert", String($("traceInvert").checked));
+  form.append("skeletonize", String($("traceSkeletonize").checked));
+  form.append("max_segments", String(Math.round(svgNumber("maxSegments", 12000))));
+  return form;
+}
+
 function safeGeneratedName(prefix, text) {
   const safeName = text
     .replace(/[^a-z0-9]+/gi, "_")
@@ -981,41 +1123,54 @@ async function createTextGcode() {
 }
 
 async function createSvgGcode() {
-  const button = $("createSvgBtn");
   const status = $("svgStatus");
-  const payload = svgPayload();
-  if (!payload.svg) {
-    showError(new Error("Choose an SVG file or paste SVG input first"));
-    $("svgInput").focus();
-    return;
-  }
-  const originalText = button.textContent;
-  button.disabled = true;
-  button.textContent = "Creating...";
-  status.textContent = "Generating SVG G-code...";
+  resetImageProgress();
+  startImageButtonBusy("Preparing");
+  setImageProgress("upload", "active", "Preparing upload");
+  status.textContent = "Preparing image conversion...";
   try {
-    const result = await api("/api/gcode/from-svg", {
+    const form = imageFormData();
+    setImageProgress("upload", "active", "Uploading file to WebUI server");
+    status.textContent = "Uploading file to WebUI server...";
+    const result = await api("/api/gcode/from-image", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: form,
       timeoutMs: 30000,
     });
-    addGcodeText(result.filename || safeGeneratedName("svg", "generated"), result.gcode);
+    setImageProgress("complete", "active", "Adding generated G-code to layout");
+    app.intermediateSvg = result.intermediate_svg || "";
+    $("downloadIntermediateSvgBtn").disabled = !app.intermediateSvg;
+    addGcodeText(result.filename || safeGeneratedName("image", "generated"), result.gcode);
     const warnings = Array.isArray(result.warnings) && result.warnings.length > 0
       ? ` ${result.warnings.length} warning(s).`
       : "";
-    status.textContent = `SVG G-code added: ${result.stroke_count} stroke(s), ${result.segment_count} segment(s).${warnings}`;
+    const inputType = result.input_type === "raster" ? "Raster traced" : "SVG";
+    status.textContent = `${inputType} G-code added: ${result.stroke_count} stroke(s), ${result.segment_count} segment(s).${warnings}`;
+    setImageProgress("complete", "done", "G-code added to layout");
     appendLog({
       time: Date.now(),
       kind: "host",
-      message: `Added SVG G-code (${result.stroke_count} strokes, ${result.segment_count} segments)`,
+      message: `Added image G-code (${result.stroke_count} strokes, ${result.segment_count} segments)`,
     });
   } catch (error) {
-    status.textContent = "SVG generation failed.";
+    setImageProgress("failed", "failed", error.message || String(error));
     showError(error);
   } finally {
-    button.disabled = false;
-    button.textContent = originalText;
+    stopImageButtonBusy("Convert to G-code");
   }
+}
+
+function downloadIntermediateSvg() {
+  if (!app.intermediateSvg) return;
+  const blob = new Blob([app.intermediateSvg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "intermediate_plotter.svg";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function timestampGcodeBase() {
@@ -1256,14 +1411,32 @@ function bindUI() {
   $("createQrBtn").addEventListener("click", () => createQrGcode().catch(showError));
   $("createTextBtn").addEventListener("click", () => createTextGcode().catch(showError));
   $("createSvgBtn").addEventListener("click", () => createSvgGcode().catch(showError));
+  $("downloadIntermediateSvgBtn").addEventListener("click", downloadIntermediateSvg);
+  $("thresholdMode").addEventListener("change", updateRasterOptionState);
   bindGeneratorToggle("qrGeneratorToggle", "qrGeneratorPanel");
   bindGeneratorToggle("textGeneratorToggle", "textGeneratorPanel");
   bindGeneratorToggle("svgGeneratorToggle", "svgGeneratorPanel");
   $("svgFile").addEventListener("change", async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    $("svgInput").value = await file.text();
+    app.imageFile = file;
+    app.intermediateSvg = "";
+    $("downloadIntermediateSvgBtn").disabled = true;
+    resetImageProgress();
+    if (file.name.toLowerCase().endsWith(".svg")) {
+      $("svgInput").value = await file.text();
+    } else {
+      $("svgInput").value = "";
+    }
+    updateRasterOptionState();
     $("svgStatus").textContent = `Loaded ${file.name}.`;
+  });
+  $("svgInput").addEventListener("input", () => {
+    if (!$("svgInput").value.trim()) return;
+    app.imageFile = null;
+    $("svgFile").value = "";
+    resetImageProgress();
+    updateRasterOptionState();
   });
   $("qrText").addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
@@ -1289,6 +1462,7 @@ function bindUI() {
 
 async function init() {
   bindUI();
+  updateRasterOptionState();
   updateJobUI();
   updateQuickConnectUI();
   await refreshPorts();
