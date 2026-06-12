@@ -67,6 +67,13 @@ the QR tool requirements when using that feature:
 python -m pip install -r tools/qr_tool/requirements.txt
 ```
 
+Text G-code creation delegates to `tools/text_tool/kst32b_to_gcode.py` and requires
+the local KST32B font file:
+
+```text
+tools/text_tool/fonts/KST32B.TXT
+```
+
 ## Serial connection
 
 Open the Settings page and select the M5Stack Core2 USB serial port, then press
@@ -101,6 +108,19 @@ layout.
 The QR panel on the Job page creates QR hatch-fill G-code from text or a URL and
 adds it to the same layout list. The generated QR can be positioned, scaled,
 previewed, saved with the layout, and sent with the normal `SEND JOB` flow.
+The Text Generator panel uses the same layout, preview, save, and send flow.
+
+Manual UI check after WebUI layout changes:
+
+```text
+1. Open the Job page.
+2. Confirm Select G-code files is the first Job control and has the file icon.
+3. Load two G-code files, select each row, and use up/down/remove controls.
+4. Confirm Send Job and Save G-code have icons and remain below the file list.
+5. Open Text Generator and QR Generator, confirm Create is beside the input.
+6. Generate QR and text G-code, then confirm the preview start point is on the body, not at X0 Y0.
+7. Save the combined G-code and inspect that it starts with G21, G90, M5, G0 to the first draw point, then M3.
+```
 
 ## Current Scope
 
@@ -108,6 +128,7 @@ previewed, saved with the layout, and sent with the normal `SEND JOB` flow.
 - Manual control
 - G-code preview
 - QR G-code creation
+- Text G-code creation
 - Job sending through `serial_send.py`
 - Console log stream
 - Serial target settings

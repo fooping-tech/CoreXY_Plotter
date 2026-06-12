@@ -556,36 +556,100 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-height: 74px;
-  margin: 12px 0;
+  margin: 12px 0 14px;
   border: 1px dashed var(--border-subtle);
   border-radius: 8px;
   background: #0f131a;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
+  font-weight: 800;
 }
 
-.qr-builder {
+.job-panel .file-drop:hover {
+  border-color: var(--accent-cyan);
+}
+
+.button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.generator-stack {
   display: grid;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 18px;
+}
+
+.generator-panel {
+  display: grid;
+  gap: 0;
   padding: 12px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   background: #0f131a;
 }
 
-.qr-builder label {
+.generator-toggle {
+  width: 100%;
+  min-height: 42px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+}
+
+.generator-toggle strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.toggle-indicator {
+  color: var(--accent-cyan);
+  font-size: 18px;
+}
+
+.generator-panel:not(.collapsed) .toggle-indicator {
+  transform: rotate(90deg);
+}
+
+.generator-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.generator-panel.collapsed .generator-body {
+  display: none;
+}
+
+.generator-body label {
   display: grid;
   gap: 5px;
   color: var(--text-secondary);
   font-size: 12px;
 }
 
-.qr-builder input,
-.qr-builder select {
+.generator-body input,
+.generator-body select {
   width: 100%;
   background: #090c11;
+}
+
+.inline-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 8px;
+  align-items: end;
 }
 
 .qr-grid {
@@ -607,6 +671,25 @@ h2 {
 
 .gate-reason.ready {
   color: var(--state-ready);
+}
+
+.job-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.job-actions .gate-reason,
+.job-actions .danger {
+  grid-column: 1 / -1;
+}
+
+.job-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .file-drop input {
@@ -751,6 +834,11 @@ h2 {
   color: var(--text-secondary);
 }
 
+.compact-checks {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
 .settings-status {
   margin-top: 12px;
   min-height: 18px;
@@ -778,6 +866,15 @@ h2 {
   .dashboard-grid,
   .control-grid,
   .job-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-create,
+  .job-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-checks {
     grid-template-columns: 1fr;
   }
 }

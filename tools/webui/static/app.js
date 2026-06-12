@@ -428,8 +428,8 @@ function parseWords(line) {
 }
 
 function parseGcode(text) {
-  let x = 0;
-  let y = 0;
+  let x = null;
+  let y = null;
   let absolute = true;
   let units = 1;
   let penDown = false;
@@ -480,30 +480,39 @@ function parseGcode(text) {
       return;
     }
     if (line.startsWith("G28")) {
-      segments.push({ type: "home", x1: x, y1: y, x2: x, y2: y, lineNumber });
+      const px = x ?? 0;
+      const py = y ?? 0;
+      segments.push({ type: "home", x1: px, y1: py, x2: px, y2: py, lineNumber });
       return;
     }
     if (line.startsWith("G4")) {
-      segments.push({ type: "dwell", x1: x, y1: y, x2: x, y2: y, lineNumber });
+      const px = x ?? 0;
+      const py = y ?? 0;
+      segments.push({ type: "dwell", x1: px, y1: py, x2: px, y2: py, lineNumber });
       return;
     }
     if (line.startsWith("G0") || line.startsWith("G1")) {
-      const nextX = words.X === undefined ? x : absolute ? words.X * units : x + words.X * units;
-      const nextY = words.Y === undefined ? y : absolute ? words.Y * units : y + words.Y * units;
+      const currentX = x ?? 0;
+      const currentY = y ?? 0;
+      const nextX = words.X === undefined ? currentX : absolute ? words.X * units : currentX + words.X * units;
+      const nextY = words.Y === undefined ? currentY : absolute ? words.Y * units : currentY + words.Y * units;
       const out =
         nextX < SOFT_LIMIT.minX ||
         nextX > SOFT_LIMIT.maxX ||
         nextY < SOFT_LIMIT.minY ||
         nextY > SOFT_LIMIT.maxY;
-      segments.push({
-        type: out ? "out" : penDown ? "draw" : "travel",
-        x1: x,
-        y1: y,
-        x2: nextX,
-        y2: nextY,
-        lineNumber,
-      });
-      includePoint(x, y);
+      const hasCurrentPosition = x !== null && y !== null;
+      if (hasCurrentPosition || penDown) {
+        segments.push({
+          type: out ? "out" : penDown ? "draw" : "travel",
+          x1: hasCurrentPosition ? currentX : nextX,
+          y1: hasCurrentPosition ? currentY : nextY,
+          x2: nextX,
+          y2: nextY,
+          lineNumber,
+        });
+      }
+      if (hasCurrentPosition) includePoint(currentX, currentY);
       includePoint(nextX, nextY);
       if (out) warnings.push(`Line ${lineNumber}: segment leaves soft limit`);
       x = nextX;
@@ -851,6 +860,35 @@ function qrPayload() {
   };
 }
 
+function textNumber(id, fallback) {
+  const value = Number($(id).value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function textPayload() {
+  return {
+    text: $("textGenText").value.trim(),
+    originX: textNumber("textOriginX", 10),
+    originY: textNumber("textOriginY", 10),
+    sizeMm: textNumber("textSizeMm", 20),
+    charSpacingMm: textNumber("textCharSpacingMm", 3),
+    lineSpacingMm: textNumber("textLineSpacingMm", 6),
+    drawFeed: textNumber("textDrawFeed", 3000),
+    travelFeed: textNumber("textTravelFeed", 8000),
+    dwellMs: textNumber("textDwellMs", 80),
+    flipY: $("textFlipY").checked,
+    autoScaleToFit: $("textAutoScale").checked,
+  };
+}
+
+function safeGeneratedName(prefix, text) {
+  const safeName = text
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 32) || prefix;
+  return `${prefix}_${safeName}.gcode`;
+}
+
 async function createQrGcode() {
   const button = $("createQrBtn");
   const status = $("qrStatus");
@@ -870,11 +908,7 @@ async function createQrGcode() {
       body: JSON.stringify(payload),
       timeoutMs: 15000,
     });
-    const safeName = payload.text
-      .replace(/[^a-z0-9]+/gi, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 32) || "qr";
-    addGcodeText(`qr_${safeName}.gcode`, result.gcode, {
+    addGcodeText(safeGeneratedName("qr", payload.text), result.gcode, {
       x: payload.originX,
       y: payload.originY,
     });
@@ -882,6 +916,40 @@ async function createQrGcode() {
     appendLog({ time: Date.now(), kind: "host", message: `Added QR G-code for "${payload.text}"` });
   } catch (error) {
     status.textContent = "QR generation failed.";
+    showError(error);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+async function createTextGcode() {
+  const button = $("createTextBtn");
+  const status = $("textStatus");
+  const payload = textPayload();
+  if (!payload.text) {
+    showError(new Error("Enter text first"));
+    $("textGenText").focus();
+    return;
+  }
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Creating...";
+  status.textContent = "Generating text G-code...";
+  try {
+    const result = await api("/api/text/gcode", {
+      method: "POST",
+      body: JSON.stringify(payload),
+      timeoutMs: 15000,
+    });
+    addGcodeText(safeGeneratedName("text", payload.text), result.gcode, {
+      x: payload.originX,
+      y: payload.originY,
+    });
+    status.textContent = result.message || "Text G-code added to layout.";
+    appendLog({ time: Date.now(), kind: "host", message: `Added text G-code for "${payload.text}"` });
+  } catch (error) {
+    status.textContent = "Text generation failed.";
     showError(error);
   } finally {
     button.disabled = false;
@@ -977,8 +1045,8 @@ function transformWordsToLine(words, item, motionCode) {
 }
 
 function transformedGcodeForItem(item) {
-  let x = 0;
-  let y = 0;
+  let x = null;
+  let y = null;
   let absolute = true;
   let units = 1;
   const output = [`; ${item.name}`];
@@ -1010,8 +1078,10 @@ function transformedGcodeForItem(item) {
       return;
     }
     if (line.startsWith("G0") || line.startsWith("G1")) {
-      const nextX = words.X === undefined ? x : absolute ? words.X * units : x + words.X * units;
-      const nextY = words.Y === undefined ? y : absolute ? words.Y * units : y + words.Y * units;
+      const currentX = x ?? 0;
+      const currentY = y ?? 0;
+      const nextX = words.X === undefined ? currentX : absolute ? words.X * units : currentX + words.X * units;
+      const nextY = words.Y === undefined ? currentY : absolute ? words.Y * units : currentY + words.Y * units;
       const code = line.startsWith("G0") ? "G0" : "G1";
       output.push(transformWordsToLine({ x: nextX, y: nextY, f: words.F ?? null }, item, code));
       x = nextX;
@@ -1041,6 +1111,15 @@ async function sendJob() {
   await api("/api/job", {
     method: "POST",
     body: JSON.stringify({ gcode: app.gcodeText }),
+  });
+}
+
+function bindGeneratorToggle(toggleId, panelId) {
+  const toggle = $(toggleId);
+  const panel = $(panelId);
+  toggle.addEventListener("click", () => {
+    const collapsed = !panel.classList.toggle("collapsed");
+    toggle.setAttribute("aria-expanded", String(collapsed));
   });
 }
 
@@ -1114,10 +1193,18 @@ function bindUI() {
     event.target.value = "";
   });
   $("createQrBtn").addEventListener("click", () => createQrGcode().catch(showError));
+  $("createTextBtn").addEventListener("click", () => createTextGcode().catch(showError));
+  bindGeneratorToggle("qrGeneratorToggle", "qrGeneratorPanel");
+  bindGeneratorToggle("textGeneratorToggle", "textGeneratorPanel");
   $("qrText").addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
     createQrGcode().catch(showError);
+  });
+  $("textGenText").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    createTextGcode().catch(showError);
   });
   ["layoutX", "layoutY", "layoutScale"].forEach((id) => {
     $(id).addEventListener("change", updateSelectedLayoutFromInputs);

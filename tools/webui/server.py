@@ -29,9 +29,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 WEB_ROOT = Path(__file__).resolve().parent / "static"
 SERIAL_SEND = REPO_ROOT / "tools" / "serial_tool" / "serial_send.py"
 QR_TOOL = REPO_ROOT / "tools" / "qr_tool" / "qr_to_plot_csv.py"
+TEXT_TOOL = REPO_ROOT / "tools" / "text_tool" / "kst32b_to_gcode.py"
+TEXT_FONT = REPO_ROOT / "tools" / "text_tool" / "fonts" / "KST32B.TXT"
 DEFAULT_BAUD = 115200
 MAX_GCODE_BYTES = 2 * 1024 * 1024
 MAX_QR_TEXT_CHARS = 512
+MAX_TEXT_GCODE_CHARS = 512
 DEFAULT_SEND_SETTINGS: dict[str, object] = {
     "commandTimeoutS": 5.0,
     "jobTimeoutS": 30.0,
@@ -85,6 +88,7 @@ ALARM_REASON_RE = re.compile(r'ALARM_REASON="([^"]*)"|ALARM_REASON=([^\s]+)', re
 PEN_RE = re.compile(r"PEN=(UP|DOWN)|pen:\s*(UP|DOWN)|PEN\s+(UP|DOWN)", re.IGNORECASE)
 LIMIT_RE = re.compile(r"LIMIT_X=(OPEN|ACTIVE|ON|OFF).*LIMIT_Y=(OPEN|ACTIVE|ON|OFF)", re.IGNORECASE)
 TMC_RE = re.compile(r"TMC[:=]\s*(READY|NOT READY|OFF)", re.IGNORECASE)
+GCODE_WORD_RE = re.compile(r"([A-Z])\s*(-?\d+(?:\.\d+)?)", re.IGNORECASE)
 
 
 def now_ms() -> int:
@@ -374,6 +378,103 @@ def save_gcode(text: str) -> Path:
     return Path(temp.name)
 
 
+def gcode_words(line: str) -> dict[str, float]:
+    return {match.group(1).upper(): float(match.group(2)) for match in GCODE_WORD_RE.finditer(line.split(";")[0])}
+
+
+def replace_motion_xy(line: str, x_mm: float, y_mm: float) -> str:
+    words = gcode_words(line)
+    feed = f" F{words['F']:g}" if "F" in words else ""
+    command = "G0" if line.strip().upper().startswith(("G0", "G00")) else "G1"
+    return f"{command} X{x_mm:.3f} Y{y_mm:.3f}{feed}"
+
+
+def point_outside_bounds(point: tuple[float, float], bounds: tuple[float, float, float, float]) -> bool:
+    min_x, min_y, max_x, max_y = bounds
+    margin = max(2.0, max(max_x - min_x, max_y - min_y) * 0.25)
+    x_mm, y_mm = point
+    return x_mm < min_x - margin or x_mm > max_x + margin or y_mm < min_y - margin or y_mm > max_y + margin
+
+
+def normalize_generated_gcode_start(gcode: str) -> str:
+    """Remove a stray initial draw start without changing normal generated paths.
+
+    The WebUI generators should start with M5, then a pen-up G0 to the first
+    drawable point, then M3. If an older generator emits a stale G0 X0 Y0 before
+    M3, the first G1 would draw from that isolated point. Detect that case from
+    the drawable bounding box and retarget the stale travel to the first body
+    point.
+    """
+
+    lines = gcode.splitlines()
+    x_mm: float | None = None
+    y_mm: float | None = None
+    absolute = True
+    units = 1.0
+    pen_down = False
+    last_motion_before_first_m3: int | None = None
+    first_m3_seen = False
+    first_draw_end: tuple[float, float] | None = None
+    draw_endpoints: list[tuple[float, float]] = []
+
+    for index, raw_line in enumerate(lines):
+        line = raw_line.strip().upper()
+        if not line or line.startswith(";") or line == "%":
+            continue
+        words = gcode_words(line)
+        if line.startswith("G20"):
+            units = 25.4
+            continue
+        if line.startswith("G21"):
+            units = 1.0
+            continue
+        if line.startswith("G90"):
+            absolute = True
+            continue
+        if line.startswith("G91"):
+            absolute = False
+            continue
+        if line.startswith("M3"):
+            pen_down = True
+            first_m3_seen = True
+            continue
+        if line.startswith("M5"):
+            pen_down = False
+            continue
+        if not line.startswith(("G0", "G00", "G1", "G01")):
+            continue
+
+        current_x = x_mm if x_mm is not None else 0.0
+        current_y = y_mm if y_mm is not None else 0.0
+        next_x = current_x if "X" not in words else (words["X"] * units if absolute else current_x + words["X"] * units)
+        next_y = current_y if "Y" not in words else (words["Y"] * units if absolute else current_y + words["Y"] * units)
+        if not first_m3_seen:
+            last_motion_before_first_m3 = index
+        if pen_down and line.startswith(("G1", "G01")):
+            if first_draw_end is None:
+                first_draw_end = (next_x, next_y)
+            draw_endpoints.append((next_x, next_y))
+        x_mm = next_x
+        y_mm = next_y
+
+    if last_motion_before_first_m3 is None or first_draw_end is None or len(draw_endpoints) < 2:
+        return gcode
+
+    words = gcode_words(lines[last_motion_before_first_m3])
+    if "X" not in words or "Y" not in words:
+        return gcode
+    initial_point = (words["X"], words["Y"])
+    min_x = min(point[0] for point in draw_endpoints)
+    min_y = min(point[1] for point in draw_endpoints)
+    max_x = max(point[0] for point in draw_endpoints)
+    max_y = max(point[1] for point in draw_endpoints)
+    if not point_outside_bounds(initial_point, (min_x, min_y, max_x, max_y)):
+        return gcode
+
+    lines[last_motion_before_first_m3] = replace_motion_xy(lines[last_motion_before_first_m3], *first_draw_end)
+    return "\n".join(lines) + "\n"
+
+
 def reap_finished_job_process() -> None:
     global job_process
     with job_process_lock:
@@ -458,6 +559,8 @@ class WebUIHandler(SimpleHTTPRequestHandler):
                 self.handle_abort()
             elif parsed.path == "/api/qr/gcode":
                 self.handle_qr_gcode()
+            elif parsed.path == "/api/text/gcode":
+                self.handle_text_gcode()
             elif parsed.path == "/api/settings":
                 self.handle_settings()
             else:
@@ -594,7 +697,7 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         output = result.stdout.strip()
         if result.returncode != 0:
             raise ValueError(output or f"QR tool exited with code {result.returncode}")
-        gcode = temp_path.read_text(encoding="utf-8")
+        gcode = normalize_generated_gcode_start(temp_path.read_text(encoding="utf-8"))
         temp_path.unlink(missing_ok=True)
         if len(gcode.encode("utf-8")) > MAX_GCODE_BYTES:
             raise ValueError("Generated QR G-code is too large")
@@ -603,6 +706,102 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             {
                 "ok": True,
                 "name": "qr_generated.gcode",
+                "gcode": gcode,
+                "message": output,
+            },
+        )
+
+    def handle_text_gcode(self) -> None:
+        body = read_json(self)
+        text = str(body.get("text", "")).strip()
+        if not text:
+            raise ValueError("text is required")
+        if len(text) > MAX_TEXT_GCODE_CHARS:
+            raise ValueError(f"text must be {MAX_TEXT_GCODE_CHARS} characters or fewer")
+        if not TEXT_TOOL.exists():
+            raise ValueError(f"text tool not found: {TEXT_TOOL}")
+        if not TEXT_FONT.exists():
+            raise ValueError(f"text font not found: {TEXT_FONT}")
+
+        origin_x = float(body.get("originX", 10))
+        origin_y = float(body.get("originY", 10))
+        size_mm = float(body.get("sizeMm", 20))
+        char_spacing_mm = float(body.get("charSpacingMm", 3))
+        line_spacing_mm = float(body.get("lineSpacingMm", 6))
+        draw_feed = float(body.get("drawFeed", 3000))
+        travel_feed = float(body.get("travelFeed", 8000))
+        dwell_ms = int(body.get("dwellMs", 80))
+        flip_y = bool_setting(body.get("flipY", False), name="flipY")
+        auto_scale = bool_setting(body.get("autoScaleToFit", True), name="autoScaleToFit")
+        if size_mm <= 0:
+            raise ValueError("sizeMm must be > 0")
+        if char_spacing_mm < 0 or line_spacing_mm < 0:
+            raise ValueError("text spacing must be >= 0")
+        if draw_feed <= 0 or travel_feed <= 0:
+            raise ValueError("text feed values must be > 0")
+        if dwell_ms < 0:
+            raise ValueError("dwellMs must be >= 0")
+
+        temp = tempfile.NamedTemporaryFile("w", suffix=".gcode", delete=False, encoding="utf-8")
+        temp_path = Path(temp.name)
+        temp.close()
+
+        cmd = [
+            sys.executable,
+            str(TEXT_TOOL),
+            "--font",
+            str(TEXT_FONT),
+            "--text",
+            text,
+            "--x",
+            str(origin_x),
+            "--y",
+            str(origin_y),
+            "--size",
+            str(size_mm),
+            "--char-spacing",
+            str(char_spacing_mm),
+            "--line-spacing",
+            str(line_spacing_mm),
+            "--feed",
+            str(draw_feed),
+            "--rapid-feed",
+            str(travel_feed),
+            "--dwell-ms",
+            str(dwell_ms),
+            "--max-x",
+            "60",
+            "--max-y",
+            "55",
+            "-o",
+            str(temp_path),
+        ]
+        if flip_y:
+            cmd.append("--flip-y")
+        if auto_scale:
+            cmd.append("--auto-scale-to-fit")
+
+        result = subprocess.run(
+            cmd,
+            cwd=REPO_ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        output = result.stdout.strip()
+        if result.returncode != 0:
+            temp_path.unlink(missing_ok=True)
+            raise ValueError(output or f"text tool exited with code {result.returncode}")
+        gcode = normalize_generated_gcode_start(temp_path.read_text(encoding="utf-8"))
+        temp_path.unlink(missing_ok=True)
+        if len(gcode.encode("utf-8")) > MAX_GCODE_BYTES:
+            raise ValueError("Generated text G-code is too large")
+        send_json(
+            self,
+            {
+                "ok": True,
+                "name": "text_generated.gcode",
                 "gcode": gcode,
                 "message": output,
             },
