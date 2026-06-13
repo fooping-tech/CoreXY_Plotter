@@ -450,11 +450,24 @@ struct MachineState {
   bool pen_down;
   bool alarmed;
   bool tmc_ready;
+  bool homing_active;
+  bool motion_active;
+  bool job_active;
 };
 ```
 
 MachineStateはCore 1のmotion側で管理する。  
 Core 0へ表示するときはStatusQueueを通す。
+
+表示用の機械状態は以下の優先順位で決める。
+
+```text
+ALARM > HOMING > MOVING > RUNNING > NEED HOME > READY
+```
+
+- `MOVING`はtimed segment、AB_TIMED、単独モータテストなど実際のstepper backend実行中を表す
+- `RUNNING`はJob Lifecycle実行中だが、その瞬間にstepper backendが動いていない状態を表す
+- Host WebUIはUSB Serialログとhost job process状態から同じ優先順位で状態を推定する。firmware内のCore2 LCDは`StatusQueue`の`MachineState`を表示するため、WebUIは補助表示であり最終判定はfirmware側とする
 
 ---
 
@@ -811,7 +824,7 @@ Browser
 
 | 画面 | 役割 |
 |---|---|
-| Dashboard | 接続状態、`READY` / `ALARM` / `NEED HOME` / `HOMING`、X/Y、pen、homed、limit、TMCを表示する |
+| Dashboard | 接続状態、`READY` / `ALARM` / `NEED HOME` / `HOMING` / `MOVING` / `RUNNING`、X/Y、pen、homed、limit、TMCを表示する |
 | Manual Control | `HOME`、`ALARM_CLEAR`、`PENUP`、`PENDOWN`、上下左右jogを提供する |
 | Job | G-codeファイル選択、G-code preview、`JOB_BEGIN`/送信/`JOB_END`、`JOB_ABORT`を提供する |
 | Console | firmware log、送信行、ACK/NACK/ERROR、手動command入力を表示する |
@@ -820,7 +833,7 @@ Browser
 ### 20.2 操作ルール
 
 - WebUIはM5Stack firmwareの安全判定を迂回しない
-- Manual jogとpen上下は、Host側表示状態でも`homed == true`、`alarmed == false`、`homing_active == false`の時だけ有効表示にする
+- Manual jogとpen上下は、Host側表示状態でも`homed == true`、`alarmed == false`、`homing_active == false`、`motion_active == false`、job未実行の時だけ有効表示にする
 - `JOB_ABORT`はジョブ実行中に常に押せる位置へ置く
 - Job実行中はmanual jogをdisabledにする
 - Host側状態が不明、Serial切断、または状態取得失敗時はmotionを伴う操作をdisabledにする

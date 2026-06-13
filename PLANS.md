@@ -1430,35 +1430,55 @@ G-code由来の`XY`と手入力`XY`は区別する。
 
 # Phase 11: 高級機能
 
-Status: 一部着手。Host WebUIはPC/Raspberry Pi側で動かし、M5Stack Core2本体にはWeb serverを載せない。
+Status: 一部着手。Host WebUIはPC/Raspberry Pi側で動かし、M5Stack Core2本体にはWeb serverを載せない。2026-06-13時点の棚卸しで、Phase 7/10.5/11.1で完了済みの項目を親チェックリストへ反映した。
 
 ## チェックリスト
 
 ### Homing / Limit
 
-- [ ] Phase 6.9完了後のhoming精度改善
-- [ ] G28との統合
-- [ ] homing後の軸別再homing
+- [-] Phase 6.9完了後のhoming精度改善
+- [x] G28との統合
+- [x] homing後の軸別再homing
 - [ ] limit switch debounceの実測調整
 - [ ] hard limit停止経路のtimed segment対応
-- [ ] homed前移動制限の運用方針確定
-- [ ] alarm復帰
+- [x] homed前移動制限の運用方針確定
+- [-] alarm復帰
+
+棚卸しメモ:
+
+- `G28`はPhase 7で既存`HOME`経路へ接続済み。
+- `HOME_X`/`HOME_Y`による軸別homingは実装済みで、Phase 6.9の実機確認も完了済み。
+- homing精度改善は、二段階homing、長距離moveをlimit条件で停止する方式、backend現在stepからのMachineState再同期まで完了済み。ただしdebounce実測、switch戻り距離、連続運用での再現性は未完了のため一部完了扱いとする。
+- homed前移動制限は`HOMING_REQUIRE_HOMED_FOR_XY_MOVE`で通常XYを禁止し、`JOB_BEGIN`成功時のG-code由来移動だけ`JobController`のhomed grantで許可する運用に確定済み。
+- alarm復帰は`ZERO -> ALARM_CLEAR -> HOME`の手順と`ALARM_CLEAR`実装まで完了済み。ただし脱調後・座標ずれ後の実機復旧確認が未完了のため一部完了扱いとする。
 
 ### TMC診断
 
-- [ ] driver status取得
+- [x] driver status取得
 - [ ] SG_RESULT取得
 - [ ] over temperature警告
 - [ ] open load診断
-- [ ] UART通信失敗検出
+- [x] UART通信失敗検出
+
+棚卸しメモ:
+
+- `TMC_STATUS`で`test_connection()`、`IFCNT`、microsteps、rms current、`irun`、`ihold`、`iholddelay`、spreadCycle、`toff`を出力済み。
+- UART通信失敗は`test_connection()`のA/B connection値と`ready`へ反映済み。
+- `SG_RESULT`、over temperature、open loadは専用レジスタ診断・警告ログ未実装。
 
 ### 入出力
 
 - [ ] SD実行
 - [-] WebUI
-- [ ] USB G-code streaming
+- [-] USB G-code streaming
 - [ ] file pause/resume
-- [ ] Phase 10.5 Job LifecycleをSD/Web/USB streamingへ接続する
+- [-] Phase 10.5 Job LifecycleをSD/Web/USB streamingへ接続する
+
+棚卸しメモ:
+
+- WebUIはHost WebUI MVP、G-code preview、Image to G-code、`serial_send.py`経由の送信、`JOB_ABORT`まで実装済み。PC起動確認とPNG/JPEG実機描画品質確認が未完了のため一部完了扱いとする。
+- USB G-code streamingは`serial_send.py --gcode --queue-mode --stream-gcode-motion`でホスト側先行投入を実装済み。長時間・高密度stream描画の実機安定性確認が未完了のため一部完了扱いとする。
+- Job Lifecycle接続は`serial_send.py --gcode --job-lifecycle`とWebUI既定optionでWeb/USB経路へ接続済み。SD経路未実装、motionを伴う`JOB_BEGIN -> G-code -> JOB_END`実機確認未完了のため一部完了扱いとする。
 
 ## Phase 11.1: Host WebUI
 
@@ -2249,6 +2269,8 @@ Phase 6.9を実装してください。
 | 2026-06-13 | Image to G-codeの既定`max_segments`を4000から12000へ変更し、5363 segments程度のラスタ変換が初期設定で失敗しないようにした。実行中ボタンのステータス文言とアニメーション、失敗時の`FAIL`表示を追加 | Codex |
 | 2026-06-13 | PNG/JPEGの既定trace modeをOutline Traceへ変更し、輪郭抽出を境界ピクセル近傍接続からmarching squaresベースへ改善。塗りつぶしイラストが内部skeleton線へ崩れる問題を軽減し、Line Artのskeletonizeは線画専用設定へ整理 | Codex |
 | 2026-06-13 | Image to G-codeの中間SVGで元画像bboxの縦横比を保持するよう修正。Trace Detail設定（High/Balanced/Simple）と濃色領域ハッチング設定（threshold/pitch）を追加し、アスペクト比保持とhatchingの単体テストを追加 | Codex |
+| 2026-06-13 | Core2 LCDとHost WebUIの状態表示を`ALARM > HOMING > MOVING > RUNNING > NEED HOME > READY`の優先順位へ統一。`MachineState`へ`motion_active`/`job_active`を追加し、timed segment中はREADYではなくMOVING、Job Lifecycle中はRUNNING表示にした | Codex |
+| 2026-06-13 | Phase 11親チェックリストを棚卸し。G28統合、軸別homing、homed前移動制限、TMC基本status/UART失敗検出を完了へ更新し、WebUI、USB G-code streaming、Job Lifecycle接続は実機確認残りのため一部完了へ整理 | Codex |
 
 ---
 

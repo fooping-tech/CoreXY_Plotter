@@ -65,6 +65,8 @@ const char* pageName(UiPage page) {
 uint16_t safetyColor(const MachineState& state) {
   if (state.alarmed) return COLOR_RED;
   if (state.homing_active) return COLOR_YELLOW;
+  if (state.motion_active) return COLOR_YELLOW;
+  if (state.job_active) return COLOR_BLUE;
   if (!state.homed) return COLOR_BLUE;
   return COLOR_GREEN;
 }
@@ -72,6 +74,8 @@ uint16_t safetyColor(const MachineState& state) {
 const char* safetyText(const MachineState& state) {
   if (state.alarmed) return "ALARM";
   if (state.homing_active) return "HOMING";
+  if (state.motion_active) return "MOVING";
+  if (state.job_active) return "RUNNING";
   if (!state.homed) return "NEED HOME";
   return "READY";
 }
@@ -213,13 +217,16 @@ void drawStatusPage(const StatusMessage& status) {
 }
 
 bool canManualMove(const MachineState& state) {
-  return state.homed && !state.alarmed && !state.homing_active;
+  return state.homed && !state.alarmed && !state.homing_active &&
+         !state.motion_active && !state.job_active;
 }
 
 void drawControlPage(const StatusMessage& status) {
   const MachineState& state = status.machine;
   const bool enabled = canManualMove(state);
-  drawButton({10, 42, 145, 36}, "HOME", COLOR_BLUE, !state.homing_active, 2);
+  const bool home_enabled =
+      !state.homing_active && !state.motion_active && !state.job_active;
+  drawButton({10, 42, 145, 36}, "HOME", COLOR_BLUE, home_enabled, 2);
   drawButton({165, 42, 145, 36}, "CLEAR ALARM", COLOR_RED, state.alarmed, 1);
 
   drawButton({119, 86, 82, 34}, "UP", COLOR_PANEL_2, enabled, 1);
@@ -362,6 +369,8 @@ void handleControlTouch(const StatusMessage& status, int16_t x, int16_t y) {
   if (contains({10, 42, 145, 36}, x, y)) {
     if (state.homing_active) {
       setNotice("Homing now");
+    } else if (state.motion_active || state.job_active) {
+      setNotice("Busy");
     } else {
       queueSimpleCommand(CommandType::HOME, "HOME");
     }

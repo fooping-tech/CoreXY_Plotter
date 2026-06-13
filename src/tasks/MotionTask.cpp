@@ -35,6 +35,18 @@ int32_t drift_backend_origin_b_steps = 0;
 int32_t drift_machine_origin_a_steps = 0;
 int32_t drift_machine_origin_b_steps = 0;
 
+void syncJobActiveFlag() {
+  machine_state.job_active = job_controller.isActive() ||
+                             job_controller.isRunning();
+}
+
+void setMotionActive(bool active) {
+  if (machine_state.motion_active == active) return;
+  machine_state.motion_active = active;
+  syncJobActiveFlag();
+  publishStatus();
+}
+
 const char* timedSegmentResultName(StepperBackend::TimedSegmentResult result) {
   switch (result) {
     case StepperBackend::TimedSegmentResult::QUEUED:
@@ -123,6 +135,7 @@ void warnIfDriftDetected() {
 bool stopForAbort(const char* context) {
   if (!isMotionAbortRequested()) return false;
   clearMotionAbort();
+  setMotionActive(false);
   stepper_backend.stop();
   safety_manager.setAlarm("abort requested");
   machine_state.alarmed = true;
@@ -203,14 +216,21 @@ bool executeTimedSegments(SegmentQueue& queue) {
   if (!queue.dequeue(segment)) return false;
   if (!queueTimedSegmentWithRetry(segment, false, reference)) return false;
   if (!stepper_backend.startTimedSegments()) return false;
+  setMotionActive(true);
 
   while (queue.dequeue(segment)) {
     if (stopForAbort("Motion stopped during timed segment queueing")) {
+      setMotionActive(false);
       return false;
     }
-    if (!queueTimedSegmentWithRetry(segment, true, reference)) return false;
+    if (!queueTimedSegmentWithRetry(segment, true, reference)) {
+      setMotionActive(false);
+      return false;
+    }
   }
-  return waitForMotionOrLimit(reference);
+  const bool completed = waitForMotionOrLimit(reference);
+  setMotionActive(false);
+  return completed;
 }
 
 void stashPendingCommand(const CommandMessage& command) {
@@ -763,7 +783,9 @@ void handleABTimed(const CommandMessage& command) {
     logMessage("NACK_AB_TIMED reason=start_error");
     return;
   }
+  setMotionActive(true);
   if (!waitForMotionOrLimit(reference)) {
+    setMotionActive(false);
     logMessage("AB_TIMED result=STOPPED queueEntries A=%u B=%u running A=%u B=%u",
                stepper_backend.motorAQueueEntries(),
                stepper_backend.motorBQueueEntries(),
@@ -772,6 +794,7 @@ void handleABTimed(const CommandMessage& command) {
     logMessage("NACK_AB_TIMED reason=stopped");
     return;
   }
+  setMotionActive(false);
   logMessage("AB_TIMED result=OK queueEntries A=%u B=%u running A=%u B=%u",
              stepper_backend.motorAQueueEntries(),
              stepper_backend.motorBQueueEntries(),
@@ -793,9 +816,11 @@ void handleSingleMotor(bool motor_a, int32_t steps) {
     logMessage("ERROR: backend rejected TEST_%c", motor_a ? 'A' : 'B');
     return;
   }
+  setMotionActive(true);
   if (!waitForMotionOrLimit()) {
     logMessage("ERROR: TEST_%c stopped", motor_a ? 'A' : 'B');
   }
+  setMotionActive(false);
 #endif
 }
 }
@@ -804,6 +829,7 @@ void motionTask(void*) {
   CommandMessage command;
   for (;;) {
     if (!receiveNextCommand(command, portMAX_DELAY)) continue;
+    syncJobActiveFlag();
     if (rejectDisallowedJobCommand(command)) {
       publishStatus();
       continue;
@@ -991,6 +1017,7 @@ void motionTask(void*) {
                                   job_controller.isRunning())) {
       job_controller.markFailed(safety_manager.alarmReason());
     }
+    syncJobActiveFlag();
     publishStatus();
   }
 }

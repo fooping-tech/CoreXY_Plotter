@@ -45,7 +45,7 @@ function formatNumber(value) {
 function machineStateClass(stateName) {
   if (stateName === "READY") return "ready";
   if (stateName === "ALARM") return "alarm";
-  if (stateName === "NEED HOME" || stateName === "HOMING") return "warning";
+  if (stateName === "NEED HOME" || stateName === "HOMING" || stateName === "MOVING" || stateName === "RUNNING") return "warning";
   return "unknown";
 }
 
@@ -65,6 +65,7 @@ function getMachine() {
     alarmed: false,
     alarmReason: "none",
     homing: false,
+    motion: false,
     limits: { x: "UNKNOWN", y: "UNKNOWN" },
     tmc: "UNKNOWN",
   };
@@ -88,7 +89,7 @@ function saveLastPort(port) {
 
 function canManualMove() {
   const machine = getMachine();
-  return isConnected() && machine.homed && !machine.alarmed && !machine.homing && !isJobRunning();
+  return isConnected() && machine.homed && !machine.alarmed && !machine.homing && !machine.motion && !isJobRunning();
 }
 
 function disabledReason() {
@@ -97,6 +98,7 @@ function disabledReason() {
   if (isJobRunning()) return "Job running";
   if (machine.alarmed) return "Alarm active";
   if (machine.homing) return "Homing in progress";
+  if (machine.motion) return "Motion in progress";
   if (!machine.homed) return "Home required";
   return "Manual controls enabled";
 }
@@ -127,6 +129,10 @@ function updateStateUI() {
         ? "Home required before motion"
         : stateName === "HOMING"
           ? "Homing in progress"
+          : stateName === "MOVING"
+            ? "Motion in progress"
+            : stateName === "RUNNING"
+              ? "Job running"
           : "No trusted machine state";
   const hero = document.querySelector(".hero-state");
   hero.className = `panel hero-state ${stateClass}`;

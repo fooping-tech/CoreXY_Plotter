@@ -76,6 +76,7 @@ state: dict[str, object] = {
         "alarmed": False,
         "alarmReason": "none",
         "homing": False,
+        "motion": False,
         "limits": {"x": "UNKNOWN", "y": "UNKNOWN"},
         "tmc": "UNKNOWN",
     },
@@ -96,6 +97,8 @@ XY_TARGET_RE = re.compile(
 HOMED_RE = re.compile(r"HOMED=(YES|NO)|home:\s*(YES|NO)", re.IGNORECASE)
 ALARM_RE = re.compile(r"ALARM=(YES|NO)|safety:\s*(ALARM|READY)", re.IGNORECASE)
 ALARM_REASON_RE = re.compile(r'ALARM_REASON="([^"]*)"|ALARM_REASON=([^\s]+)', re.IGNORECASE)
+MOTION_RE = re.compile(r"MOTION=(YES|NO)", re.IGNORECASE)
+JOB_RE = re.compile(r"JOB=(ACTIVE|IDLE)|JOB_STATUS state=(RUNNING|STARTING|ENDING|IDLE|COMPLETE|ABORTED|FAILED)", re.IGNORECASE)
 PEN_RE = re.compile(r"PEN=(UP|DOWN)|pen:\s*(UP|DOWN)|PEN\s+(UP|DOWN)", re.IGNORECASE)
 LIMIT_RE = re.compile(r"LIMIT_X=(OPEN|ACTIVE|ON|OFF).*LIMIT_Y=(OPEN|ACTIVE|ON|OFF)", re.IGNORECASE)
 TMC_RE = re.compile(r"TMC[:=]\s*(READY|NOT READY|OFF)", re.IGNORECASE)
@@ -122,11 +125,15 @@ def classify_line(line: str) -> str:
     return "firmware"
 
 
-def machine_state_from_flags(machine: dict[str, object]) -> str:
+def machine_state_from_flags(machine: dict[str, object], *, job_running: bool = False) -> str:
     if machine.get("alarmed"):
         return "ALARM"
     if machine.get("homing"):
         return "HOMING"
+    if machine.get("motion"):
+        return "MOVING"
+    if job_running:
+        return "RUNNING"
     if not machine.get("homed"):
         return "NEED HOME"
     return "READY"
@@ -165,6 +172,15 @@ def update_state_from_log(line: str) -> None:
         if alarm_reason_match:
             machine["alarmReason"] = alarm_reason_match.group(1) or alarm_reason_match.group(2)
 
+        motion_match = MOTION_RE.search(line)
+        if motion_match:
+            machine["motion"] = motion_match.group(1).upper() == "YES"
+
+        job_match = JOB_RE.search(line)
+        if job_match:
+            job_value = (job_match.group(1) or job_match.group(2) or "").upper()
+            state["jobRunning"] = job_value in {"ACTIVE", "RUNNING", "STARTING", "ENDING"}
+
         pen_match = PEN_RE.search(line)
         if pen_match:
             machine["pen"] = next(group for group in pen_match.groups() if group).upper()
@@ -182,8 +198,10 @@ def update_state_from_log(line: str) -> None:
         if "HOME complete" in line:
             machine["homed"] = True
             machine["homing"] = False
+            machine["motion"] = False
         elif "HOME" in line and ("ACK QUEUED" in line or "AUTO_HOME start" in line):
             machine["homing"] = True
+            machine["motion"] = False
         elif "ALARM_CLEAR complete" in line:
             machine["alarmed"] = False
             machine["alarmReason"] = "none"
@@ -192,8 +210,27 @@ def update_state_from_log(line: str) -> None:
             machine["alarmReason"] = "abort requested"
             machine["homed"] = False
             machine["homing"] = False
+            machine["motion"] = False
+            state["jobRunning"] = False
+        elif "JOB_BEGIN OK" in line:
+            state["jobRunning"] = True
+        elif "JOB_END OK" in line:
+            state["jobRunning"] = False
+            machine["motion"] = False
+        elif "XY batch=" in line or "AB_TIMED start result=OK" in line:
+            machine["motion"] = True
+        elif (
+            "ACK_XY target=" in line
+            or "NACK_XY target=" in line
+            or "AB_TIMED result=OK" in line
+            or "AB_TIMED result=STOPPED" in line
+        ):
+            machine["motion"] = False
 
-        machine["state"] = machine_state_from_flags(machine)
+        machine["state"] = machine_state_from_flags(
+            machine,
+            job_running=bool(state.get("jobRunning")),
+        )
         state["machine"] = machine
 
 
@@ -502,6 +539,11 @@ def send_json(handler: SimpleHTTPRequestHandler, payload: object, status: HTTPSt
 def snapshot_state() -> dict[str, object]:
     reap_finished_job_process()
     with state_lock:
+        machine = json.loads(json.dumps(state["machine"]))
+        machine["state"] = machine_state_from_flags(
+            machine,
+            job_running=bool(state["jobRunning"]),
+        )
         return {
             "connected": state["connected"],
             "port": state["port"],
@@ -509,7 +551,7 @@ def snapshot_state() -> dict[str, object]:
             "sendSettings": json.loads(json.dumps(state["sendSettings"])),
             "jobRunning": state["jobRunning"],
             "lastExitCode": state["lastExitCode"],
-            "machine": json.loads(json.dumps(state["machine"])),
+            "machine": machine,
         }
 
 
@@ -1029,6 +1071,9 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         global job_process
         with state_lock:
             state["jobRunning"] = True
+            machine = dict(state["machine"])
+            machine["state"] = machine_state_from_flags(machine, job_running=True)
+            state["machine"] = machine
         cmd = [sys.executable, str(SERIAL_SEND), *args]
         emit("host", f"Starting job: {' '.join(cmd)}")
         process = subprocess.Popen(
@@ -1052,6 +1097,10 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         with state_lock:
             state["jobRunning"] = False
             state["lastExitCode"] = exit_code
+            machine = dict(state["machine"])
+            machine["motion"] = False
+            machine["state"] = machine_state_from_flags(machine, job_running=False)
+            state["machine"] = machine
 
     def handle_abort(self) -> None:
         with state_lock:

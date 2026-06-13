@@ -15,6 +15,8 @@ struct MachineState {
   bool alarmed = false;
   bool tmc_ready = false;
   bool homing_active = false;
+  bool motion_active = false;
+  bool job_active = false;
   char homing_state[16] = "Idle";
 };
 
