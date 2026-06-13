@@ -751,6 +751,8 @@ GPIO33へ接続した外付けNEOPIXELを設定灯数で制御し、bring-upと�
 - [x] command処理と描画処理を分離し、外部引数は`LedAnimationConfig`へ反映する
 - [x] 描画中の`LedAnimationConfig`更新で不整合が起きないようにする
 - [x] 手動表示と自動状態表示を`auto_status_enabled`で分離する
+- [x] 自動状態表示で`ERROR > WARNING > PAUSED > HOMING > DRAWING_PEN_DOWN > DRAWING_PEN_UP > PROCESSING > COMPLETED > IDLE`の優先順位を守る
+- [x] `COMPLETED`/`WARNING`演出を短時間保持してから`IDLE`へ自動復帰する
 - [x] Core 1側状態変化は`LedCommandQueue`経由でCore 0側LED engineへ渡す
 - [x] Homing、Pen Up/Down、Job開始/完了/Abort、Alarm/Errorの主要状態から`LedStatus`を更新する
 - [x] 将来Touch/Button、WebUI、Serial以外の入力元から同じ設定APIを呼べる構造にする
@@ -2282,6 +2284,7 @@ Phase 6.9を実装してください。
 | 2026-06-13 | Core2 LCDとHost WebUIの状態表示を`ALARM > HOMING > MOVING > RUNNING > NEED HOME > READY`の優先順位へ統一。`MachineState`へ`motion_active`/`job_active`を追加し、timed segment中はREADYではなくMOVING、Job Lifecycle中はRUNNING表示にした | Codex |
 | 2026-06-13 | Phase 11親チェックリストを棚卸し。G28統合、軸別homing、homed前移動制限、TMC基本status/UART失敗検出を完了へ更新し、WebUI、USB G-code streaming、Job Lifecycle接続は実機確認残りのため一部完了へ整理 | Codex |
 | 2026-06-13 | NeoPixel状態連動表示を追加。`BREATH`/`CHASE`/`PROGRESS`/`ALERT`/`SUCCESS`、`LedStatus`、`LED_AUTO`、`LED_STATUS_SET`、主要motion/job/alarm状態からの自動表示更新、LED check CSV/手順更新を実装 | Codex |
+| 2026-06-13 | NeoPixel自動演出を組み込み強化。状態優先順位、`COMPLETED`/`WARNING`の短時間保持と`IDLE`自動復帰、診断用`LED_STATUS_SET`の強制適用を追加 | Codex |
 
 ---
 

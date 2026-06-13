@@ -9,12 +9,16 @@ void LedPatternEngine::begin(NeoPixelController& controller) {
   config_.brightness = NEOPIXEL_BRIGHTNESS_DEFAULT;
   controller_->setBrightness(config_.brightness);
   controller_->off();
-  applyStatusConfig(LedStatus::IDLE);
+  applyStatusConfig(LedStatus::IDLE, millis());
   pattern_ = static_cast<LedPattern>(NEOPIXEL_INITIAL_PATTERN);
 }
 
 void LedPatternEngine::tick(uint32_t now_ms) {
   if (controller_ == nullptr) return;
+  if (auto_status_enabled_ && transient_until_ms_ != 0 &&
+      static_cast<int32_t>(now_ms - transient_until_ms_) >= 0) {
+    applyStatusConfig(LedStatus::IDLE, now_ms);
+  }
   const bool animated =
       pattern_ == LedPattern::PACIFICA || pattern_ == LedPattern::FIRE ||
       pattern_ == LedPattern::BREATH || pattern_ == LedPattern::CHASE ||
@@ -89,12 +93,17 @@ void LedPatternEngine::applyCommand(const LedCommand& command) {
     case LedCommandType::SET_AUTO:
       auto_status_enabled_ = command.value != 0;
       if (auto_status_enabled_) {
-        applyStatusConfig(status_);
+        applyStatusConfig(status_, millis());
       }
       logMessage("OK: LED_AUTO %u", auto_status_enabled_ ? 1 : 0);
       break;
     case LedCommandType::SET_STATUS:
-      setStatus(command.status);
+      if (command.value != 0) {
+        auto_status_enabled_ = true;
+        applyStatusConfig(command.status, millis());
+      } else {
+        setStatus(command.status);
+      }
       logMessage("OK: LED_STATUS_SET %s", statusName(command.status));
       return;
     case LedCommandType::STATUS:
@@ -141,9 +150,10 @@ void LedPatternEngine::render(uint32_t now_ms) {
 }
 
 void LedPatternEngine::setStatus(LedStatus status) {
-  status_ = status;
   if (!auto_status_enabled_) return;
-  applyStatusConfig(status);
+  const uint32_t now_ms = millis();
+  if (!shouldApplyStatus(status, now_ms)) return;
+  applyStatusConfig(status, now_ms);
 }
 
 void LedPatternEngine::setProgress(uint8_t percent) {
@@ -151,8 +161,10 @@ void LedPatternEngine::setProgress(uint8_t percent) {
   dirty_ = true;
 }
 
-void LedPatternEngine::applyStatusConfig(LedStatus status) {
-  status_started_ms_ = millis();
+void LedPatternEngine::applyStatusConfig(LedStatus status, uint32_t now_ms) {
+  status_ = status;
+  status_started_ms_ = now_ms;
+  transient_until_ms_ = 0;
   switch (status) {
     case LedStatus::IDLE:
       pattern_ = LedPattern::BREATH;
@@ -199,12 +211,14 @@ void LedPatternEngine::applyStatusConfig(LedStatus status) {
       active_color_ = {0, 255, 80};
       config_.brightness = NEOPIXEL_BRIGHTNESS_DEFAULT;
       config_.speed = 150;
+      transient_until_ms_ = now_ms + 2500U;
       break;
     case LedStatus::WARNING:
       pattern_ = LedPattern::ALERT;
       active_color_ = {255, 80, 0};
       config_.brightness = NEOPIXEL_BRIGHTNESS_DEFAULT;
       config_.speed = 90;
+      transient_until_ms_ = now_ms + 2500U;
       break;
     case LedStatus::ERROR:
       pattern_ = LedPattern::ALERT;
@@ -215,6 +229,32 @@ void LedPatternEngine::applyStatusConfig(LedStatus status) {
   }
   controller_->setBrightness(config_.brightness);
   dirty_ = true;
+}
+
+uint8_t LedPatternEngine::statusPriority(LedStatus status) {
+  switch (status) {
+    case LedStatus::ERROR: return 9;
+    case LedStatus::WARNING: return 8;
+    case LedStatus::PAUSED: return 7;
+    case LedStatus::HOMING: return 6;
+    case LedStatus::DRAWING_PEN_DOWN: return 5;
+    case LedStatus::DRAWING_PEN_UP: return 4;
+    case LedStatus::PROCESSING: return 3;
+    case LedStatus::COMPLETED: return 2;
+    case LedStatus::IDLE: return 1;
+  }
+  return 0;
+}
+
+bool LedPatternEngine::shouldApplyStatus(LedStatus status,
+                                         uint32_t now_ms) const {
+  if (status == status_ && transient_until_ms_ == 0) return false;
+  if (transient_until_ms_ != 0 &&
+      static_cast<int32_t>(now_ms - transient_until_ms_) < 0 &&
+      statusPriority(status) < statusPriority(status_)) {
+    return false;
+  }
+  return true;
 }
 
 RgbColor LedPatternEngine::scaleColor(RgbColor color, uint8_t scale) {

@@ -24,7 +24,9 @@ class LedPatternEngine {
   void renderSuccess(uint32_t now_ms, RgbColor* leds, uint16_t count);
   void renderPacifica(uint32_t now_ms, RgbColor* leds, uint16_t count);
   void renderFire(RgbColor* leds, uint16_t count);
-  void applyStatusConfig(LedStatus status);
+  void applyStatusConfig(LedStatus status, uint32_t now_ms);
+  bool shouldApplyStatus(LedStatus status, uint32_t now_ms) const;
+  static uint8_t statusPriority(LedStatus status);
   static const char* patternName(LedPattern pattern);
   static const char* parameterName(LedParameter parameter);
   static const char* statusName(LedStatus status);
@@ -40,6 +42,7 @@ class LedPatternEngine {
   uint8_t progress_percent_ = 0;
   uint32_t last_frame_ms_ = 0;
   uint32_t status_started_ms_ = 0;
+  uint32_t transient_until_ms_ = 0;
   bool dirty_ = true;
   bool auto_status_enabled_ = true;
 };

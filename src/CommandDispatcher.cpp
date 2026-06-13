@@ -126,6 +126,7 @@ CommandMessage CommandDispatcher::parse(const char* line) {
     }
     command.type = CommandType::LED_STATUS_SET;
     command.led.type = LedCommandType::SET_STATUS;
+    command.led.value = 1;
   } else if (strcmp(name, "MELODY") == 0) {
     command.type = CommandType::MELODY;
   } else if (strcmp(name, "LED") == 0) {

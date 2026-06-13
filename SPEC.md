@@ -800,6 +800,7 @@ homing完了直後の退避移動では、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範�
 | `ERROR` | `ALERT` | 赤 | alarm、error、limit異常 |
 
 `LED`、`LED_PIXEL`、`LED_PATTERN`、`LED_OFF`は手動表示として扱い、`auto_status_enabled`をfalseにする。自動状態表示へ戻す場合は`LED_AUTO 1`を送る。
+自動状態表示では`ERROR > WARNING > PAUSED > HOMING > DRAWING_PEN_DOWN > DRAWING_PEN_UP > PROCESSING > COMPLETED > IDLE`の優先順位を守る。`COMPLETED`と`WARNING`は短時間演出を保持し、その後`IDLE`へ自動復帰する。診断用の`LED_STATUS_SET`は強制的に自動表示へ戻して指定状態を即時表示する。
 
 ---
 
