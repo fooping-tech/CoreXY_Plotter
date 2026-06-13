@@ -2247,6 +2247,8 @@ Phase 6.9を実装してください。
 | 2026-06-13 | Host WebUIのユーザー向けSVG to G-codeをImage to G-codeへ統合。`.svg/.png/.jpg/.jpeg` upload、`POST /api/gcode/from-image`、PNG/JPEG→plotter SVG→共通SVG G-code経路、Line Art/Outline Trace設定、中間SVG response/download、Pillow requirements、単体テストを追加。実機PNG/JPEG描画品質確認は未実施 | Codex |
 | 2026-06-13 | Image to G-code変換の進捗表示を追加。upload、PNG/JPEG trace、SVG to G-code、layout追加のステップ表示、失敗時のパネル内エラー表示、SSE progress log、ブラウザ接続reset時のサーバ側traceback抑制を実装 | Codex |
 | 2026-06-13 | Image to G-codeの既定`max_segments`を4000から12000へ変更し、5363 segments程度のラスタ変換が初期設定で失敗しないようにした。実行中ボタンのステータス文言とアニメーション、失敗時の`FAIL`表示を追加 | Codex |
+| 2026-06-13 | PNG/JPEGの既定trace modeをOutline Traceへ変更し、輪郭抽出を境界ピクセル近傍接続からmarching squaresベースへ改善。塗りつぶしイラストが内部skeleton線へ崩れる問題を軽減し、Line Artのskeletonizeは線画専用設定へ整理 | Codex |
+| 2026-06-13 | Image to G-codeの中間SVGで元画像bboxの縦横比を保持するよう修正。Trace Detail設定（High/Balanced/Simple）と濃色領域ハッチング設定（threshold/pitch）を追加し、アスペクト比保持とhatchingの単体テストを追加 | Codex |
 
 ---
 

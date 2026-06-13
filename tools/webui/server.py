@@ -328,12 +328,16 @@ def svg_options_from_mapping(data: dict[str, object]) -> SvgToGcodeOptions:
 
 def raster_options_from_mapping(data: dict[str, object]) -> RasterTraceOptions:
     return RasterTraceOptions(
-        trace_mode=trace_mode_from_value(data.get("trace_mode", "line_art")),
+        trace_mode=trace_mode_from_value(data.get("trace_mode", "outline")),
+        trace_detail=str(data.get("trace_detail", "high")).strip().lower(),
         threshold_mode=str(data.get("threshold_mode", "auto")).strip().lower(),
         threshold_value=clamp_int(data.get("threshold_value", 128), name="threshold_value", minimum=0, maximum=255),
         invert=bool_setting(data.get("invert", False), name="invert"),
         skeletonize=bool_setting(data.get("skeletonize", True), name="skeletonize"),
         max_segments=clamp_int(data.get("max_segments", 12000), name="max_segments", minimum=1, maximum=200000),
+        hatch_enabled=bool_setting(data.get("hatch_enabled", False), name="hatch_enabled"),
+        hatch_threshold=clamp_int(data.get("hatch_threshold", 96), name="hatch_threshold", minimum=0, maximum=255),
+        hatch_pitch_px=clamp_int(data.get("hatch_pitch_px", 8), name="hatch_pitch_px", minimum=1, maximum=200),
     )
 
 
@@ -1000,12 +1004,16 @@ class WebUIHandler(SimpleHTTPRequestHandler):
             "simplify_tolerance_mm": first_form_value(form, "simplify_tolerance_mm", 0.2),
             "min_stroke_length_mm": first_form_value(form, "min_stroke_length_mm", 0.5),
             "optimize_stroke_order": first_form_value(form, "optimize_stroke_order", "true"),
-            "trace_mode": first_form_value(form, "trace_mode", "line_art"),
+            "trace_mode": first_form_value(form, "trace_mode", "outline"),
+            "trace_detail": first_form_value(form, "trace_detail", "high"),
             "threshold_mode": first_form_value(form, "threshold_mode", "auto"),
             "threshold_value": first_form_value(form, "threshold_value", 128),
             "invert": first_form_value(form, "invert", "false"),
             "skeletonize": first_form_value(form, "skeletonize", "true"),
             "max_segments": first_form_value(form, "max_segments", 12000),
+            "hatch_enabled": first_form_value(form, "hatch_enabled", "false"),
+            "hatch_threshold": first_form_value(form, "hatch_threshold", 96),
+            "hatch_pitch_px": first_form_value(form, "hatch_pitch_px", 8),
         }
         payload = convert_image_to_gcode(
             filename=str(file_item.filename),

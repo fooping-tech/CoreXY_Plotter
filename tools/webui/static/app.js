@@ -1013,11 +1013,16 @@ function imageExtension() {
 
 function updateRasterOptionState() {
   const isRaster = ["png", "jpg", "jpeg"].includes(imageExtension());
+  const isLineArt = $("traceMode").value === "line_art";
+  const hatchEnabled = $("hatchEnabled").checked;
   $("rasterOptions").classList.toggle("disabled", !isRaster);
   $("rasterOptions").querySelectorAll("input, select").forEach((control) => {
     control.disabled = !isRaster;
   });
   $("thresholdValue").disabled = !isRaster || $("thresholdMode").value !== "manual";
+  $("traceSkeletonize").disabled = !isRaster || !isLineArt;
+  $("hatchThreshold").disabled = !isRaster || !hatchEnabled;
+  $("hatchPitchPx").disabled = !isRaster || !hatchEnabled;
 }
 
 function imageFormData() {
@@ -1038,11 +1043,15 @@ function imageFormData() {
   form.append("min_stroke_length_mm", String(svgNumber("svgMinStrokeLengthMm", 0.5)));
   form.append("optimize_stroke_order", String($("svgOptimizeStrokeOrder").checked));
   form.append("trace_mode", $("traceMode").value);
+  form.append("trace_detail", $("traceDetail").value);
   form.append("threshold_mode", $("thresholdMode").value);
   form.append("threshold_value", String(svgNumber("thresholdValue", 128)));
   form.append("invert", String($("traceInvert").checked));
   form.append("skeletonize", String($("traceSkeletonize").checked));
   form.append("max_segments", String(Math.round(svgNumber("maxSegments", 12000))));
+  form.append("hatch_enabled", String($("hatchEnabled").checked));
+  form.append("hatch_threshold", String(Math.round(svgNumber("hatchThreshold", 96))));
+  form.append("hatch_pitch_px", String(Math.round(svgNumber("hatchPitchPx", 8))));
   return form;
 }
 
@@ -1413,6 +1422,8 @@ function bindUI() {
   $("createSvgBtn").addEventListener("click", () => createSvgGcode().catch(showError));
   $("downloadIntermediateSvgBtn").addEventListener("click", downloadIntermediateSvg);
   $("thresholdMode").addEventListener("change", updateRasterOptionState);
+  $("traceMode").addEventListener("change", updateRasterOptionState);
+  $("hatchEnabled").addEventListener("change", updateRasterOptionState);
   bindGeneratorToggle("qrGeneratorToggle", "qrGeneratorPanel");
   bindGeneratorToggle("textGeneratorToggle", "textGeneratorPanel");
   bindGeneratorToggle("svgGeneratorToggle", "svgGeneratorPanel");

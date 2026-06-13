@@ -942,8 +942,12 @@ response:
 PNG/JPEGは直接G-code化せず、必ず中間SVGを生成してからSVG to G-code処理へ通す。
 中間SVGは`viewBox`を持ち、`fill="none"`、`stroke="black"`を基本に、`polyline`中心の単純な線画とする。
 1点stroke、孤立点、短すぎるstrokeは含めない。
-Line Artはしきい値化後に必要に応じてskeletonizeし、中心線に近いpolylineを出す。
-Outline Traceは黒領域の境界をpolyline化する。
+PNG/JPEGのWebUI既定trace modeはOutline Traceとする。
+Outline Traceは黒領域の境界をmarching squaresベースでpolyline化し、塗りつぶしイラストやロゴが内部骨格線にならないようにする。
+Line Artは線画専用とし、しきい値化後に必要に応じてskeletonizeし、中心線に近いpolylineを出す。
+PNG/JPEGから生成する中間SVGは、図形bboxの実アスペクト比を保持した`viewBox`を使う。
+Trace detailは`High`、`Balanced`、`Simple`を選択可能にし、輪郭簡略化量を調整できる。
+濃色領域のハッチングは設定でON/OFFでき、hatch thresholdとhatch pitch pxで対象濃度と線間隔を調整する。
 `max_segments`を超える場合はエラーとして返し、WebUI上に表示する。
 WebUI既定値は`max_segments=12000`とし、細かいラスタ線画が初期設定で過度に失敗しないようにする。
 Image to G-codeパネルは、upload、PNG/JPEG trace、SVG to G-code、layout追加の進行状態を表示する。

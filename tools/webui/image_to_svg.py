@@ -31,13 +31,17 @@ BoolImage = list[list[bool]]
 
 @dataclass(frozen=True)
 class RasterTraceOptions:
-    trace_mode: str = "line_art"
+    trace_mode: str = "outline"
+    trace_detail: str = "high"
     threshold_mode: str = "auto"
     threshold_value: int = 128
     invert: bool = False
     skeletonize: bool = True
     max_segments: int = 12000
     min_stroke_length_px: float = 2.0
+    hatch_enabled: bool = False
+    hatch_threshold: int = 96
+    hatch_pitch_px: int = 8
 
 
 @dataclass
@@ -46,6 +50,13 @@ class RasterTraceResult:
     stroke_count: int
     segment_count: int
     warnings: list[str]
+
+
+@dataclass(frozen=True)
+class NormalizedStrokes:
+    strokes: list[Stroke]
+    width: float
+    height: float
 
 
 def image_size(image: BoolImage | GrayImage) -> tuple[int, int]:
@@ -246,13 +257,36 @@ def component_to_stroke(component: list[tuple[int, int]], image: BoolImage) -> S
     return stroke
 
 
-def simplify_stroke(stroke: Stroke, step: int = 2) -> Stroke:
-    if len(stroke) <= 2:
+def point_line_distance(point: Point, start: Point, end: Point) -> float:
+    line_len = math.dist(start, end)
+    if line_len == 0:
+        return math.dist(point, start)
+    return abs((end[0] - start[0]) * (start[1] - point[1]) - (start[0] - point[0]) * (end[1] - start[1])) / line_len
+
+
+def simplify_stroke(stroke: Stroke, tolerance: float) -> Stroke:
+    if tolerance <= 0 or len(stroke) <= 2:
         return stroke
-    out = [stroke[0]]
-    out.extend(stroke[index] for index in range(step, len(stroke) - 1, step))
-    out.append(stroke[-1])
-    return out
+    max_distance = -1.0
+    index = 0
+    for i in range(1, len(stroke) - 1):
+        distance = point_line_distance(stroke[i], stroke[0], stroke[-1])
+        if distance > max_distance:
+            max_distance = distance
+            index = i
+    if max_distance > tolerance:
+        left = simplify_stroke(stroke[: index + 1], tolerance)
+        right = simplify_stroke(stroke[index:], tolerance)
+        return left[:-1] + right
+    return [stroke[0], stroke[-1]]
+
+
+def detail_tolerance_px(options: RasterTraceOptions) -> float:
+    if options.trace_detail == "high":
+        return 0.25
+    if options.trace_detail == "simple":
+        return 1.6
+    return 0.75
 
 
 def stroke_length(stroke: Stroke) -> float:
@@ -264,24 +298,158 @@ def image_to_strokes(image: BoolImage, options: RasterTraceOptions) -> list[Stro
     for component in connected_components(image):
         if len(component) < 2:
             continue
-        stroke = simplify_stroke(component_to_stroke(component, image))
+        stroke = simplify_stroke(component_to_stroke(component, image), detail_tolerance_px(options))
         if len(stroke) < 2 or stroke_length(stroke) < options.min_stroke_length_px:
             continue
         strokes.append(stroke)
     return strokes
 
 
-def normalize_strokes(strokes: list[Stroke]) -> list[Stroke]:
+def padded_bool_image(image: BoolImage) -> BoolImage:
+    width, _ = image_size(image)
+    padding = [False for _ in range(width + 2)]
+    return [padding[:], *[[False, *row, False] for row in image], padding[:]]
+
+
+def marching_square_segments(image: BoolImage) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+    """Return contour segments as doubled integer coordinates.
+
+    Endpoints are stored at 2x scale so half-pixel marching-square positions
+    remain exact integers. This avoids diagonal jumps across filled areas.
+    """
+
+    padded = padded_bool_image(image)
+    width, height = image_size(padded)
+    segments: list[tuple[tuple[int, int], tuple[int, int]]] = []
+
+    def p_top(x: int, y: int) -> tuple[int, int]:
+        return (2 * x + 1, 2 * y)
+
+    def p_right(x: int, y: int) -> tuple[int, int]:
+        return (2 * x + 2, 2 * y + 1)
+
+    def p_bottom(x: int, y: int) -> tuple[int, int]:
+        return (2 * x + 1, 2 * y + 2)
+
+    def p_left(x: int, y: int) -> tuple[int, int]:
+        return (2 * x, 2 * y + 1)
+
+    for y in range(height - 1):
+        for x in range(width - 1):
+            tl = padded[y][x]
+            tr = padded[y][x + 1]
+            br = padded[y + 1][x + 1]
+            bl = padded[y + 1][x]
+            case = (8 if tl else 0) | (4 if tr else 0) | (2 if br else 0) | (1 if bl else 0)
+            top = p_top(x, y)
+            right = p_right(x, y)
+            bottom = p_bottom(x, y)
+            left = p_left(x, y)
+            if case in {0, 15}:
+                continue
+            if case == 1:
+                segments.append((left, bottom))
+            elif case == 2:
+                segments.append((bottom, right))
+            elif case == 3:
+                segments.append((left, right))
+            elif case == 4:
+                segments.append((top, right))
+            elif case == 5:
+                segments.extend([(top, left), (bottom, right)])
+            elif case == 6:
+                segments.append((top, bottom))
+            elif case == 7:
+                segments.append((top, left))
+            elif case == 8:
+                segments.append((left, top))
+            elif case == 9:
+                segments.append((top, bottom))
+            elif case == 10:
+                segments.extend([(left, bottom), (top, right)])
+            elif case == 11:
+                segments.append((top, right))
+            elif case == 12:
+                segments.append((left, right))
+            elif case == 13:
+                segments.append((bottom, right))
+            elif case == 14:
+                segments.append((left, bottom))
+    return segments
+
+
+def contour_segments_to_strokes(segments: list[tuple[tuple[int, int], tuple[int, int]]]) -> list[Stroke]:
+    graph: dict[tuple[int, int], set[tuple[int, int]]] = {}
+    unused: set[tuple[tuple[int, int], tuple[int, int]]] = set()
+
+    def edge_key(a: tuple[int, int], b: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, int]]:
+        return (a, b) if a <= b else (b, a)
+
+    for a, b in segments:
+        if a == b:
+            continue
+        graph.setdefault(a, set()).add(b)
+        graph.setdefault(b, set()).add(a)
+        unused.add(edge_key(a, b))
+
+    def take_next(current: tuple[int, int], previous: tuple[int, int] | None) -> tuple[int, int] | None:
+        candidates = [point for point in graph.get(current, set()) if edge_key(current, point) in unused]
+        if not candidates:
+            return None
+        if previous is not None and len(candidates) > 1:
+            candidates.sort(key=lambda point: point == previous)
+        return candidates[0]
+
+    def consume(start: tuple[int, int], next_point: tuple[int, int]) -> list[tuple[int, int]]:
+        path = [start, next_point]
+        unused.remove(edge_key(start, next_point))
+        previous = start
+        current = next_point
+        while True:
+            following = take_next(current, previous)
+            if following is None:
+                break
+            unused.remove(edge_key(current, following))
+            path.append(following)
+            previous, current = current, following
+            if current == start:
+                break
+        return path
+
+    strokes: list[Stroke] = []
+    while unused:
+        start, next_point = next(iter(unused))
+        raw_path = consume(start, next_point)
+        if len(raw_path) < 2:
+            continue
+        # Undo the padding shift and 2x coordinate scale.
+        stroke = [((x / 2.0) - 1.0, (y / 2.0) - 1.0) for x, y in raw_path]
+        if len(stroke) >= 2:
+            strokes.append(stroke)
+    return strokes
+
+
+def outline_to_strokes(image: BoolImage, options: RasterTraceOptions) -> list[Stroke]:
+    strokes: list[Stroke] = []
+    for stroke in contour_segments_to_strokes(marching_square_segments(image)):
+        simplified = simplify_stroke(stroke, detail_tolerance_px(options))
+        if len(simplified) < 2 or stroke_length(simplified) < options.min_stroke_length_px:
+            continue
+        strokes.append(simplified)
+    return strokes
+
+
+def normalize_strokes(strokes: list[Stroke]) -> NormalizedStrokes:
     points = [point for stroke in strokes for point in stroke]
     if not points:
-        return []
+        return NormalizedStrokes([], 0.0, 0.0)
     min_x = min(point[0] for point in points)
     min_y = min(point[1] for point in points)
     max_x = max(point[0] for point in points)
     max_y = max(point[1] for point in points)
     width = max(1.0, max_x - min_x)
     height = max(1.0, max_y - min_y)
-    return [[((x - min_x) / width * 100.0, (y - min_y) / height * 100.0) for x, y in stroke] for stroke in strokes]
+    return NormalizedStrokes([[(x - min_x, y - min_y) for x, y in stroke] for stroke in strokes], width, height)
 
 
 def svg_polyline(stroke: Stroke) -> str:
@@ -289,10 +457,12 @@ def svg_polyline(stroke: Stroke) -> str:
     return f'<polyline points="{html.escape(points)}" />'
 
 
-def strokes_to_svg(strokes: list[Stroke]) -> str:
-    body = "\n  ".join(svg_polyline(stroke) for stroke in strokes)
+def strokes_to_svg(strokes: NormalizedStrokes) -> str:
+    view_width = max(1.0, strokes.width)
+    view_height = max(1.0, strokes.height)
+    body = "\n  ".join(svg_polyline(stroke) for stroke in strokes.strokes)
     return (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {view_width:.3f} {view_height:.3f}" '
         'fill="none" stroke="black" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">\n'
         f"  {body}\n"
         "</svg>\n"
@@ -302,12 +472,41 @@ def strokes_to_svg(strokes: list[Stroke]) -> str:
 def validate_options(options: RasterTraceOptions) -> None:
     if options.trace_mode not in {"line_art", "outline"}:
         raise ValueError("trace_mode must be line_art or outline")
+    if options.trace_detail not in {"simple", "balanced", "high"}:
+        raise ValueError("trace_detail must be simple, balanced, or high")
     if options.threshold_mode not in {"auto", "manual"}:
         raise ValueError("threshold_mode must be auto or manual")
     if not 0 <= options.threshold_value <= 255:
         raise ValueError("threshold_value must be between 0 and 255")
     if options.max_segments < 1:
         raise ValueError("max_segments must be >= 1")
+    if not 0 <= options.hatch_threshold <= 255:
+        raise ValueError("hatch_threshold must be between 0 and 255")
+    if options.hatch_pitch_px < 1:
+        raise ValueError("hatch_pitch_px must be >= 1")
+
+
+def hatch_mask(gray: GrayImage, options: RasterTraceOptions) -> BoolImage:
+    threshold = max(0, min(255, int(options.hatch_threshold)))
+    return [[(value >= threshold) if options.invert else (value < threshold) for value in row] for row in gray]
+
+
+def hatch_strokes(image: BoolImage, options: RasterTraceOptions) -> list[Stroke]:
+    width, height = image_size(image)
+    pitch = max(1, int(options.hatch_pitch_px))
+    strokes: list[Stroke] = []
+    for y in range(0, height, pitch):
+        x = 0
+        while x < width:
+            while x < width and not image[y][x]:
+                x += 1
+            start = x
+            while x < width and image[y][x]:
+                x += 1
+            end = x - 1
+            if end - start >= options.min_stroke_length_px:
+                strokes.append([(float(start), float(y)), (float(end), float(y))])
+    return strokes
 
 
 def trace_raster_image_to_svg(data: bytes, options: RasterTraceOptions) -> RasterTraceResult:
@@ -319,24 +518,27 @@ def trace_raster_image_to_svg(data: bytes, options: RasterTraceOptions) -> Raste
         raise ValueError("画像trace結果が空です")
     if options.trace_mode == "line_art":
         traced = zhang_suen_skeletonize(foreground) if options.skeletonize else foreground
+        raw_strokes = image_to_strokes(traced, options)
     else:
-        traced = boundary_image(foreground)
-    strokes = normalize_strokes(image_to_strokes(traced, options))
-    if not strokes:
+        raw_strokes = outline_to_strokes(foreground, options)
+    if options.hatch_enabled:
+        raw_strokes.extend(hatch_strokes(hatch_mask(gray, options), options))
+    strokes = normalize_strokes(raw_strokes)
+    if not strokes.strokes:
         raise ValueError("画像trace結果が空です")
-    segment_count = sum(len(stroke) - 1 for stroke in strokes)
+    segment_count = sum(len(stroke) - 1 for stroke in strokes.strokes)
     if segment_count > options.max_segments:
         raise ValueError(f"segment count {segment_count} exceeds max_segments {options.max_segments}")
     return RasterTraceResult(
         svg=strokes_to_svg(strokes),
-        stroke_count=len(strokes),
+        stroke_count=len(strokes.strokes),
         segment_count=segment_count,
         warnings=warnings,
     )
 
 
 def trace_mode_from_value(value: object) -> str:
-    normalized = str(value or "line_art").strip().lower().replace("-", "_").replace(" ", "_")
+    normalized = str(value or "outline").strip().lower().replace("-", "_").replace(" ", "_")
     if normalized in {"line_art", "lineart"}:
         return "line_art"
     if normalized in {"outline", "outline_trace"}:

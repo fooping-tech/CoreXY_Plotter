@@ -221,7 +221,7 @@
                     </div>
                     <div class="image-progress" id="imageProgress" aria-live="polite">
                       <div class="progress-step pending" data-stage="upload"><span>1</span><strong>Upload</strong><small>Waiting for file</small></div>
-                      <div class="progress-step pending" data-stage="trace"><span>2</span><strong>Trace SVG</strong><small>Raster only</small></div>
+                      <div class="progress-step pending" data-stage="trace"><span>2</span><strong>Trace</strong><small>Raster only</small></div>
                       <div class="progress-step pending" data-stage="gcode"><span>3</span><strong>G-code</strong><small>Waiting</small></div>
                       <div class="progress-step pending" data-stage="complete"><span>4</span><strong>Layout</strong><small>Waiting</small></div>
                     </div>
@@ -245,8 +245,15 @@
                       <div class="qr-grid">
                         <label>Trace mode
                           <select id="traceMode">
-                            <option value="line_art" selected>Line Art</option>
-                            <option value="outline">Outline Trace</option>
+                            <option value="outline" selected>Outline Trace</option>
+                            <option value="line_art">Line Art</option>
+                          </select>
+                        </label>
+                        <label>Detail
+                          <select id="traceDetail">
+                            <option value="high" selected>High</option>
+                            <option value="balanced">Balanced</option>
+                            <option value="simple">Simple</option>
                           </select>
                         </label>
                         <label>Threshold
@@ -257,10 +264,13 @@
                         </label>
                         <label>Manual threshold <input id="thresholdValue" type="number" min="0" max="255" step="1" value="128" /></label>
                         <label>Max segments <input id="maxSegments" type="number" min="1" step="100" value="12000" /></label>
+                        <label>Hatch threshold <input id="hatchThreshold" type="number" min="0" max="255" step="1" value="96" /></label>
+                        <label>Hatch pitch px <input id="hatchPitchPx" type="number" min="1" step="1" value="8" /></label>
                       </div>
                       <div class="check-list compact-checks">
                         <label><input id="traceInvert" type="checkbox" /> invert</label>
-                        <label><input id="traceSkeletonize" type="checkbox" checked /> skeletonize</label>
+                        <label><input id="traceSkeletonize" type="checkbox" /> skeletonize</label>
+                        <label><input id="hatchEnabled" type="checkbox" /> hatch dark areas</label>
                       </div>
                     </fieldset>
                     <div class="button-row image-actions">

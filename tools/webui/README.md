@@ -119,8 +119,12 @@ The Image to G-code panel accepts `.svg`, `.png`, `.jpg`, and `.jpeg` from one
 input and creates a virtual `.gcode` item in the same layout. SVG input goes
 directly through the SVG to G-code converter. PNG/JPEG input is first traced to
 a plotter-friendly polyline SVG, then passed through the same SVG to G-code
-converter. Raster modes are Line Art and Outline Trace; threshold can be
-Auto/Otsu or manual 0-255. The response keeps the intermediate SVG available
+converter. Raster modes are Outline Trace and Line Art; Outline Trace is the
+default for filled illustrations and logos, while Line Art is for already
+thin line drawings. Intermediate SVG keeps the traced image aspect ratio.
+Detail can be set to High, Balanced, or Simple. Threshold can be Auto/Otsu or
+manual 0-255. Dark-area hatching can be enabled with adjustable hatch threshold
+and pitch. The response keeps the intermediate SVG available
 for download from the panel. The panel shows conversion progress for upload,
 raster trace, SVG to G-code, and layout insertion; failures are shown in the
 same panel and also in the Console log.
