@@ -10,5 +10,14 @@ LED 0 0 255,700,OK: LED r=0 g=0 b=255,Check all LEDs show blue
 LED_PIXEL 0 255 255 255,700,OK: LED_PIXEL index=0,Check LED index 0 can be addressed
 LED_PATTERN PACIFICA,1500,OK: LED_PATTERN PACIFICA,Check animated PACIFICA pattern
 LED_PATTERN FIRE,1500,OK: LED_PATTERN FIRE,Check animated FIRE pattern
+LED_AUTO 1,500,OK: LED_AUTO 1,Enable automatic plotter status LED mode
+LED_STATUS_SET IDLE,1200,OK: LED_STATUS_SET IDLE,Check idle breath pattern
+LED_STATUS_SET HOMING,1200,OK: LED_STATUS_SET HOMING,Check homing chase pattern
+LED_STATUS_SET DRAWING_PEN_UP,1200,OK: LED_STATUS_SET DRAWING_PEN_UP,Check pen-up travel chase pattern
+LED_STATUS_SET DRAWING_PEN_DOWN,1200,OK: LED_STATUS_SET DRAWING_PEN_DOWN,Check drawing chase pattern
+LED_STATUS_SET PAUSED,1200,OK: LED_STATUS_SET PAUSED,Check paused alert pattern
+LED_STATUS_SET COMPLETED,1200,OK: LED_STATUS_SET COMPLETED,Check success sweep pattern
+LED_STATUS_SET ERROR,1200,OK: LED_STATUS_SET ERROR,Check error alert pattern
+LED_AUTO 0,500,OK: LED_AUTO 0,Return to manual mode before LED_OFF
 LED_OFF,500,OK: LED_OFF,Turn LEDs off after test
 LED_STATUS,500,LED_STATUS,Confirm final LED state

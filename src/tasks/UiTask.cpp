@@ -472,6 +472,7 @@ void uiTask(void*) {
   }
   neopixel_controller.begin();
   led_pattern_engine.begin(neopixel_controller);
+  led_pattern_engine.setStatus(LedStatus::IDLE);
 
   StatusMessage status;
   StatusMessage displayed_status;

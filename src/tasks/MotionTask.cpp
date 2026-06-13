@@ -40,6 +40,16 @@ void syncJobActiveFlag() {
                              job_controller.isRunning();
 }
 
+void postLedStatus(LedStatus status) {
+  if (led_command_queue == nullptr) return;
+  LedCommand command{};
+  command.type = LedCommandType::SET_STATUS;
+  command.status = status;
+  if (xQueueSend(led_command_queue, &command, 0) != pdTRUE) {
+    logMessage("WARN: LedCommandQueue full status dropped");
+  }
+}
+
 void setMotionActive(bool active) {
   if (machine_state.motion_active == active) return;
   machine_state.motion_active = active;
@@ -143,6 +153,7 @@ bool stopForAbort(const char* context) {
   if (job_controller.isActive() || job_controller.isRunning()) {
     job_controller.markAborted("abort requested");
   }
+  postLedStatus(LedStatus::ERROR);
   logMessage("%s: abort requested", context);
   return true;
 }
@@ -156,6 +167,7 @@ bool waitForMotionOrLimit(const MotionSyncReference& reference) {
     safety_manager.poll();
     if (safety_manager.isAlarmed()) {
       stepper_backend.stop();
+      postLedStatus(LedStatus::ERROR);
       logMessage("Motion stopped: alarm reason=%s", safety_manager.alarmReason());
       return false;
     }
@@ -177,6 +189,7 @@ void handleTimedSegmentQueueError(const MotionSyncReference& reference,
   safety_manager.setAlarm("timed segment queue lost position confidence");
   machine_state.alarmed = true;
   invalidateHomed("timed segment queue error");
+  postLedStatus(LedStatus::ERROR);
   logMessage("%s: ERROR position confidence lost; resynced from backend X=%.3f Y=%.3f A=%ld B=%ld",
              context, machine_state.x_mm, machine_state.y_mm,
              machine_state.a_steps, machine_state.b_steps);
@@ -199,6 +212,7 @@ bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start,
     safety_manager.poll();
     if (safety_manager.isAlarmed()) {
       stepper_backend.stop();
+      postLedStatus(LedStatus::ERROR);
       logMessage("Motion stopped while queueing segment: alarm reason=%s",
                  safety_manager.alarmReason());
       return false;
@@ -309,14 +323,17 @@ bool prepareJobBeginAutoHome() {
   }
 
   logMessage("JOB_BEGIN AUTO_HOME start");
+  postLedStatus(LedStatus::HOMING);
   if (!homing_controller.runHome(stepper_backend, safety_manager,
                                  machine_state)) {
     machine_state.alarmed = safety_manager.isAlarmed();
     job_controller.markFailed("auto_home_failed");
+    postLedStatus(LedStatus::ERROR);
     logMessage("JOB_BEGIN rejected reason=auto_home_failed");
     return false;
   }
   logMessage("JOB_BEGIN AUTO_HOME OK");
+  postLedStatus(LedStatus::COMPLETED);
   return true;
 }
 
@@ -639,11 +656,15 @@ bool handleXYBatch(const CommandMessage& first_command) {
              static_cast<unsigned>(planner_queue.count()),
              JUNCTION_DEVIATION_MM, CLASSIC_JERK_LIMIT_MM_S);
 
+  postLedStatus(machine_state.pen_down ? LedStatus::DRAWING_PEN_DOWN
+                                       : LedStatus::DRAWING_PEN_UP);
   const size_t planned_count = planner_queue.count();
   for (size_t index = 0; index < planned_count; ++index) {
     MotionBlock* planned_block = planner_queue.at(index);
     if (planned_block == nullptr ||
         !executePlannedBlock(*planned_block, index, planned_count)) {
+      postLedStatus(safety_manager.isAlarmed() ? LedStatus::ERROR
+                                               : LedStatus::WARNING);
       clearMotionQueues("XY execution failed");
       return false;
     }
@@ -655,6 +676,9 @@ bool handleXYBatch(const CommandMessage& first_command) {
   machine_state.feed_mm_min = planned_feed_mm_min;
   warnIfDriftDetected();
   clearMotionQueues("XY complete", false);
+  if (!job_controller.isRunning()) {
+    postLedStatus(LedStatus::IDLE);
+  }
   return true;
 }
 
@@ -696,21 +720,25 @@ void handleJobEnd() {
 
   pen_controller.penUp();
   machine_state.pen_down = false;
+  postLedStatus(LedStatus::DRAWING_PEN_UP);
   logMessage("JOB_END pen up before park");
 
   if (!moveToJobEndPark()) {
     job_controller.markFailed("job_end_park_failed");
+    postLedStatus(LedStatus::ERROR);
     logMessage("JOB_END failed reason=park_failed");
     return;
   }
   if (!motor_melody_controller.playJobEndJingle(stepper_backend, tmc_manager,
                                                 safety_manager)) {
     job_controller.markFailed("job_end_jingle_failed");
+    postLedStatus(LedStatus::ERROR);
     logMessage("JOB_END failed reason=jingle_failed");
     return;
   }
   job_controller.endJob(currentJobPreflight(), safety_manager, machine_state,
                         pen_controller);
+  postLedStatus(LedStatus::COMPLETED);
 }
 
 void handleABTimed(const CommandMessage& command) {
@@ -877,11 +905,13 @@ void motionTask(void*) {
       case CommandType::PEN_UP:
         pen_controller.penUp();
         machine_state.pen_down = false;
+        postLedStatus(LedStatus::DRAWING_PEN_UP);
         logMessage("PEN UP");
         break;
       case CommandType::PEN_DOWN:
         pen_controller.penDown();
         machine_state.pen_down = true;
+        postLedStatus(LedStatus::DRAWING_PEN_DOWN);
         logMessage("PEN DOWN");
         break;
       case CommandType::SELFTEST:
@@ -896,9 +926,13 @@ void motionTask(void*) {
       case CommandType::HOME:
         if (ensureTmcReadyForMotion("HOME")) {
           clearMotionQueues("HOME start");
+          postLedStatus(LedStatus::HOMING);
           if (homing_controller.runHome(stepper_backend, safety_manager,
                                         machine_state)) {
             resetDriftReference("HOME");
+            postLedStatus(LedStatus::COMPLETED);
+          } else {
+            postLedStatus(LedStatus::ERROR);
           }
           clearMotionQueues("HOME end");
         }
@@ -906,9 +940,13 @@ void motionTask(void*) {
       case CommandType::HOME_X:
         if (ensureTmcReadyForMotion("HOME_X")) {
           clearMotionQueues("HOME_X start");
+          postLedStatus(LedStatus::HOMING);
           if (homing_controller.runHomeX(stepper_backend, safety_manager,
                                          machine_state)) {
             resetDriftReference("HOME_X");
+            postLedStatus(LedStatus::COMPLETED);
+          } else {
+            postLedStatus(LedStatus::ERROR);
           }
           clearMotionQueues("HOME_X end");
         }
@@ -916,9 +954,13 @@ void motionTask(void*) {
       case CommandType::HOME_Y:
         if (ensureTmcReadyForMotion("HOME_Y")) {
           clearMotionQueues("HOME_Y start");
+          postLedStatus(LedStatus::HOMING);
           if (homing_controller.runHomeY(stepper_backend, safety_manager,
                                          machine_state)) {
             resetDriftReference("HOME_Y");
+            postLedStatus(LedStatus::COMPLETED);
+          } else {
+            postLedStatus(LedStatus::ERROR);
           }
           clearMotionQueues("HOME_Y end");
         }
@@ -938,6 +980,7 @@ void motionTask(void*) {
         }
         safety_manager.clearAlarm();
         machine_state.alarmed = false;
+        postLedStatus(LedStatus::IDLE);
         logMessage("ALARM_CLEAR complete");
         break;
       case CommandType::ABORT:
@@ -950,6 +993,7 @@ void motionTask(void*) {
         if (job_controller.isActive() || job_controller.isRunning()) {
           job_controller.markAborted("abort requested");
         }
+        postLedStatus(LedStatus::ERROR);
         logMessage("ABORT complete");
         break;
       case CommandType::JOB_BEGIN:
@@ -959,6 +1003,10 @@ void motionTask(void*) {
                                     tmc_manager)) {
           resetGcodeModalForJob();
           resetDriftReference("JOB_BEGIN");
+          postLedStatus(machine_state.pen_down ? LedStatus::DRAWING_PEN_DOWN
+                                               : LedStatus::DRAWING_PEN_UP);
+        } else if (safety_manager.isAlarmed()) {
+          postLedStatus(LedStatus::ERROR);
         }
         break;
       case CommandType::JOB_END:
@@ -972,6 +1020,7 @@ void motionTask(void*) {
           safety_manager.setAlarm("job abort requested");
           machine_state.alarmed = true;
           invalidateHomed("job abort requested");
+          postLedStatus(LedStatus::WARNING);
           logMessage("JOB_ABORT complete");
         }
         break;
@@ -1008,6 +1057,8 @@ void motionTask(void*) {
       case CommandType::LED_PATTERN:
       case CommandType::LED_BRIGHTNESS:
       case CommandType::LED_PARAM:
+      case CommandType::LED_AUTO:
+      case CommandType::LED_STATUS_SET:
       case CommandType::LED_STATUS:
       case CommandType::INVALID:
         break;
@@ -1016,6 +1067,7 @@ void motionTask(void*) {
     if (machine_state.alarmed && (job_controller.isActive() ||
                                   job_controller.isRunning())) {
       job_controller.markFailed(safety_manager.alarmReason());
+      postLedStatus(LedStatus::ERROR);
     }
     syncJobActiveFlag();
     publishStatus();

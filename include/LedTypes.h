@@ -18,6 +18,23 @@ enum class LedPattern : uint8_t {
   MANUAL,
   PACIFICA,
   FIRE,
+  BREATH,
+  CHASE,
+  PROGRESS,
+  ALERT,
+  SUCCESS,
+};
+
+enum class LedStatus : uint8_t {
+  IDLE,
+  HOMING,
+  DRAWING_PEN_UP,
+  DRAWING_PEN_DOWN,
+  PROCESSING,
+  PAUSED,
+  COMPLETED,
+  WARNING,
+  ERROR,
 };
 
 enum class LedParameter : uint8_t {
@@ -37,6 +54,8 @@ enum class LedCommandType : uint8_t {
   SET_PATTERN,
   SET_BRIGHTNESS,
   SET_PARAMETER,
+  SET_AUTO,
+  SET_STATUS,
   STATUS,
 };
 
@@ -59,4 +78,5 @@ struct LedCommand {
   uint8_t g = 0;
   uint8_t b = 0;
   uint8_t value = 0;
+  LedStatus status = LedStatus::IDLE;
 };

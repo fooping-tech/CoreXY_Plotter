@@ -12,8 +12,10 @@ void Diagnostics::printHelp() {
   logMessage("JOB_BEGIN JOB_END JOB_ABORT JOB_STATUS");
   logMessage("PENUP PENDOWN SELFTEST TMC_INIT TMC_STATUS");
   logMessage("G0/G1 X Y F G4 P<ms> G20 G21 G28 G90 G91 M3 M5 M114");
-  logMessage("LED <r> <g> <b> LED_PIXEL <index> <r> <g> <b> LED_OFF LED_STATUS");
-  logMessage("LED_PATTERN <OFF|SOLID|PACIFICA|FIRE> LED_BRIGHTNESS <value> LED_PARAM <name> <value> MELODY");
+  logMessage("LED <r> <g> <b> LED_PIXEL <index> <r> <g> <b> LED_OFF LED_AUTO <0|1> LED_STATUS");
+  logMessage("LED_PATTERN <OFF|SOLID|PACIFICA|FIRE|BREATH|CHASE|PROGRESS|ALERT|SUCCESS>");
+  logMessage("LED_STATUS_SET <IDLE|HOMING|DRAWING_PEN_UP|DRAWING_PEN_DOWN|PROCESSING|PAUSED|COMPLETED|WARNING|ERROR>");
+  logMessage("LED_BRIGHTNESS <value> LED_PARAM <name> <value> MELODY");
 }
 
 void Diagnostics::printConfig() {

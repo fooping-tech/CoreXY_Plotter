@@ -7,6 +7,8 @@ bool isLedCommand(CommandType type) {
   return type == CommandType::LED || type == CommandType::LED_PIXEL ||
          type == CommandType::LED_OFF || type == CommandType::LED_PATTERN ||
          type == CommandType::LED_BRIGHTNESS || type == CommandType::LED_PARAM ||
+         type == CommandType::LED_AUTO ||
+         type == CommandType::LED_STATUS_SET ||
          type == CommandType::LED_STATUS;
 }
 

@@ -712,6 +712,11 @@ GPIO33へ接続した外付けNEOPIXELを設定灯数で制御し、bring-upと�
 - [x] `SOLID`
 - [x] `PACIFICA`
 - [x] `FIRE`
+- [x] `BREATH`
+- [x] `CHASE`
+- [x] `PROGRESS`
+- [x] `ALERT`
+- [x] `SUCCESS`
 - [x] FastLEDのPacifica例を参考に`PACIFICA`を実装する
 - [x] FastLEDのFire2012例を参考に`FIRE`を実装する
 - [x] パターン追加時に`NeoPixelController`を変更せず追加できる構造にする
@@ -737,12 +742,17 @@ GPIO33へ接続した外付けNEOPIXELを設定灯数で制御し、bring-upと�
 - [x] `LED_PATTERN <OFF|SOLID|PACIFICA|FIRE>`
 - [x] `LED_BRIGHTNESS <0..NEOPIXEL_BRIGHTNESS_MAX>`
 - [x] `LED_PARAM <BRIGHTNESS|HUE|SATURATION|SPEED|INTENSITY|COOLING|SPARKING> <value>`
+- [x] `LED_AUTO <0|1>`
+- [x] `LED_STATUS_SET <IDLE|HOMING|DRAWING_PEN_UP|DRAWING_PEN_DOWN|PROCESSING|PAUSED|COMPLETED|WARNING|ERROR>`
 - [x] `LED_STATUS`
 - [x] RGB値の0〜255範囲を検証する
 - [x] indexが`0 <= index < NEOPIXEL_LED_COUNT`であることを検証する
 - [x] parameter値を範囲検証する
 - [x] command処理と描画処理を分離し、外部引数は`LedAnimationConfig`へ反映する
 - [x] 描画中の`LedAnimationConfig`更新で不整合が起きないようにする
+- [x] 手動表示と自動状態表示を`auto_status_enabled`で分離する
+- [x] Core 1側状態変化は`LedCommandQueue`経由でCore 0側LED engineへ渡す
+- [x] Homing、Pen Up/Down、Job開始/完了/Abort、Alarm/Errorの主要状態から`LedStatus`を更新する
 - [x] 将来Touch/Button、WebUI、Serial以外の入力元から同じ設定APIを呼べる構造にする
 - [x] LED更新でmotion処理をブロックしない
 
@@ -2271,6 +2281,7 @@ Phase 6.9を実装してください。
 | 2026-06-13 | Image to G-codeの中間SVGで元画像bboxの縦横比を保持するよう修正。Trace Detail設定（High/Balanced/Simple）と濃色領域ハッチング設定（threshold/pitch）を追加し、アスペクト比保持とhatchingの単体テストを追加 | Codex |
 | 2026-06-13 | Core2 LCDとHost WebUIの状態表示を`ALARM > HOMING > MOVING > RUNNING > NEED HOME > READY`の優先順位へ統一。`MachineState`へ`motion_active`/`job_active`を追加し、timed segment中はREADYではなくMOVING、Job Lifecycle中はRUNNING表示にした | Codex |
 | 2026-06-13 | Phase 11親チェックリストを棚卸し。G28統合、軸別homing、homed前移動制限、TMC基本status/UART失敗検出を完了へ更新し、WebUI、USB G-code streaming、Job Lifecycle接続は実機確認残りのため一部完了へ整理 | Codex |
+| 2026-06-13 | NeoPixel状態連動表示を追加。`BREATH`/`CHASE`/`PROGRESS`/`ALERT`/`SUCCESS`、`LedStatus`、`LED_AUTO`、`LED_STATUS_SET`、主要motion/job/alarm状態からの自動表示更新、LED check CSV/手順更新を実装 | Codex |
 
 ---
 

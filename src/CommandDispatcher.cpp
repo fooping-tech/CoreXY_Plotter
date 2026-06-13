@@ -18,7 +18,35 @@ bool parsePattern(const char* text, LedPattern& pattern) {
   else if (strcmp(text, "SOLID") == 0) pattern = LedPattern::SOLID;
   else if (strcmp(text, "PACIFICA") == 0) pattern = LedPattern::PACIFICA;
   else if (strcmp(text, "FIRE") == 0) pattern = LedPattern::FIRE;
+  else if (strcmp(text, "BREATH") == 0) pattern = LedPattern::BREATH;
+  else if (strcmp(text, "CHASE") == 0) pattern = LedPattern::CHASE;
+  else if (strcmp(text, "PROGRESS") == 0) pattern = LedPattern::PROGRESS;
+  else if (strcmp(text, "ALERT") == 0) pattern = LedPattern::ALERT;
+  else if (strcmp(text, "SUCCESS") == 0) pattern = LedPattern::SUCCESS;
   else return false;
+  return true;
+}
+
+bool parseLedStatus(const char* text, LedStatus& status) {
+  if (strcmp(text, "IDLE") == 0) status = LedStatus::IDLE;
+  else if (strcmp(text, "HOMING") == 0) status = LedStatus::HOMING;
+  else if (strcmp(text, "DRAWING_PEN_UP") == 0) {
+    status = LedStatus::DRAWING_PEN_UP;
+  } else if (strcmp(text, "DRAWING_PEN_DOWN") == 0) {
+    status = LedStatus::DRAWING_PEN_DOWN;
+  } else if (strcmp(text, "PROCESSING") == 0) {
+    status = LedStatus::PROCESSING;
+  } else if (strcmp(text, "PAUSED") == 0) {
+    status = LedStatus::PAUSED;
+  } else if (strcmp(text, "COMPLETED") == 0) {
+    status = LedStatus::COMPLETED;
+  } else if (strcmp(text, "WARNING") == 0) {
+    status = LedStatus::WARNING;
+  } else if (strcmp(text, "ERROR") == 0) {
+    status = LedStatus::ERROR;
+  } else {
+    return false;
+  }
   return true;
 }
 
@@ -78,6 +106,26 @@ CommandMessage CommandDispatcher::parse(const char* line) {
   } else if (strcmp(name, "LED_STATUS") == 0) {
     command.type = CommandType::LED_STATUS;
     command.led.type = LedCommandType::STATUS;
+  } else if (strcmp(name, "LED_AUTO") == 0) {
+    int enabled = 0;
+    if (sscanf(line, "%*s %d", &enabled) != 1 ||
+        (enabled != 0 && enabled != 1)) {
+      snprintf(command.error, sizeof(command.error), "LED_AUTO requires 0 or 1");
+      return command;
+    }
+    command.type = CommandType::LED_AUTO;
+    command.led.type = LedCommandType::SET_AUTO;
+    command.led.value = enabled ? 1 : 0;
+  } else if (strcmp(name, "LED_STATUS_SET") == 0) {
+    char status_name[24] = {};
+    if (sscanf(line, "%*s %23s", status_name) != 1 ||
+        !parseLedStatus(status_name, command.led.status)) {
+      snprintf(command.error, sizeof(command.error),
+               "LED_STATUS_SET requires IDLE|HOMING|DRAWING_PEN_UP|DRAWING_PEN_DOWN|PROCESSING|PAUSED|COMPLETED|WARNING|ERROR");
+      return command;
+    }
+    command.type = CommandType::LED_STATUS_SET;
+    command.led.type = LedCommandType::SET_STATUS;
   } else if (strcmp(name, "MELODY") == 0) {
     command.type = CommandType::MELODY;
   } else if (strcmp(name, "LED") == 0) {
@@ -106,7 +154,8 @@ CommandMessage CommandDispatcher::parse(const char* line) {
     char pattern[16] = {};
     if (sscanf(line, "%*s %15s", pattern) != 1 ||
         !parsePattern(pattern, command.led.pattern)) {
-      snprintf(command.error, sizeof(command.error), "LED_PATTERN requires OFF|SOLID|PACIFICA|FIRE");
+      snprintf(command.error, sizeof(command.error),
+               "LED_PATTERN requires OFF|SOLID|PACIFICA|FIRE|BREATH|CHASE|PROGRESS|ALERT|SUCCESS");
       return command;
     }
     command.type = CommandType::LED_PATTERN;

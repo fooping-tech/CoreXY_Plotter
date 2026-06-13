@@ -33,6 +33,8 @@ enum class CommandType {
   LED_PATTERN,
   LED_BRIGHTNESS,
   LED_PARAM,
+  LED_AUTO,
+  LED_STATUS_SET,
   LED_STATUS,
   MELODY,
   GCODE,

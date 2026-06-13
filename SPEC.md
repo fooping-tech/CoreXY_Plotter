@@ -768,20 +768,38 @@ homing完了直後の退避移動では、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範�
 | 信号 | `NEOPIXEL_PIN = 33` |
 | LED数 | `NEOPIXEL_LED_COUNT`でビルド時に任意設定 |
 | 初期状態 | 消灯 |
-| 手動操作 | `LED <r> <g> <b>` / `LED_PIXEL <index> <r> <g> <b>` / `LED_OFF` |
-| 更新元 | Core 0のUI側 |
+| 手動操作 | `LED <r> <g> <b>` / `LED_PIXEL <index> <r> <g> <b>` / `LED_PATTERN ...` / `LED_OFF` |
+| 自動状態表示 | `LED_AUTO 1`時に`LedStatus`から表示pattern/colorへ変換する |
+| 診断操作 | `LED_STATUS_SET <status>`で自動状態表示を手動確認できる |
+| 更新元 | Core 0のUI側。Core 1側状態変化は`LedCommandQueue`へ投入する |
 
 実装ルール:
 
 - NEOPIXEL制御は`NeoPixelController`に閉じ込める
 - Core 1からNEOPIXEL APIを直接呼ばない
-- 状態連動表示を追加する場合はCore 1から`StatusQueue`で受け取った状態を使う
+- Core 1から状態連動表示を変える場合は`LedCommandQueue`へ`LedCommandType::SET_STATUS`を投入し、Core 0側`LedPatternEngine`で描画する
 - LED更新でmotion、safety、stepper処理をブロックしない
 - 輝度上限を設定し、初期値は低輝度にする
 - `GPIO33`を他用途と同時使用しない
 - `LED`は全灯一括、`LED_PIXEL`はindex指定で更新する
 - indexは`0 <= index < NEOPIXEL_LED_COUNT`の範囲で検証する
 - 灯数に応じて電源容量と配線を確認する
+
+状態表示pattern:
+
+| `LedStatus` | Pattern | Color | 用途 |
+|---|---|---|---|
+| `IDLE` | `BREATH` | 暗い青 | 待機、ready、接続待ち |
+| `HOMING` | `CHASE` | 黄 | homing動作中 |
+| `DRAWING_PEN_UP` | `CHASE` | 青 | pen up移動 |
+| `DRAWING_PEN_DOWN` | `CHASE` | 緑 | 描画中 |
+| `PROCESSING` | `PACIFICA` | 紫寄り | ホスト側画像変換やG-code生成の将来連携 |
+| `PAUSED` | `ALERT` | 黄 | pause相当 |
+| `COMPLETED` | `SUCCESS` | 緑 | job完了、homing成功 |
+| `WARNING` | `ALERT` | オレンジ | job abort、注意 |
+| `ERROR` | `ALERT` | 赤 | alarm、error、limit異常 |
+
+`LED`、`LED_PIXEL`、`LED_PATTERN`、`LED_OFF`は手動表示として扱い、`auto_status_enabled`をfalseにする。自動状態表示へ戻す場合は`LED_AUTO 1`を送る。
 
 ---
 
