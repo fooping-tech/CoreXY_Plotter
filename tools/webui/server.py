@@ -718,6 +718,14 @@ class WebUIHandler(SimpleHTTPRequestHandler):
         # every /api/state poll can create a feedback loop and slow controls.
         return
 
+    def end_headers(self) -> None:
+        path = urlparse(self.path).path
+        if path in {"/", "/index.html"} or path.endswith((".html", ".js", ".css")):
+            self.send_header("Cache-Control", "no-store, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        super().end_headers()
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/api/ports":

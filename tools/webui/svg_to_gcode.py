@@ -440,8 +440,9 @@ def strokes_to_gcode(strokes: list[Stroke], options: SvgToGcodeOptions) -> str:
     lines = ["G21", "G90", "M5"]
     for stroke in strokes:
         start = stroke[0]
+        if lines[-1] != "M5":
+            lines.append("M5")
         lines.extend([
-            "M5",
             f"G0 X{fmt(start[0])} Y{fmt(start[1])} F{fmt(options.travel_feed_mm_min)}",
             "M3",
         ])

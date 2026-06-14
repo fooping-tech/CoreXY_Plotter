@@ -957,6 +957,63 @@ h2 {
   gap: 8px 12px;
 }
 
+.fun-stack {
+  max-width: 920px;
+}
+
+.range-value {
+  color: var(--accent-cyan);
+  font-weight: 800;
+}
+
+.fun-svg-preview {
+  width: 100%;
+  aspect-ratio: 60 / 55;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: #f7f9fb;
+  overflow: hidden;
+}
+
+.fun-svg-preview svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.checkbox-label {
+  align-content: end;
+  grid-template-columns: 18px 1fr;
+  min-height: 38px;
+  align-items: center;
+}
+
+.checkbox-label input {
+  width: 16px;
+  min-height: 16px;
+}
+
+.portrait-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.portrait-preview {
+  width: 100%;
+  aspect-ratio: 60 / 55;
+  display: block;
+  margin-top: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: #07090d;
+  object-fit: contain;
+}
+
+.hidden-canvas {
+  display: none;
+}
+
 .settings-status {
   margin-top: 12px;
   min-height: 18px;
@@ -983,7 +1040,8 @@ h2 {
 
   .dashboard-grid,
   .control-grid,
-  .job-grid {
+  .job-grid,
+  .portrait-preview-grid {
     grid-template-columns: 1fr;
   }
 

@@ -2285,6 +2285,9 @@ Phase 6.9を実装してください。
 | 2026-06-13 | Phase 11親チェックリストを棚卸し。G28統合、軸別homing、homed前移動制限、TMC基本status/UART失敗検出を完了へ更新し、WebUI、USB G-code streaming、Job Lifecycle接続は実機確認残りのため一部完了へ整理 | Codex |
 | 2026-06-13 | NeoPixel状態連動表示を追加。`BREATH`/`CHASE`/`PROGRESS`/`ALERT`/`SUCCESS`、`LedStatus`、`LED_AUTO`、`LED_STATUS_SET`、主要motion/job/alarm状態からの自動表示更新、LED check CSV/手順更新を実装 | Codex |
 | 2026-06-13 | NeoPixel自動演出を組み込み強化。状態優先順位、`COMPLETED`/`WARNING`の短時間保持と`IDLE`自動復帰、診断用`LED_STATUS_SET`の強制適用を追加 | Codex |
+| 2026-06-14 | WebUI Funタブを調整。Mazeを3mm/1mm path幅とS/G線画付きに変更し、Lissajous/Gridへ生成前previewを追加、Fun生成後は既存Job layoutへ遷移するようにした。Webcam Portraitは輪郭線に暗部hatchingを重ねるボールペン線画寄り処理へ変更。READY/IDLE LED自動表示はBREATHからPACIFICAへ変更 | Codex |
+| 2026-06-14 | Fun MazeのSVG出力をセル壁ごとの`line`から、接続壁componentをDFS walkした長い`polyline`へ変更。1mm/2mm刻みの壁ごとにpen up/downする問題を軽減し、S/G文字は小さめの独立strokeとして維持 | Codex |
+| 2026-06-14 | Fun MazeのS/G文字も個別`line`から連続`polyline`へ変更し、Hard maze変換結果を4 strokes（壁2、S、G）へ削減。SVG to G-codeのstroke間に出ていた重複`M5`も除去 | Codex |
 
 ---
 

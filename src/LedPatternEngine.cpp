@@ -7,10 +7,10 @@
 void LedPatternEngine::begin(NeoPixelController& controller) {
   controller_ = &controller;
   config_.brightness = NEOPIXEL_BRIGHTNESS_DEFAULT;
+  pattern_ = static_cast<LedPattern>(NEOPIXEL_INITIAL_PATTERN);
   controller_->setBrightness(config_.brightness);
   controller_->off();
   applyStatusConfig(LedStatus::IDLE, millis());
-  pattern_ = static_cast<LedPattern>(NEOPIXEL_INITIAL_PATTERN);
 }
 
 void LedPatternEngine::tick(uint32_t now_ms) {
@@ -167,12 +167,15 @@ void LedPatternEngine::applyStatusConfig(LedStatus status, uint32_t now_ms) {
   transient_until_ms_ = 0;
   switch (status) {
     case LedStatus::IDLE:
-      pattern_ = LedPattern::BREATH;
-      active_color_ = {0, 24, 80};
+      pattern_ = LedPattern::PACIFICA;
+      active_color_ = {0, 90, 120};
       config_.brightness = NEOPIXEL_BRIGHTNESS_DEFAULT > 16
                                 ? 16
                                 : NEOPIXEL_BRIGHTNESS_DEFAULT;
-      config_.speed = 48;
+      config_.hue = 176;
+      config_.saturation = 160;
+      config_.speed = 42;
+      config_.intensity = 120;
       break;
     case LedStatus::HOMING:
       pattern_ = LedPattern::CHASE;

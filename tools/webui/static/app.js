@@ -14,6 +14,13 @@ const DEFAULT_SEND_SETTINGS = {
   queueRetryDelayMs: 250,
   queueRetryTimeoutS: 10,
 };
+const LISSAJOUS_PRESETS = {
+  classic: { a: 3, b: 2, phase: 90, samples: 800 },
+  flower: { a: 5, b: 4, phase: 45, samples: 1000 },
+  knot: { a: 7, b: 3, phase: 120, samples: 1400 },
+  ribbon: { a: 4, b: 1, phase: 30, samples: 900 },
+  orbit: { a: 9, b: 8, phase: 90, samples: 1800 },
+};
 
 const app = {
   page: "dashboard",
@@ -34,6 +41,8 @@ const app = {
   intermediateSvg: "",
   imageButtonBusyText: "",
   imageButtonBusyTimer: null,
+  portraitStream: null,
+  portraitCaptured: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -1188,6 +1197,617 @@ function downloadIntermediateSvg() {
   URL.revokeObjectURL(url);
 }
 
+function workAreaMm() {
+  return {
+    widthMm: SOFT_LIMIT.maxX - SOFT_LIMIT.minX,
+    heightMm: SOFT_LIMIT.maxY - SOFT_LIMIT.minY,
+  };
+}
+
+function svgNumberAttr(value) {
+  return Number(value).toFixed(3).replace(/\.?0+$/, "");
+}
+
+function funSvg(inner) {
+  const { widthMm, heightMm } = workAreaMm();
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${widthMm}mm" height="${heightMm}mm" viewBox="0 0 ${widthMm} ${heightMm}">`,
+    `<g stroke="black" fill="none" stroke-width="0.2" stroke-linecap="round" stroke-linejoin="round">`,
+    inner,
+    "</g>",
+    "</svg>",
+  ].join("");
+}
+
+async function addFunSvgToJob(svg, name, options = {}) {
+  const { widthMm, heightMm } = workAreaMm();
+  const result = await api("/api/gcode/from-svg", {
+    method: "POST",
+    body: JSON.stringify({
+      svg,
+      width_mm: widthMm,
+      height_mm: heightMm,
+      margin_mm: options.margin_mm ?? 1,
+      feed_mm_min: options.feed_mm_min ?? 900,
+      travel_feed_mm_min: options.travel_feed_mm_min ?? 1200,
+      simplify_tolerance_mm: options.simplify_tolerance_mm ?? 0.1,
+      min_stroke_length_mm: options.min_stroke_length_mm ?? 0.3,
+      optimize_stroke_order: options.optimize_stroke_order ?? true,
+    }),
+    timeoutMs: options.timeoutMs ?? 30000,
+  });
+  addGcodeText(name || result.filename || "fun_generated.gcode", result.gcode);
+  return result;
+}
+
+function fnv1aSeed(text) {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededRandom(seedText) {
+  let state = fnv1aSeed(seedText || String(Date.now())) || 1;
+  return () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return ((state >>> 0) / 4294967296);
+  };
+}
+
+function randomSeedText() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function mazeLetterPoints(letter, cx, cy, size) {
+  const w = size;
+  const h = size * 1.4;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  if (letter === "S") {
+    return [
+      { x: x + w, y },
+      { x, y },
+      { x, y: y + h / 2 },
+      { x: x + w, y: y + h / 2 },
+      { x: x + w, y: y + h },
+      { x, y: y + h },
+    ];
+  }
+  return [
+    { x: x + w, y: y + h * 0.25 },
+    { x: x + w, y },
+    { x, y },
+    { x, y: y + h },
+    { x: x + w, y: y + h },
+    { x: x + w, y: y + h * 0.58 },
+    { x: x + w * 0.55, y: y + h * 0.58 },
+  ];
+}
+
+function mazePointKey(x, y) {
+  return `${svgNumberAttr(x)},${svgNumberAttr(y)}`;
+}
+
+function mazeWallWalks(edgeCoords) {
+  const points = new Map();
+  const graph = new Map();
+  const edges = [];
+  const seen = new Set();
+
+  const addPoint = (x, y) => {
+    const key = mazePointKey(x, y);
+    if (!points.has(key)) points.set(key, { x, y });
+    if (!graph.has(key)) graph.set(key, new Set());
+    return key;
+  };
+
+  edgeCoords.forEach(([x1, y1, x2, y2]) => {
+    if (Math.abs(x1 - x2) < 0.0001 && Math.abs(y1 - y2) < 0.0001) return;
+    const a = addPoint(x1, y1);
+    const b = addPoint(x2, y2);
+    const edgeKey = a < b ? `${a}|${b}` : `${b}|${a}`;
+    if (seen.has(edgeKey)) return;
+    seen.add(edgeKey);
+    const id = edges.length;
+    edges.push({ a, b, used: false });
+    graph.get(a).add(id);
+    graph.get(b).add(id);
+  });
+
+  const sortedUnusedEdges = (key) => [...(graph.get(key) || [])]
+    .filter((id) => !edges[id].used)
+    .sort((a, b) => a - b);
+
+  const walks = [];
+  for (const start of graph.keys()) {
+    if (sortedUnusedEdges(start).length === 0) continue;
+    const walk = [points.get(start)];
+    const visit = (key) => {
+      for (const edgeId of sortedUnusedEdges(key)) {
+        const edge = edges[edgeId];
+        if (edge.used) continue;
+        edge.used = true;
+        const next = edge.a === key ? edge.b : edge.a;
+        walk.push(points.get(next));
+        visit(next);
+        walk.push(points.get(key));
+      }
+    };
+    visit(start);
+    if (walk.length > 1) walks.push(walk);
+  }
+  return walks;
+}
+
+function mazePolyline(trail) {
+  const points = trail.map((point) => `${svgNumberAttr(point.x)},${svgNumberAttr(point.y)}`).join(" ");
+  return `<polyline points="${points}" />`;
+}
+
+function generateMazeSvg(difficulty, seedText) {
+  const { widthMm, heightMm } = workAreaMm();
+  const pathWidth = difficulty === "hard" ? 1 : 3;
+  const cellSize = pathWidth * 2;
+  const cols = Math.floor(widthMm / cellSize);
+  const rows = Math.floor(heightMm / cellSize);
+  if (cols < 2 || rows < 2) {
+    throw new Error("Maze area is too small for the selected difficulty");
+  }
+  const rand = seededRandom(seedText);
+  const cells = Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => ({ visited: false, n: true, e: true, s: true, w: true })),
+  );
+  const stack = [{ r: 0, c: 0 }];
+  cells[0][0].visited = true;
+  while (stack.length) {
+    const current = stack[stack.length - 1];
+    const dirs = [
+      { key: "n", opposite: "s", dr: -1, dc: 0 },
+      { key: "e", opposite: "w", dr: 0, dc: 1 },
+      { key: "s", opposite: "n", dr: 1, dc: 0 },
+      { key: "w", opposite: "e", dr: 0, dc: -1 },
+    ].filter((dir) => {
+      const nr = current.r + dir.dr;
+      const nc = current.c + dir.dc;
+      return nr >= 0 && nr < rows && nc >= 0 && nc < cols && !cells[nr][nc].visited;
+    });
+    if (!dirs.length) {
+      stack.pop();
+      continue;
+    }
+    const dir = dirs[Math.floor(rand() * dirs.length)];
+    const next = { r: current.r + dir.dr, c: current.c + dir.dc };
+    cells[current.r][current.c][dir.key] = false;
+    cells[next.r][next.c][dir.opposite] = false;
+    cells[next.r][next.c].visited = true;
+    stack.push(next);
+  }
+  cells[0][0].w = false;
+  cells[rows - 1][cols - 1].e = false;
+  const ox = (widthMm - cols * cellSize) / 2;
+  const oy = (heightMm - rows * cellSize) / 2;
+  const wallEdges = [];
+  const addWallEdge = (x1, y1, x2, y2) => wallEdges.push([x1, y1, x2, y2]);
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      const cell = cells[r][c];
+      const x = ox + c * cellSize;
+      const y = oy + r * cellSize;
+      if (cell.n) addWallEdge(x, y, x + cellSize, y);
+      if (cell.w) addWallEdge(x, y, x, y + cellSize);
+      if (r === rows - 1 && cell.s) addWallEdge(x, y + cellSize, x + cellSize, y + cellSize);
+      if (c === cols - 1 && cell.e) addWallEdge(x + cellSize, y, x + cellSize, y + cellSize);
+    }
+  }
+  const letterSize = Math.min(cellSize * 0.55, difficulty === "hard" ? 1.0 : 2.8);
+  const wallPolylines = mazeWallWalks(wallEdges).map(mazePolyline);
+  const letterPolylines = [
+    mazePolyline(mazeLetterPoints("S", ox + cellSize * 0.5, oy + cellSize * 0.5, letterSize)),
+    mazePolyline(mazeLetterPoints("G", ox + (cols - 0.5) * cellSize, oy + (rows - 0.5) * cellSize, letterSize)),
+  ];
+  return funSvg([...wallPolylines, ...letterPolylines].join(""));
+}
+
+async function createMazeGcode() {
+  const button = $("generateMazeBtn");
+  const status = $("mazeStatus");
+  let seed = $("mazeSeed").value.trim();
+  if (!seed) {
+    seed = randomSeedText();
+    $("mazeSeed").value = seed;
+  }
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Generating...";
+  status.textContent = `Generating maze with seed ${seed}...`;
+  try {
+    const svg = generateMazeSvg($("mazeDifficulty").value, seed);
+    const result = await addFunSvgToJob(svg, "fun_maze.gcode");
+    status.textContent = `Maze added to Job layout (${result.stroke_count} stroke(s)).`;
+    appendLog({ time: Date.now(), kind: "host", message: `Added Fun maze G-code with seed ${seed}` });
+    setPage("job");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+function boundedNumber(id, fallback, min, max) {
+  const value = Number($(id).value);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function renderFunSvgPreview(containerId, svg) {
+  const container = $(containerId);
+  if (!container) return;
+  container.innerHTML = svg;
+}
+
+function setLissajousPreset(name) {
+  const preset = LISSAJOUS_PRESETS[name] || LISSAJOUS_PRESETS.classic;
+  $("lissajousA").value = String(preset.a);
+  $("lissajousB").value = String(preset.b);
+  $("lissajousPhase").value = String(preset.phase);
+  $("lissajousSamples").value = String(preset.samples);
+  updateLissajousPreview();
+}
+
+function updateLissajousReadouts() {
+  $("lissajousAValue").textContent = String(Math.round(boundedNumber("lissajousA", 3, 1, 10)));
+  $("lissajousBValue").textContent = String(Math.round(boundedNumber("lissajousB", 2, 1, 10)));
+  $("lissajousPhaseValue").textContent = String(Math.round(boundedNumber("lissajousPhase", 90, 0, 360)));
+  $("lissajousSamplesValue").textContent = String(Math.round(boundedNumber("lissajousSamples", 800, 100, 3000)));
+}
+
+function generateLissajousSvg(previewSamples = null) {
+  const { widthMm, heightMm } = workAreaMm();
+  const a = Math.round(boundedNumber("lissajousA", 3, 1, 10));
+  const b = Math.round(boundedNumber("lissajousB", 2, 1, 10));
+  const phaseRad = boundedNumber("lissajousPhase", 90, 0, 360) * Math.PI / 180;
+  const samples = previewSamples || Math.round(boundedNumber("lissajousSamples", 800, 100, 3000));
+  const margin = 2;
+  const raw = [];
+  for (let i = 0; i < samples; i += 1) {
+    const t = (Math.PI * 2 * i) / (samples - 1);
+    raw.push({ x: Math.sin(a * t + phaseRad), y: Math.sin(b * t) });
+  }
+  const minX = Math.min(...raw.map((p) => p.x));
+  const maxX = Math.max(...raw.map((p) => p.x));
+  const minY = Math.min(...raw.map((p) => p.y));
+  const maxY = Math.max(...raw.map((p) => p.y));
+  const points = raw.map((p) => {
+    const x = margin + ((p.x - minX) / (maxX - minX || 1)) * (widthMm - margin * 2);
+    const y = margin + ((p.y - minY) / (maxY - minY || 1)) * (heightMm - margin * 2);
+    return `${svgNumberAttr(x)},${svgNumberAttr(y)}`;
+  }).join(" ");
+  return funSvg(`<polyline points="${points}" />`);
+}
+
+function updateLissajousPreview() {
+  updateLissajousReadouts();
+  renderFunSvgPreview("lissajousPreview", generateLissajousSvg(420));
+}
+
+async function createLissajousGcode() {
+  const button = $("generateLissajousBtn");
+  const status = $("lissajousStatus");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Generating...";
+  status.textContent = "Generating Lissajous G-code...";
+  try {
+    const result = await addFunSvgToJob(generateLissajousSvg(), "fun_lissajous.gcode", {
+      simplify_tolerance_mm: 0.05,
+      min_stroke_length_mm: 0.2,
+    });
+    status.textContent = `Lissajous added to Job layout (${result.segment_count} segment(s)).`;
+    appendLog({ time: Date.now(), kind: "host", message: "Added Fun Lissajous G-code" });
+    setPage("job");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+function hatchLineForConstant(c, width, height) {
+  const points = [];
+  const addPoint = (x, y) => {
+    if (x >= -1e-6 && x <= width + 1e-6 && y >= -1e-6 && y <= height + 1e-6) {
+      points.push({ x: Math.min(width, Math.max(0, x)), y: Math.min(height, Math.max(0, y)) });
+    }
+  };
+  addPoint(0, c);
+  addPoint(width, width + c);
+  addPoint(-c, 0);
+  addPoint(height - c, height);
+  const unique = [];
+  points.forEach((p) => {
+    if (!unique.some((q) => Math.abs(q.x - p.x) < 0.001 && Math.abs(q.y - p.y) < 0.001)) unique.push(p);
+  });
+  if (unique.length < 2) return "";
+  return `<line x1="${svgNumberAttr(unique[0].x)}" y1="${svgNumberAttr(unique[0].y)}" x2="${svgNumberAttr(unique[1].x)}" y2="${svgNumberAttr(unique[1].y)}" />`;
+}
+
+function generateCalibrationGridSvg() {
+  const { widthMm, heightMm } = workAreaMm();
+  const grid = Math.max(1, boundedNumber("gridSpacingMm", 10, 1, 60));
+  const hatch = Math.max(1, boundedNumber("hatchSpacingMm", 10, 1, 60));
+  const parts = [`<rect x="0" y="0" width="${widthMm}" height="${heightMm}" />`];
+  for (let x = grid; x < widthMm; x += grid) {
+    parts.push(`<line x1="${svgNumberAttr(x)}" y1="0" x2="${svgNumberAttr(x)}" y2="${heightMm}" />`);
+  }
+  for (let y = grid; y < heightMm; y += grid) {
+    parts.push(`<line x1="0" y1="${svgNumberAttr(y)}" x2="${widthMm}" y2="${svgNumberAttr(y)}" />`);
+  }
+  for (let c = -widthMm; c <= heightMm; c += hatch) {
+    const line = hatchLineForConstant(c, widthMm, heightMm);
+    if (line) parts.push(line);
+  }
+  return funSvg(parts.join(""));
+}
+
+function updateCalibrationGridPreview() {
+  renderFunSvgPreview("calibrationGridPreview", generateCalibrationGridSvg());
+}
+
+async function createCalibrationGridGcode() {
+  const button = $("generateCalibrationGridBtn");
+  const status = $("calibrationGridStatus");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Generating...";
+  status.textContent = "Generating calibration grid G-code...";
+  try {
+    const result = await addFunSvgToJob(generateCalibrationGridSvg(), "fun_calibration_grid.gcode");
+    status.textContent = `Calibration grid added to Job layout (${result.stroke_count} stroke(s)).`;
+    appendLog({ time: Date.now(), kind: "host", message: "Added Fun calibration grid G-code" });
+    setPage("job");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+async function startPortraitCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("This browser does not expose webcam access");
+  }
+  if (app.portraitStream) {
+    app.portraitStream.getTracks().forEach((track) => track.stop());
+  }
+  app.portraitStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  const video = $("portraitVideo");
+  video.srcObject = app.portraitStream;
+  await video.play();
+  $("portraitStatus").textContent = "Camera running. Capture a frame when ready.";
+}
+
+function capturePortraitFrame() {
+  const video = $("portraitVideo");
+  if (!video.videoWidth || !video.videoHeight) throw new Error("Start camera before capture");
+  const canvas = $("portraitCaptureCanvas");
+  const { widthMm, heightMm } = workAreaMm();
+  canvas.width = 600;
+  canvas.height = Math.round(canvas.width * heightMm / widthMm);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.save();
+  if ($("portraitMirror").checked) {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.restore();
+  app.portraitCaptured = true;
+  $("portraitStatus").textContent = "Frame captured. Generate Portrait will trace the captured frame.";
+  drawPortraitPreview(canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height), canvas.width, canvas.height);
+}
+
+function portraitDetailSettings() {
+  const detail = $("portraitDetail").value;
+  if (detail === "simple") {
+    return { processWidth: 160, thresholdBias: 30, minPathLength: 8, hatchPitch: 10, darkThreshold: 92, maxLines: 1500 };
+  }
+  if (detail === "detailed") {
+    return { processWidth: 300, thresholdBias: -20, minPathLength: 3, hatchPitch: 5, darkThreshold: 168, maxLines: 3000 };
+  }
+  return { processWidth: 220, thresholdBias: 0, minPathLength: 5, hatchPitch: 7, darkThreshold: 132, maxLines: 2200 };
+}
+
+function drawPortraitPreview(imageData, width, height) {
+  const canvas = $("portraitProcessedCanvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").putImageData(imageData, 0, 0);
+}
+
+function drawPortraitLinePreview(segments, width, height) {
+  const canvas = $("portraitProcessedCanvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 1;
+  ctx.lineCap = "round";
+  segments.forEach((segment) => {
+    ctx.beginPath();
+    ctx.moveTo(segment.x1, segment.y1);
+    ctx.lineTo(segment.x2, segment.y2);
+    ctx.stroke();
+  });
+}
+
+function processPortraitEdges() {
+  if (!app.portraitCaptured) throw new Error("Capture a webcam frame first");
+  const capture = $("portraitCaptureCanvas");
+  const settings = portraitDetailSettings();
+  const { widthMm, heightMm } = workAreaMm();
+  const width = settings.processWidth;
+  const height = Math.round(width * heightMm / widthMm);
+  const scratch = document.createElement("canvas");
+  scratch.width = width;
+  scratch.height = height;
+  const ctx = scratch.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(capture, 0, 0, width, height);
+  const rgba = ctx.getImageData(0, 0, width, height);
+  const gray = new Float32Array(width * height);
+  const smooth = new Float32Array(width * height);
+  const centerMask = $("portraitBackgroundRemoval").value === "center_mask";
+  const invert = $("portraitInvert").checked;
+  const cx = width / 2;
+  const cy = height * 0.45;
+  const rx = width * 0.34;
+  const ry = height * 0.42;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      const k = i * 4;
+      let value = rgba.data[k] * 0.299 + rgba.data[k + 1] * 0.587 + rgba.data[k + 2] * 0.114;
+      if (centerMask) {
+        const mask = ((x - cx) ** 2) / (rx ** 2) + ((y - cy) ** 2) / (ry ** 2);
+        if (mask > 1) value = 255;
+      }
+      gray[i] = invert ? 255 - value : value;
+    }
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const i = y * width + x;
+      smooth[i] = (
+        gray[i] * 4 +
+        gray[i - 1] * 2 + gray[i + 1] * 2 + gray[i - width] * 2 + gray[i + width] * 2 +
+        gray[i - width - 1] + gray[i - width + 1] + gray[i + width - 1] + gray[i + width + 1]
+      ) / 16;
+    }
+  }
+  const threshold = Math.min(255, Math.max(1, boundedNumber("portraitEdgeThreshold", 80, 1, 255) + settings.thresholdBias));
+  const edges = new Uint8Array(width * height);
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const i = y * width + x;
+      const gx =
+        -smooth[i - width - 1] + smooth[i - width + 1] -
+        2 * smooth[i - 1] + 2 * smooth[i + 1] -
+        smooth[i + width - 1] + smooth[i + width + 1];
+      const gy =
+        -smooth[i - width - 1] - 2 * smooth[i - width] - smooth[i - width + 1] +
+        smooth[i + width - 1] + 2 * smooth[i + width] + smooth[i + width + 1];
+      const magnitude = Math.sqrt(gx * gx + gy * gy);
+      const nearEdge = x < 3 || y < 3 || x > width - 4 || y > height - 4;
+      edges[i] = magnitude >= threshold && !nearEdge ? 1 : 0;
+    }
+  }
+  const segments = [];
+  const sx = widthMm / width;
+  const sy = heightMm / height;
+  const addSegment = (x1, y1, x2, y2, type = "edge") => {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    segments.push({
+      x1,
+      y1,
+      x2,
+      y2,
+      len,
+      type,
+      svg: `<line x1="${svgNumberAttr(x1 * sx)}" y1="${svgNumberAttr(y1 * sy)}" x2="${svgNumberAttr(x2 * sx)}" y2="${svgNumberAttr(y2 * sy)}" />`,
+    });
+  };
+  for (let y = 0; y < height; y += 1) {
+    let x = 0;
+    while (x < width) {
+      while (x < width && !edges[y * width + x]) x += 1;
+      const start = x;
+      while (x < width && edges[y * width + x]) x += 1;
+      const end = x - 1;
+      if (end - start + 1 >= settings.minPathLength) {
+        addSegment(start, y, end + 1, y, "edge");
+      }
+    }
+  }
+  for (let y = settings.hatchPitch; y < height - settings.hatchPitch; y += settings.hatchPitch) {
+    const offset = Math.round((y / settings.hatchPitch) % 2) * Math.round(settings.hatchPitch / 2);
+    let x = offset + 4;
+    while (x < width - 4) {
+      while (x < width - 4 && smooth[y * width + x] > settings.darkThreshold) x += 1;
+      const start = x;
+      let darkness = 0;
+      while (x < width - 4 && smooth[y * width + x] <= settings.darkThreshold) {
+        darkness += 255 - smooth[y * width + x];
+        x += 1;
+      }
+      const end = x - 1;
+      const run = end - start + 1;
+      if (run >= settings.minPathLength + 2) {
+        const avgDarkness = darkness / run;
+        const maxLen = avgDarkness > 105 ? 28 : 18;
+        for (let hx = start; hx < end; hx += maxLen + settings.hatchPitch) {
+          const x1 = hx;
+          const x2 = Math.min(end, hx + maxLen);
+          if (x2 - x1 >= settings.minPathLength) {
+            addSegment(x1, y, x2, Math.max(2, y - Math.round((x2 - x1) * 0.45)), "hatch");
+          }
+        }
+      }
+    }
+  }
+  segments.sort((a, b) => {
+    if (a.type !== b.type) return a.type === "edge" ? -1 : 1;
+    return b.len - a.len;
+  });
+  const limited = segments.slice(0, settings.maxLines);
+  drawPortraitLinePreview(limited, width, height);
+  return {
+    svg: funSvg(limited.map((segment) => segment.svg).join("")),
+    lineCount: limited.length,
+    clipped: segments.length > limited.length,
+  };
+}
+
+async function createPortraitGcode() {
+  const button = $("generatePortraitBtn");
+  const status = $("portraitStatus");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Generating...";
+  status.textContent = "Tracing portrait edges...";
+  try {
+    const portrait = processPortraitEdges();
+    if (portrait.lineCount === 0) throw new Error("No portrait edges were detected; lower the edge threshold or use Detailed mode");
+    const result = await addFunSvgToJob(portrait.svg, "fun_webcam_portrait.gcode", {
+      margin_mm: 2,
+      feed_mm_min: 800,
+      travel_feed_mm_min: 1200,
+      simplify_tolerance_mm: 0.2,
+      min_stroke_length_mm: 0.5,
+      optimize_stroke_order: true,
+      timeoutMs: 30000,
+    });
+    const clipped = portrait.clipped ? " Shorter lines were dropped at the selected detail line limit." : "";
+    status.textContent = `Portrait added to Job layout (${portrait.lineCount} SVG line(s), ${result.segment_count} segment(s)).${clipped}`;
+    appendLog({ time: Date.now(), kind: "host", message: "Added Fun webcam portrait G-code" });
+    setPage("job");
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+function clearPortrait() {
+  app.portraitCaptured = false;
+  const capture = $("portraitCaptureCanvas");
+  capture.getContext("2d").clearRect(0, 0, capture.width, capture.height);
+  const preview = $("portraitProcessedCanvas");
+  preview.getContext("2d").clearRect(0, 0, preview.width, preview.height);
+  $("portraitStatus").textContent = "Portrait capture cleared.";
+}
+
 function timestampGcodeBase() {
   const now = new Date();
   const pad = (value) => String(value).padStart(2, "0");
@@ -1433,6 +2053,56 @@ function bindUI() {
   bindGeneratorToggle("qrGeneratorToggle", "qrGeneratorPanel");
   bindGeneratorToggle("textGeneratorToggle", "textGeneratorPanel");
   bindGeneratorToggle("svgGeneratorToggle", "svgGeneratorPanel");
+  bindGeneratorToggle("mazeGeneratorToggle", "mazeGeneratorPanel");
+  bindGeneratorToggle("lissajousGeneratorToggle", "lissajousGeneratorPanel");
+  bindGeneratorToggle("calibrationGridGeneratorToggle", "calibrationGridGeneratorPanel");
+  bindGeneratorToggle("webcamPortraitGeneratorToggle", "webcamPortraitGeneratorPanel");
+  $("mazeRandomSeedBtn").addEventListener("click", () => {
+    $("mazeSeed").value = randomSeedText();
+    $("mazeStatus").textContent = "Seed randomized.";
+  });
+  $("generateMazeBtn").addEventListener("click", () => createMazeGcode().catch((error) => {
+    $("mazeStatus").textContent = error.message || "Maze generation failed.";
+    showError(error);
+  }));
+  $("generateLissajousBtn").addEventListener("click", () => createLissajousGcode().catch((error) => {
+    $("lissajousStatus").textContent = error.message || "Lissajous generation failed.";
+    showError(error);
+  }));
+  $("lissajousPreset").addEventListener("change", () => {
+    if (LISSAJOUS_PRESETS[$("lissajousPreset").value]) setLissajousPreset($("lissajousPreset").value);
+  });
+  ["lissajousA", "lissajousB", "lissajousPhase", "lissajousSamples"].forEach((id) => {
+    $(id).addEventListener("input", () => {
+      $("lissajousPreset").value = "custom";
+      updateLissajousPreview();
+    });
+  });
+  $("generateCalibrationGridBtn").addEventListener("click", () => createCalibrationGridGcode().catch((error) => {
+    $("calibrationGridStatus").textContent = error.message || "Calibration grid generation failed.";
+    showError(error);
+  }));
+  ["gridSpacingMm", "hatchSpacingMm"].forEach((id) => {
+    $(id).addEventListener("input", updateCalibrationGridPreview);
+    $(id).addEventListener("change", updateCalibrationGridPreview);
+  });
+  $("startCameraBtn").addEventListener("click", () => startPortraitCamera().catch((error) => {
+    $("portraitStatus").textContent = error.message || "Camera start failed.";
+    showError(error);
+  }));
+  $("capturePortraitBtn").addEventListener("click", () => {
+    try {
+      capturePortraitFrame();
+    } catch (error) {
+      $("portraitStatus").textContent = error.message || "Capture failed.";
+      showError(error);
+    }
+  });
+  $("generatePortraitBtn").addEventListener("click", () => createPortraitGcode().catch((error) => {
+    $("portraitStatus").textContent = error.message || "Portrait generation failed.";
+    showError(error);
+  }));
+  $("clearPortraitBtn").addEventListener("click", clearPortrait);
   $("svgFile").addEventListener("change", async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -1480,6 +2150,8 @@ function bindUI() {
 async function init() {
   bindUI();
   updateRasterOptionState();
+  updateLissajousPreview();
+  updateCalibrationGridPreview();
   updateJobUI();
   updateQuickConnectUI();
   await refreshPorts();

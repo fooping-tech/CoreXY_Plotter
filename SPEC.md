@@ -789,7 +789,7 @@ homing完了直後の退避移動では、`NORMAL_MOVE_LIMIT_RELEASE_MM`の範�
 
 | `LedStatus` | Pattern | Color | 用途 |
 |---|---|---|---|
-| `IDLE` | `BREATH` | 暗い青 | 待機、ready、接続待ち |
+| `IDLE` | `PACIFICA` | 暗い青緑 | 待機、ready、接続待ち |
 | `HOMING` | `CHASE` | 黄 | homing動作中 |
 | `DRAWING_PEN_UP` | `CHASE` | 青 | pen up移動 |
 | `DRAWING_PEN_DOWN` | `CHASE` | 緑 | 描画中 |

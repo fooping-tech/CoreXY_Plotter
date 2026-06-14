@@ -23,6 +23,7 @@
         <button class="nav active" data-page="dashboard" type="button">Dashboard</button>
         <button class="nav" data-page="control" type="button">Control</button>
         <button class="nav" data-page="job" type="button">Job</button>
+        <button class="nav" data-page="fun" type="button">Fun</button>
         <button class="nav" data-page="console" type="button">Console <span id="errorCount">0</span></button>
         <button class="nav" data-page="settings" type="button">Settings</button>
       </aside>
@@ -295,6 +296,143 @@
           <article class="panel">
             <div class="label">Warnings</div>
             <div id="warnings" class="warnings">Select a G-code file to preview.</div>
+          </article>
+        </section>
+
+        <section id="fun" class="page">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="label">Fun</div>
+                <h2>Pattern Generators</h2>
+              </div>
+              <button class="secondary" data-page="job" type="button">Open Job Layout</button>
+            </div>
+            <div class="generator-stack fun-stack">
+              <section class="generator-panel" id="mazeGeneratorPanel">
+                <button class="generator-toggle" id="mazeGeneratorToggle" type="button" aria-expanded="true" aria-controls="mazeGeneratorBody">
+                  <span>
+                    <span class="label">Maze Generator</span>
+                    <strong>Generate wall-line mazes</strong>
+                  </span>
+                  <span class="toggle-indicator" aria-hidden="true">▸</span>
+                </button>
+                <div class="generator-body" id="mazeGeneratorBody">
+                  <div class="qr-grid">
+                    <label>Difficulty
+                      <select id="mazeDifficulty">
+                        <option value="easy" selected>Easy - path 3mm</option>
+                        <option value="hard">Hard - path 1mm</option>
+                      </select>
+                    </label>
+                    <label>Seed <input id="mazeSeed" placeholder="random" /></label>
+                  </div>
+                  <div class="button-row">
+                    <button id="mazeRandomSeedBtn" class="secondary" type="button">Randomize</button>
+                    <button id="generateMazeBtn" class="primary" type="button">Generate Maze</button>
+                  </div>
+                  <div id="mazeStatus" class="muted qr-status">Ready to generate a maze.</div>
+                </div>
+              </section>
+
+              <section class="generator-panel collapsed" id="lissajousGeneratorPanel">
+                <button class="generator-toggle" id="lissajousGeneratorToggle" type="button" aria-expanded="false" aria-controls="lissajousGeneratorBody">
+                  <span>
+                    <span class="label">Lissajous Generator</span>
+                    <strong>Create parametric curves</strong>
+                  </span>
+                  <span class="toggle-indicator" aria-hidden="true">▸</span>
+                </button>
+                <div class="generator-body" id="lissajousGeneratorBody">
+                  <label>Preset
+                    <select id="lissajousPreset">
+                      <option value="classic" selected>Classic 3:2</option>
+                      <option value="flower">Flower 5:4</option>
+                      <option value="knot">Knot 7:3</option>
+                      <option value="ribbon">Ribbon 4:1</option>
+                      <option value="orbit">Orbit 9:8</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </label>
+                  <div class="qr-grid">
+                    <label>a <span id="lissajousAValue" class="range-value">3</span><input id="lissajousA" type="range" min="1" max="10" step="1" value="3" /></label>
+                    <label>b <span id="lissajousBValue" class="range-value">2</span><input id="lissajousB" type="range" min="1" max="10" step="1" value="2" /></label>
+                    <label>phase deg <span id="lissajousPhaseValue" class="range-value">90</span><input id="lissajousPhase" type="range" min="0" max="360" step="1" value="90" /></label>
+                    <label>samples <span id="lissajousSamplesValue" class="range-value">800</span><input id="lissajousSamples" type="range" min="100" max="3000" step="50" value="800" /></label>
+                  </div>
+                  <div id="lissajousPreview" class="fun-svg-preview"></div>
+                  <button id="generateLissajousBtn" class="primary" type="button">Generate Lissajous</button>
+                  <div id="lissajousStatus" class="muted qr-status">Ready to generate a Lissajous curve.</div>
+                </div>
+              </section>
+
+              <section class="generator-panel collapsed" id="calibrationGridGeneratorPanel">
+                <button class="generator-toggle" id="calibrationGridGeneratorToggle" type="button" aria-expanded="false" aria-controls="calibrationGridGeneratorBody">
+                  <span>
+                    <span class="label">Calibration Grid Generator</span>
+                    <strong>Draw grid and hatch lines</strong>
+                  </span>
+                  <span class="toggle-indicator" aria-hidden="true">▸</span>
+                </button>
+                <div class="generator-body" id="calibrationGridGeneratorBody">
+                  <div class="qr-grid">
+                    <label>Grid spacing mm <input id="gridSpacingMm" type="number" min="1" step="1" value="10" /></label>
+                    <label>Hatch spacing mm <input id="hatchSpacingMm" type="number" min="1" step="1" value="10" /></label>
+                  </div>
+                  <div id="calibrationGridPreview" class="fun-svg-preview"></div>
+                  <button id="generateCalibrationGridBtn" class="primary" type="button">Generate Calibration Grid</button>
+                  <div id="calibrationGridStatus" class="muted qr-status">Ready to generate a calibration grid.</div>
+                </div>
+              </section>
+
+              <section class="generator-panel collapsed" id="webcamPortraitGeneratorPanel">
+                <button class="generator-toggle" id="webcamPortraitGeneratorToggle" type="button" aria-expanded="false" aria-controls="webcamPortraitGeneratorBody">
+                  <span>
+                    <span class="label">Webcam Portrait Generator</span>
+                    <strong>Capture portrait edge lines</strong>
+                  </span>
+                  <span class="toggle-indicator" aria-hidden="true">▸</span>
+                </button>
+                <div class="generator-body" id="webcamPortraitGeneratorBody">
+                  <div class="button-row">
+                    <button id="startCameraBtn" class="secondary" type="button">Start Camera</button>
+                    <button id="capturePortraitBtn" class="secondary" type="button">Capture</button>
+                    <button id="generatePortraitBtn" class="primary" type="button">Generate Portrait</button>
+                    <button id="clearPortraitBtn" class="secondary" type="button">Clear</button>
+                  </div>
+                  <div class="qr-grid">
+                    <label>Background removal
+                      <select id="portraitBackgroundRemoval">
+                        <option value="center_mask" selected>Center mask</option>
+                        <option value="off">Off</option>
+                      </select>
+                    </label>
+                    <label>Detail
+                      <select id="portraitDetail">
+                        <option value="simple">Simple</option>
+                        <option value="balanced" selected>Balanced</option>
+                        <option value="detailed">Detailed</option>
+                      </select>
+                    </label>
+                    <label>Edge threshold <input id="portraitEdgeThreshold" type="range" min="1" max="255" step="1" value="80" /></label>
+                    <label class="checkbox-label"><input id="portraitMirror" type="checkbox" checked /> Mirror camera</label>
+                    <label class="checkbox-label"><input id="portraitInvert" type="checkbox" /> Invert</label>
+                  </div>
+                  <div class="portrait-preview-grid">
+                    <div>
+                      <div class="label">Camera Preview</div>
+                      <video id="portraitVideo" class="portrait-preview" playsinline muted></video>
+                    </div>
+                    <div>
+                      <div class="label">Processed Preview</div>
+                      <canvas id="portraitProcessedCanvas" class="portrait-preview" width="300" height="275"></canvas>
+                    </div>
+                  </div>
+                  <canvas id="portraitCaptureCanvas" class="hidden-canvas" width="300" height="275"></canvas>
+                  <div id="portraitStatus" class="muted qr-status">Start camera or capture a frame to generate a portrait.</div>
+                </div>
+              </section>
+            </div>
           </article>
         </section>
 

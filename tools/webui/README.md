@@ -132,6 +132,27 @@ same panel and also in the Console log.
 SVG conversion supports `path`, `polyline`, `polygon`, `line`, `rect`, `circle`,
 and `ellipse`; fill, text, gradients, and images are ignored with warnings.
 
+## Fun generators
+
+The Fun tab can generate Maze, Lissajous, Calibration Grid, and Webcam Portrait
+plot patterns. Each generator creates line-art SVG in the plotter work area,
+converts it through the existing SVG to G-code pipeline, and adds the result to
+the normal Job layout. Preview, Save G-code, and Send Job continue to use the
+same Job page flow.
+
+Maze supports 3mm and 1mm path widths, adds plotted S/G start-goal letters as
+continuous polylines, and traverses connected wall components as long SVG
+polylines to avoid pen up/down on every maze cell edge.
+Lissajous includes presets, slider controls, and a live SVG preview. Calibration
+Grid also shows a live SVG preview. Generating any Fun item switches to the Job
+page after the item is added.
+
+Webcam Portrait requires browser camera permission. The initial implementation
+captures a still frame and suppresses the background with a center mask before
+edge detection; it does not use external AI segmentation. The portrait renderer
+combines contour edges with short dark-region hatching strokes to better match
+ballpoint-style line art.
+
 Manual UI check after WebUI layout changes:
 
 ```text
