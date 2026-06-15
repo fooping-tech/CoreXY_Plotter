@@ -40,3 +40,4 @@ void stepperFeedTask(void*);
 void tmcTask(void*);
 void safetyTask(void*);
 void logTask(void*);
+void esp32WebTask(void*);
