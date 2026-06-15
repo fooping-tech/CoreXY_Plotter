@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "AppContext.h"
+#include "LogBuffer.h"
 #include "PlotterConfig.h"
 #include "TaskConfig.h"
 
@@ -31,6 +32,7 @@ void logMessage(const char* format, ...) {
   va_start(args, format);
   vsnprintf(message.text, sizeof(message.text), format, args);
   va_end(args);
+  appendLogBuffer(message.text);
   if (log_queue != nullptr) {
     xQueueSend(log_queue, &message, 0);
   }
@@ -65,6 +67,10 @@ void setup() {
                           CORE_UI);
   xTaskCreatePinnedToCore(commandTask, "commandTask", STACK_COMMAND, nullptr,
                           PRIORITY_COMMAND, nullptr, CORE_UI);
+#if ESP32_WEBUI_ENABLED
+  xTaskCreatePinnedToCore(esp32WebTask, "esp32WebTask", STACK_WEB, nullptr,
+                          PRIORITY_WEB, nullptr, CORE_UI);
+#endif
   xTaskCreatePinnedToCore(logTask, "logTask", STACK_LOG, nullptr, PRIORITY_LOG,
                           nullptr, CORE_UI);
   xTaskCreatePinnedToCore(motionTask, "motionTask", STACK_MOTION, nullptr,
