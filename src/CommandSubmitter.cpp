@@ -7,12 +7,6 @@
 #include "CommandDispatcher.h"
 
 namespace {
-const char* queueDepthText(uint16_t depth) {
-  static char buffer[8];
-  snprintf(buffer, sizeof(buffer), "%u", depth);
-  return buffer;
-}
-
 uint16_t commandQueueDepth() {
   return command_queue == nullptr ? 0 : uxQueueMessagesWaiting(command_queue);
 }
