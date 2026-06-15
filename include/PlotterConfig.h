@@ -14,6 +14,19 @@
 #define SIMULATION_MODE 0
 #endif
 
+// ESP32内蔵WebUIを起動する。USB Serial制御とHost WebUIはこの設定に関係なく残す。
+#ifndef ESP32_WEBUI_ENABLED
+#define ESP32_WEBUI_ENABLED 1
+#endif
+
+constexpr const char* ESP32_WEBUI_AP_SSID = "CoreXY-Plotter";
+constexpr const char* ESP32_WEBUI_AP_PASSWORD = "plotter1234";
+constexpr const char* ESP32_WEBUI_HOSTNAME = "corexy-plotter";
+constexpr uint16_t ESP32_WEBUI_PORT = 80;
+constexpr uint16_t ESP32_WEBUI_MAX_COMMAND_LINE_LENGTH = 127;
+constexpr uint16_t ESP32_WEBUI_MAX_GCODE_LINE_LENGTH = 127;
+constexpr uint16_t ESP32_WEBUI_QUEUE_RETRY_AFTER_MS = 150;
+
 // ============================================================================
 // Motion geometry / feed / acceleration
 // ============================================================================
@@ -277,35 +290,3 @@ constexpr uint8_t TMC_TOFF = 5;
 constexpr uint8_t TMC_HSTRT = 5;
 constexpr uint8_t TMC_HEND = 0;
 constexpr uint8_t TMC_TBL = 2;
-
-// StallGuardしきい値。現状は診断用placeholder寄り。
-// 値が小さい/大きいと検出感度が変わるため、実機で調整する。
-constexpr uint8_t TMC_SGTHRS_DEFAULT = 80;
-
-// StallGuard/CoolStepの有効速度域しきい値。現状は広めに設定。
-constexpr uint32_t TMC_TCOOLTHRS_DEFAULT = 0xFFFFF;
-
-// ============================================================================
-// Diagnostic motor melody
-// ============================================================================
-// 診断メロディ機能の有効/無効。
-// TMC UARTとAモータ出力を確認するための機能。
-constexpr bool MOTOR_MELODY_ENABLED = true;
-
-// メロディ再生時だけ使うmicrostep。
-// 音程を出しやすくするため通常動作とは別設定にする。
-constexpr uint16_t MOTOR_MELODY_MICROSTEPS = 2;
-
-// メロディ再生時の電流 [mA RMS]。
-// 短時間動作だが、発熱と音量を見て調整する。
-constexpr uint16_t MOTOR_MELODY_RMS_CURRENT_MA = 1200;
-
-// メロディ再生時のchop mode。
-constexpr bool MOTOR_MELODY_SPREADCYCLE = true;
-
-// 音符間の隙間 [ms]。
-constexpr uint16_t MOTOR_MELODY_NOTE_GAP_MS = 25;
-
-// JOB_END時の終了ジングル。
-// 既存曲そのものではなく、短い8-bit風のオリジナル和音パターンを鳴らす。
-constexpr bool JOB_END_JINGLE_ENABLED = true;
