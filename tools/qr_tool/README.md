@@ -20,7 +20,7 @@ python -m pip install -r tools/qr_tool/requirements.txt
 python tools/qr_tool/qr_to_plot_csv.py \
   --text "HELLO COREXY" \
   --gcode-output tools/qr_tool/examples/gcode/qr_hello.gcode \
-  --preview-svg tools/qr_tool/qr_hello.svg \
+  --preview-svg tools/qr_tool/examples/qr_hello.svg \
   --origin-x 10 \
   --origin-y 10 \
   --module-mm 1.0 \
@@ -93,7 +93,7 @@ python tools/qr_tool/qr_to_plot_csv.py \
   --text "HELLO COREXY" \
   --output tools/serial_tool/examples/qr_hello.csv \
   --gcode-output tools/qr_tool/examples/gcode/qr_hello.gcode \
-  --preview-svg tools/qr_tool/qr_hello.svg
+  --preview-svg tools/qr_tool/examples/qr_hello.svg
 ```
 
 CSVを送る場合は、診断/旧方式として以下のように実行します。

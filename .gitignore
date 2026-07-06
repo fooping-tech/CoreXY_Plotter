@@ -4,5 +4,18 @@
 .vscode/launch.json
 .vscode/ipch
 .venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 tools/text_tool/fonts/*
 !tools/text_tool/fonts/.gitkeep
+
+# ツール実行時の生成物はコミットしない。意図的なfixtureは各ツールのexamples/へ置く。
+tools/qr_tool/*.gcode
+tools/qr_tool/*.svg
+tools/qr_tool/*.csv
+tools/text_tool/*.gcode
+tools/webui/*.gcode
+tools/webui/*.svg
+tools/webui/uploads/
+tools/webui/output/
