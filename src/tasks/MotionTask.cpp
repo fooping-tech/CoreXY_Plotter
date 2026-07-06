@@ -35,21 +35,6 @@ int32_t drift_backend_origin_b_steps = 0;
 int32_t drift_machine_origin_a_steps = 0;
 int32_t drift_machine_origin_b_steps = 0;
 
-void syncJobActiveFlag() {
-  machine_state.job_active = job_controller.isActive() ||
-                             job_controller.isRunning();
-}
-
-void postLedStatus(LedStatus status) {
-  if (led_command_queue == nullptr) return;
-  LedCommand command{};
-  command.type = LedCommandType::SET_STATUS;
-  command.status = status;
-  if (xQueueSend(led_command_queue, &command, 0) != pdTRUE) {
-    logMessage("WARN: LedCommandQueue full status dropped");
-  }
-}
-
 void setMotionActive(bool active) {
   if (machine_state.motion_active == active) return;
   machine_state.motion_active = active;
@@ -69,18 +54,38 @@ const char* timedSegmentResultName(StepperBackend::TimedSegmentResult result) {
   return "UNKNOWN";
 }
 
-StatusMessage currentStatus() {
-  return StatusMessage{machine_state, safety_manager.xLimitActive(),
-                       safety_manager.yLimitActive(),
-                       safety_manager.xLimitRawActive(),
-                       safety_manager.yLimitRawActive()};
-}
-
 void invalidateHomed(const char* reason) {
   machine_state.homed = false;
   machine_state.x_homed = false;
   machine_state.y_homed = false;
   logMessage("HOMED invalidated: %s", reason);
+}
+
+// alarm突入シーケンスの共通経路。backend停止→setAlarm→alarmed→homed無効化→LED。
+// alarm理由とhomed無効化ログの文言が異なる呼び出し元のため引数を分けている。
+void enterAlarm(const char* alarm_reason, const char* homed_reason,
+                LedStatus led_status) {
+  stepper_backend.stop();
+  safety_manager.setAlarm(alarm_reason);
+  machine_state.alarmed = true;
+  invalidateHomed(homed_reason);
+  postLedStatus(led_status);
+}
+
+void enterAlarm(const char* reason, LedStatus led_status) {
+  enterAlarm(reason, reason, led_status);
+}
+
+void ackXY(float target_x_mm, float target_y_mm, int32_t a_steps,
+           int32_t b_steps, float feed_mm_min) {
+  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f", target_x_mm,
+             target_y_mm, static_cast<long>(a_steps),
+             static_cast<long>(b_steps), feed_mm_min);
+}
+
+void nackXY(float target_x_mm, float target_y_mm, const char* reason) {
+  logMessage("NACK_XY target=(%.3f,%.3f) reason=%s", target_x_mm, target_y_mm,
+             reason);
 }
 
 MotionSyncReference captureMotionSyncReference() {
@@ -146,14 +151,10 @@ bool stopForAbort(const char* context) {
   if (!isMotionAbortRequested()) return false;
   clearMotionAbort();
   setMotionActive(false);
-  stepper_backend.stop();
-  safety_manager.setAlarm("abort requested");
-  machine_state.alarmed = true;
-  invalidateHomed("abort requested");
-  if (job_controller.isActive() || job_controller.isRunning()) {
+  enterAlarm("abort requested", LedStatus::ERROR);
+  if (job_controller.isActive()) {
     job_controller.markAborted("abort requested");
   }
-  postLedStatus(LedStatus::ERROR);
   logMessage("%s: abort requested", context);
   return true;
 }
@@ -186,10 +187,8 @@ void handleTimedSegmentQueueError(const MotionSyncReference& reference,
                                   const char* context) {
   stepper_backend.stop();
   updateMachinePositionEstimateFromBackend(reference);
-  safety_manager.setAlarm("timed segment queue lost position confidence");
-  machine_state.alarmed = true;
-  invalidateHomed("timed segment queue error");
-  postLedStatus(LedStatus::ERROR);
+  enterAlarm("timed segment queue lost position confidence",
+             "timed segment queue error", LedStatus::ERROR);
   logMessage("%s: ERROR position confidence lost; resynced from backend X=%.3f Y=%.3f A=%ld B=%ld",
              context, machine_state.x_mm, machine_state.y_mm,
              machine_state.a_steps, machine_state.b_steps);
@@ -402,15 +401,13 @@ bool buildXYBlock(const CommandMessage& command, float start_x_mm,
                   float start_y_mm, int32_t start_a_steps,
                   int32_t start_b_steps, MotionBlock& block) {
   if (stopForAbort("XY rejected before planning")) {
-    logMessage("NACK_XY target=(%.3f,%.3f) reason=abort",
-               command.x_mm, command.y_mm);
+    nackXY(command.x_mm, command.y_mm, "abort");
     return false;
   }
   safety_manager.poll();
   float feed_mm_min = command.feed_mm_min;
   if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
-    logMessage("NACK_XY target=(%.3f,%.3f) reason=rejected",
-               command.x_mm, command.y_mm);
+    nackXY(command.x_mm, command.y_mm, "rejected");
     return false;
   }
   const float dx_mm = command.x_mm - start_x_mm;
@@ -452,9 +449,8 @@ void acknowledgeNoOpXY(const MotionBlock& block, bool update_machine_state) {
   logMessage("XY no-op current=(%.3f,%.3f) target=(%.3f,%.3f) F=%.3f",
              block.start_x_mm, block.start_y_mm, block.target_x_mm,
              block.target_y_mm, block.nominal_speed_mm_min);
-  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
-             block.target_x_mm, block.target_y_mm, block.a_steps,
-             block.b_steps, block.nominal_speed_mm_min);
+  ackXY(block.target_x_mm, block.target_y_mm, block.a_steps, block.b_steps,
+        block.nominal_speed_mm_min);
 }
 
 bool planQueuedBlocks() {
@@ -490,8 +486,7 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
                  block.deceleration_time_s);
   if (!segment_generator.generate(block, segment_queue)) {
     logMessage("ERROR: segment generator rejected XY move");
-    logMessage("NACK_XY target=(%.3f,%.3f) reason=segment",
-               block.target_x_mm, block.target_y_mm);
+    nackXY(block.target_x_mm, block.target_y_mm, "segment");
     return false;
   }
   logMessage("SEGMENTS count=%u duration=%.3f dda=YES",
@@ -500,9 +495,8 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
                  block.deceleration_time_s);
 #if SIMULATION_MODE
   logMessage("SIMULATION_MODE: no motor output");
-  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
-             block.target_x_mm, block.target_y_mm, block.a_steps,
-             block.b_steps, block.nominal_speed_mm_min);
+  ackXY(block.target_x_mm, block.target_y_mm, block.a_steps, block.b_steps,
+        block.nominal_speed_mm_min);
 #else
   safety_manager.poll();
   const bool allow_x_limit_release =
@@ -529,19 +523,16 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
           strstr(alarm_reason, "abort requested") != nullptr;
       logMessage("ERROR: timed XY move stopped: alarm reason=%s",
                  alarm_reason);
-      logMessage("NACK_XY target=(%.3f,%.3f) reason=%s",
-                 block.target_x_mm, block.target_y_mm,
-                 abort_alarm ? "abort" : "alarm");
+      nackXY(block.target_x_mm, block.target_y_mm,
+             abort_alarm ? "abort" : "alarm");
     } else {
       logMessage("ERROR: backend rejected timed XY move");
-      logMessage("NACK_XY target=(%.3f,%.3f) reason=backend",
-                 block.target_x_mm, block.target_y_mm);
+      nackXY(block.target_x_mm, block.target_y_mm, "backend");
     }
     return false;
   }
-  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f",
-             block.target_x_mm, block.target_y_mm, block.a_steps,
-             block.b_steps, block.nominal_speed_mm_min);
+  ackXY(block.target_x_mm, block.target_y_mm, block.a_steps, block.b_steps,
+        block.nominal_speed_mm_min);
 #endif
   machine_state.x_mm = block.target_x_mm;
   machine_state.y_mm = block.target_y_mm;
@@ -569,8 +560,7 @@ bool handleXYBatch(const CommandMessage& first_command) {
     acknowledgeNoOpXY(block, true);
   } else {
     if (!planner_queue.enqueue(block)) {
-      logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
-                 first_command.x_mm, first_command.y_mm);
+      nackXY(first_command.x_mm, first_command.y_mm, "planner_queue_full");
       return false;
     }
   }
@@ -627,8 +617,7 @@ bool handleXYBatch(const CommandMessage& first_command) {
       acknowledgeNoOpXY(next_block, planner_queue.isEmpty());
     } else {
       if (!planner_queue.enqueue(next_block)) {
-        logMessage("NACK_XY target=(%.3f,%.3f) reason=planner_queue_full",
-                   next_command.x_mm, next_command.y_mm);
+        nackXY(next_command.x_mm, next_command.y_mm, "planner_queue_full");
         return false;
       }
     }
@@ -645,9 +634,9 @@ bool handleXYBatch(const CommandMessage& first_command) {
 
   if (!planQueuedBlocks()) {
     const MotionBlock* failed = planner_queue.peekNext();
-    logMessage("NACK_XY target=(%.3f,%.3f) reason=planner",
-               failed != nullptr ? failed->target_x_mm : first_command.x_mm,
-               failed != nullptr ? failed->target_y_mm : first_command.y_mm);
+    nackXY(failed != nullptr ? failed->target_x_mm : first_command.x_mm,
+           failed != nullptr ? failed->target_y_mm : first_command.y_mm,
+           "planner");
     clearMotionQueues("XY planning failed");
     return false;
   }
@@ -741,6 +730,14 @@ void handleJobEnd() {
   postLedStatus(LedStatus::COMPLETED);
 }
 
+void logAbTimedState(const char* detail) {
+  logMessage("AB_TIMED %s queueEntries A=%u B=%u running A=%u B=%u",
+             detail, stepper_backend.motorAQueueEntries(),
+             stepper_backend.motorBQueueEntries(),
+             stepper_backend.isMotorARunning(),
+             stepper_backend.isMotorBRunning());
+}
+
 void handleABTimed(const CommandMessage& command) {
   logMessage("AB_TIMED command a_steps=%ld b_steps=%ld duration_us=%lu",
              command.a_steps, command.b_steps, command.duration_us);
@@ -777,20 +774,17 @@ void handleABTimed(const CommandMessage& command) {
   segment.duration_us = command.duration_us;
   const uint32_t micros_before_queue = micros();
   const MotionSyncReference reference = captureMotionSyncReference();
-  logMessage("AB_TIMED before_queue micros=%lu queueEntries A=%u B=%u running A=%u B=%u",
-             micros_before_queue, stepper_backend.motorAQueueEntries(),
-             stepper_backend.motorBQueueEntries(),
-             stepper_backend.isMotorARunning(),
-             stepper_backend.isMotorBRunning());
+  char detail[48] = {};
+  snprintf(detail, sizeof(detail), "before_queue micros=%lu",
+           static_cast<unsigned long>(micros_before_queue));
+  logAbTimedState(detail);
   const StepperBackend::TimedSegmentResult queue_result =
       stepper_backend.queueTimedSegment(segment, false);
   const uint32_t micros_after_queue = micros();
-  logMessage("AB_TIMED after_queue micros=%lu result=%s queueEntries A=%u B=%u running A=%u B=%u",
-             micros_after_queue, timedSegmentResultName(queue_result),
-             stepper_backend.motorAQueueEntries(),
-             stepper_backend.motorBQueueEntries(),
-             stepper_backend.isMotorARunning(),
-             stepper_backend.isMotorBRunning());
+  snprintf(detail, sizeof(detail), "after_queue micros=%lu result=%s",
+           static_cast<unsigned long>(micros_after_queue),
+           timedSegmentResultName(queue_result));
+  logAbTimedState(detail);
   if (queue_result != StepperBackend::TimedSegmentResult::QUEUED) {
     if (queue_result == StepperBackend::TimedSegmentResult::ERROR) {
       handleTimedSegmentQueueError(reference, "AB_TIMED queue");
@@ -800,12 +794,9 @@ void handleABTimed(const CommandMessage& command) {
     return;
   }
   const bool started = stepper_backend.startTimedSegments();
-  logMessage("AB_TIMED start result=%s queueEntries A=%u B=%u running A=%u B=%u",
-             started ? "OK" : "ERROR",
-             stepper_backend.motorAQueueEntries(),
-             stepper_backend.motorBQueueEntries(),
-             stepper_backend.isMotorARunning(),
-             stepper_backend.isMotorBRunning());
+  snprintf(detail, sizeof(detail), "start result=%s",
+           started ? "OK" : "ERROR");
+  logAbTimedState(detail);
   if (!started) {
     handleTimedSegmentQueueError(reference, "AB_TIMED start");
     logMessage("NACK_AB_TIMED reason=start_error");
@@ -814,22 +805,34 @@ void handleABTimed(const CommandMessage& command) {
   setMotionActive(true);
   if (!waitForMotionOrLimit(reference)) {
     setMotionActive(false);
-    logMessage("AB_TIMED result=STOPPED queueEntries A=%u B=%u running A=%u B=%u",
-               stepper_backend.motorAQueueEntries(),
-               stepper_backend.motorBQueueEntries(),
-               stepper_backend.isMotorARunning(),
-               stepper_backend.isMotorBRunning());
+    logAbTimedState("result=STOPPED");
     logMessage("NACK_AB_TIMED reason=stopped");
     return;
   }
   setMotionActive(false);
-  logMessage("AB_TIMED result=OK queueEntries A=%u B=%u running A=%u B=%u",
-             stepper_backend.motorAQueueEntries(),
-             stepper_backend.motorBQueueEntries(),
-             stepper_backend.isMotorARunning(),
-             stepper_backend.isMotorBRunning());
+  logAbTimedState("result=OK");
   logMessage("ACK_AB_TIMED a_steps=%ld b_steps=%ld duration_us=%lu",
              command.a_steps, command.b_steps, command.duration_us);
+}
+
+using HomingRun = bool (HomingController::*)(StepperBackendFastAccel&,
+                                             SafetyManager&, MachineState&);
+
+void handleHomeCommand(const char* name, HomingRun run) {
+  if (!ensureTmcReadyForMotion(name)) return;
+  char reason[24] = {};
+  snprintf(reason, sizeof(reason), "%s start", name);
+  clearMotionQueues(reason);
+  postLedStatus(LedStatus::HOMING);
+  if ((homing_controller.*run)(stepper_backend, safety_manager,
+                               machine_state)) {
+    resetDriftReference(name);
+    postLedStatus(LedStatus::COMPLETED);
+  } else {
+    postLedStatus(LedStatus::ERROR);
+  }
+  snprintf(reason, sizeof(reason), "%s end", name);
+  clearMotionQueues(reason);
 }
 
 void handleSingleMotor(bool motor_a, int32_t steps) {
@@ -870,7 +873,7 @@ void motionTask(void*) {
         Diagnostics::printConfig();
         break;
       case CommandType::POS: {
-        Diagnostics::printPosition(currentStatus());
+        Diagnostics::printPosition(captureStatus());
         break;
       }
       case CommandType::ZERO:
@@ -924,53 +927,20 @@ void motionTask(void*) {
         tmc_manager.printStatus();
         break;
       case CommandType::HOME:
-        if (ensureTmcReadyForMotion("HOME")) {
-          clearMotionQueues("HOME start");
-          postLedStatus(LedStatus::HOMING);
-          if (homing_controller.runHome(stepper_backend, safety_manager,
-                                        machine_state)) {
-            resetDriftReference("HOME");
-            postLedStatus(LedStatus::COMPLETED);
-          } else {
-            postLedStatus(LedStatus::ERROR);
-          }
-          clearMotionQueues("HOME end");
-        }
+        handleHomeCommand("HOME", &HomingController::runHome);
         break;
       case CommandType::HOME_X:
-        if (ensureTmcReadyForMotion("HOME_X")) {
-          clearMotionQueues("HOME_X start");
-          postLedStatus(LedStatus::HOMING);
-          if (homing_controller.runHomeX(stepper_backend, safety_manager,
-                                         machine_state)) {
-            resetDriftReference("HOME_X");
-            postLedStatus(LedStatus::COMPLETED);
-          } else {
-            postLedStatus(LedStatus::ERROR);
-          }
-          clearMotionQueues("HOME_X end");
-        }
+        handleHomeCommand("HOME_X", &HomingController::runHomeX);
         break;
       case CommandType::HOME_Y:
-        if (ensureTmcReadyForMotion("HOME_Y")) {
-          clearMotionQueues("HOME_Y start");
-          postLedStatus(LedStatus::HOMING);
-          if (homing_controller.runHomeY(stepper_backend, safety_manager,
-                                         machine_state)) {
-            resetDriftReference("HOME_Y");
-            postLedStatus(LedStatus::COMPLETED);
-          } else {
-            postLedStatus(LedStatus::ERROR);
-          }
-          clearMotionQueues("HOME_Y end");
-        }
+        handleHomeCommand("HOME_Y", &HomingController::runHomeY);
         break;
       case CommandType::HOME_STATUS:
-        Diagnostics::printHomingStatus(currentStatus());
+        Diagnostics::printHomingStatus(captureStatus());
         break;
       case CommandType::LIMIT_STATUS:
         safety_manager.poll();
-        Diagnostics::printLimitStatus(currentStatus());
+        Diagnostics::printLimitStatus(captureStatus());
         break;
       case CommandType::ALARM_CLEAR:
         safety_manager.poll();
@@ -987,13 +957,10 @@ void motionTask(void*) {
         clearMotionAbort();
         stepper_backend.stop();
         clearMotionQueues("ABORT");
-        safety_manager.setAlarm("abort requested");
-        machine_state.alarmed = true;
-        invalidateHomed("abort requested");
-        if (job_controller.isActive() || job_controller.isRunning()) {
+        enterAlarm("abort requested", LedStatus::ERROR);
+        if (job_controller.isActive()) {
           job_controller.markAborted("abort requested");
         }
-        postLedStatus(LedStatus::ERROR);
         logMessage("ABORT complete");
         break;
       case CommandType::JOB_BEGIN:
@@ -1016,11 +983,7 @@ void motionTask(void*) {
         clearMotionQueues("JOB_ABORT");
         if (job_controller.abortJob("job abort requested")) {
           clearMotionAbort();
-          stepper_backend.stop();
-          safety_manager.setAlarm("job abort requested");
-          machine_state.alarmed = true;
-          invalidateHomed("job abort requested");
-          postLedStatus(LedStatus::WARNING);
+          enterAlarm("job abort requested", LedStatus::WARNING);
           logMessage("JOB_ABORT complete");
         }
         break;
@@ -1064,8 +1027,7 @@ void motionTask(void*) {
         break;
     }
     machine_state.alarmed = safety_manager.isAlarmed();
-    if (machine_state.alarmed && (job_controller.isActive() ||
-                                  job_controller.isRunning())) {
+    if (machine_state.alarmed && job_controller.isActive()) {
       job_controller.markFailed(safety_manager.alarmReason());
       postLedStatus(LedStatus::ERROR);
     }

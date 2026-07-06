@@ -2,6 +2,7 @@
 #include <M5Unified.h>
 #include "AppContext.h"
 #include "Core2PinMap.h"
+#include "MathUtils.h"
 #include "PlotterConfig.h"
 #include <math.h>
 #include <string.h>
@@ -325,12 +326,6 @@ void queueSimpleCommand(CommandType type, const char* name) {
   command.type = type;
   snprintf(command.name, sizeof(command.name), "%s", name);
   if (queueCommand(command)) setNotice(name);
-}
-
-float clampFloat(float value, float lower, float upper) {
-  if (value < lower) return lower;
-  if (value > upper) return upper;
-  return value;
 }
 
 void queueJog(const StatusMessage& status, float dx_mm, float dy_mm) {

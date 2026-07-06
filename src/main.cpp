@@ -36,15 +36,34 @@ void logMessage(const char* format, ...) {
   }
 }
 
+StatusMessage captureStatus() {
+  return StatusMessage{machine_state, safety_manager.xLimitActive(),
+                       safety_manager.yLimitActive(),
+                       safety_manager.xLimitRawActive(),
+                       safety_manager.yLimitRawActive()};
+}
+
 void publishStatus() {
   if (status_queue == nullptr) {
     return;
   }
-  StatusMessage status{machine_state, safety_manager.xLimitActive(),
-                       safety_manager.yLimitActive(),
-                       safety_manager.xLimitRawActive(),
-                       safety_manager.yLimitRawActive()};
+  const StatusMessage status = captureStatus();
   xQueueOverwrite(status_queue, &status);
+}
+
+void postLedStatus(LedStatus status) {
+  if (led_command_queue == nullptr) return;
+  LedCommand command{};
+  command.type = LedCommandType::SET_STATUS;
+  command.status = status;
+  if (xQueueSend(led_command_queue, &command, 0) != pdTRUE) {
+    logMessage("WARN: LedCommandQueue full status dropped");
+  }
+}
+
+void syncJobActiveFlag() {
+  // JobController::isActive()はSTARTING/RUNNING/ENDINGを含む。
+  machine_state.job_active = job_controller.isActive();
 }
 
 void setup() {

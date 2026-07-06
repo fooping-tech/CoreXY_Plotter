@@ -2,16 +2,13 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include "MathUtils.h"
 #include "PlotterConfig.h"
 
 namespace {
 constexpr float MIN_BLOCK_LENGTH_MM = 0.0001f;
 constexpr float STRAIGHT_DOT_THRESHOLD = 0.9999f;
 constexpr float REVERSAL_DOT_THRESHOLD = -0.9999f;
-
-float square(float value) {
-  return value * value;
-}
 
 float reachableExitSpeed(float entry_speed_mm_s,
                          float acceleration_mm_s2,

@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "AppContext.h"
 #include "CommandDispatcher.h"
+#include "TaskConfig.h"
 
 namespace {
 bool isLedCommand(CommandType type) {
@@ -20,7 +21,8 @@ bool isReliableCommand(CommandType type) {
 bool enqueueReliableCommand(const CommandMessage& command) {
   bool logged_wait = false;
   for (;;) {
-    if (xQueueSend(command_queue, &command, pdMS_TO_TICKS(50)) == pdTRUE) {
+    if (xQueueSend(command_queue, &command,
+                   pdMS_TO_TICKS(COMMAND_QUEUE_SEND_TIMEOUT_MS)) == pdTRUE) {
       return true;
     }
     if (!logged_wait) {
@@ -67,7 +69,8 @@ void commandTask(void*) {
             enqueueReliableCommand(command);
             logMessage("ACK QUEUED %s", command.name);
           } else if (!isLedCommand(command.type) &&
-                     xQueueSend(command_queue, &command, pdMS_TO_TICKS(50)) !=
+                     xQueueSend(command_queue, &command,
+                                pdMS_TO_TICKS(COMMAND_QUEUE_SEND_TIMEOUT_MS)) !=
                      pdTRUE) {
             logMessage("ERROR: CommandQueue full");
           } else {
@@ -83,6 +86,6 @@ void commandTask(void*) {
         logMessage("ERROR: input line too long");
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(COMMAND_TASK_POLL_INTERVAL_MS));
   }
 }

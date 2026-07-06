@@ -23,3 +23,8 @@ constexpr uint16_t STACK_MOTION = 6144;
 constexpr uint16_t STACK_STEPPER_FEED = 2048;
 constexpr uint16_t STACK_TMC = 2048;
 constexpr uint16_t STACK_SAFETY = 2048;
+
+// タスクのポーリング周期。
+constexpr uint32_t SAFETY_TASK_POLL_INTERVAL_MS = 100;
+constexpr uint32_t COMMAND_TASK_POLL_INTERVAL_MS = 10;
+constexpr uint32_t COMMAND_QUEUE_SEND_TIMEOUT_MS = 50;

@@ -2,14 +2,11 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include "MathUtils.h"
 #include "PlotterConfig.h"
 
 namespace {
 constexpr float MIN_PROFILE_DISTANCE_MM = 0.0001f;
-
-float square(float value) {
-  return value * value;
-}
 }
 
 bool TrapezoidPlanner::plan(MotionBlock& block) const {
