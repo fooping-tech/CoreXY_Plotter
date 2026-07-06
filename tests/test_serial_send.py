@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import pytest
 
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "tools" / "serial_tool"))
-
-import serial_send  # noqa: E402
+import serial_send
 
 
 class FakeSerial:

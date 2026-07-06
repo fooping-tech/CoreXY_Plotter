@@ -2,14 +2,9 @@ from __future__ import annotations
 
 import argparse
 import csv
-import sys
 from pathlib import Path
 
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "tools" / "qr_tool"))
-
-import qr_to_plot_csv  # noqa: E402
+import qr_to_plot_csv
 
 
 def make_args(tmp_path: Path) -> argparse.Namespace:

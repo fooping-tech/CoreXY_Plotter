@@ -1,14 +1,8 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from argparse import Namespace
 
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "tools" / "text_tool"))
-
-import kst32b_to_gcode  # noqa: E402
+import kst32b_to_gcode
 
 
 def test_decode_csf1_x_move_starts_new_pen_up_stroke_at_same_y() -> None:
