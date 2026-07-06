@@ -35,6 +35,8 @@ Host WebUIがあります。
 
 ## Bring-up commands
 
+全Serialコマンド・G-codeの一覧は[docs/command_reference.md](docs/command_reference.md)を参照してください。
+
 ```text
 LED 255 0 0
 LED_PIXEL 0 0 255 0
@@ -73,5 +75,3 @@ KST32BストロークフォントデータからG-codeを生成します。Inksc
 - `TEST_A`/`TEST_B`の独立A/B moveはbring-up用で、厳密なXY線形補間を保証しません。
 - G-codeは最小対応です。`G0/G1/G4/G20/G21/G28/G90/G91/M3/M5/M114`のみ対応し、arc、Z、checksum検証、完全なGRBL互換は未実装です。`G4`は`P`ミリ秒指定のみ対応します。
 - look-aheadとjunction deviationは実装済みですが、実機調整は未完了です。
-# CoreXY_Plotter
-# CoreXY_Plotter

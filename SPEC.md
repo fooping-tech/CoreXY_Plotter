@@ -40,11 +40,14 @@ Motor driver: TMC2209 x2, STEP/DIR + UART shared bus
 - jerk-limited S字加減速
 - input shaping
 - SDカード実行
-- WebUI
+- ESP32上で動くWebUI(HTTP/WebSocket serverをファームウェアに載せる方式)
 - 高速描画
 - 外部MCU分離
 
 これらは将来拡張の候補であり、初期実装には含めない。
+
+なお、ホストPC/Raspberry Pi上で動くHost WebUIは実装済みであり、§20で仕様を定義する。
+非目的なのはESP32ファームウェア内へのWebUI実装である。
 
 ---
 
@@ -471,7 +474,10 @@ ALARM > HOMING > MOVING > RUNNING > NEED HOME > READY
 
 ---
 
-## 15. 初期Serialコマンド仕様
+## 15. Serialコマンド仕様
+
+全コマンドの引数・応答・前提条件つき一覧は[docs/command_reference.md](docs/command_reference.md)を正とする。
+本節はコマンドの意味と応答ルールの仕様を定義する。
 
 | コマンド | 内容 |
 |---|---|
@@ -502,6 +508,12 @@ ALARM > HOMING > MOVING > RUNNING > NEED HOME > READY
 | `LED <r> <g> <b>` | 外付けNEOPIXEL全灯をRGB指定で点灯 |
 | `LED_PIXEL <index> <r> <g> <b>` | 指定indexのNEOPIXELをRGB指定で点灯 |
 | `LED_OFF` | 外付けNEOPIXELを消灯 |
+| `LED_PATTERN <pattern>` | 手動pattern表示。`OFF\|SOLID\|PACIFICA\|FIRE\|BREATH\|CHASE\|PROGRESS\|ALERT\|SUCCESS` |
+| `LED_BRIGHTNESS <value>` | 輝度設定。`0..NEOPIXEL_BRIGHTNESS_MAX` |
+| `LED_PARAM <name> <value>` | アニメーションパラメータ設定。`BRIGHTNESS\|HUE\|SATURATION\|SPEED\|INTENSITY\|COOLING\|SPARKING`、値0..255 |
+| `LED_AUTO <0\|1>` | 状態連動の自動LED表示のOFF/ON |
+| `LED_STATUS_SET <status>` | 診断用。自動表示へ戻し指定`LedStatus`を即時表示 |
+| `LED_STATUS` | LEDエンジンの現在mode、status、pattern、パラメータを表示 |
 | `MELODY` | 診断用モータメロディを明示実行 |
 
 受信応答:

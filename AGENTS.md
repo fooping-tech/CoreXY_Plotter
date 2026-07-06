@@ -371,41 +371,20 @@ main.cpp
 
 ---
 
-## 13. 初期Serialコマンド
+## 13. Serialコマンド
 
-初期コマンド:
+Serialコマンドは診断/bring-up系(`HELP`/`CONFIG`/`POS`/`ZERO`/`TEST_A`/`TEST_B`/`AB_TIMED`/`XY`/`SELFTEST`/`MELODY`等)、
+homing/safety系(`HOME`/`HOME_X`/`HOME_Y`/`HOME_STATUS`/`LIMIT_STATUS`/`ALARM_CLEAR`/`ABORT`)、
+Job Lifecycle系(`JOB_BEGIN`/`JOB_END`/`JOB_ABORT`/`JOB_STATUS`)、
+LED系(`LED`/`LED_PIXEL`/`LED_OFF`/`LED_PATTERN`/`LED_BRIGHTNESS`/`LED_PARAM`/`LED_AUTO`/`LED_STATUS_SET`/`LED_STATUS`)、
+TMC系(`TMC_INIT`/`TMC_STATUS`)、pen系(`PENUP`/`PENDOWN`)に大別される。
 
-```text
-HELP
-CONFIG
-POS
-ZERO
-TEST_A <steps>
-TEST_B <steps>
-XY <x_mm> <y_mm> <feed_mm_min>
-PENUP
-PENDOWN
-SELFTEST
-TMC_INIT
-TMC_STATUS
-```
+最小G-code(`G0`/`G1`/`G4`/`G20`/`G21`/`G28`/`G90`/`G91`/`M3`/`M5`/`M114`)は実装済みで、
+`GcodeParser`/`GcodeInterpreter`が既存のmotion/pen/homing経路へ変換する。
+正式な描画入力はG-codeを基本とし、`XY`等の独自コマンドは診断/bring-up用として扱う。
 
-将来G-code対応:
-
-```text
-G0 X Y F
-G1 X Y F
-G20
-G21
-G28
-G90
-G91
-M3
-M5
-M114
-```
-
-初期段階ではG-code parserは実装しない。
+全コマンドの引数・応答・前提条件は`docs/command_reference.md`を正とする。
+新コマンド追加時は`CommandDispatcher.cpp`とリファレンスを同時に更新する。
 
 ---
 
