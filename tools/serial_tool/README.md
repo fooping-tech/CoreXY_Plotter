@@ -10,7 +10,7 @@ CSVで定義したCoreXY plotter firmwareコマンドを、USB Serial経由で�
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r tools/serial_tool/requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Dry Run

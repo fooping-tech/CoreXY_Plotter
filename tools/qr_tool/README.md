@@ -11,7 +11,7 @@ CSV出力も可能ですが、通常の描画ジョブはG-codeと`--job-lifecyc
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r tools/qr_tool/requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Generate

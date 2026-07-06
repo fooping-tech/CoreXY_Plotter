@@ -436,6 +436,14 @@ pio run
 pio run --target upload
 ```
 
+motion経路(kinematics、planner、segment)またはホストツールを変更した場合は、
+uploadの前に以下の自動テストも実行する。
+
+```bash
+pio test -e native   # nativeテスト(CoreXY閉ループ、SegmentGenerator、planner)
+pytest               # hostツールテスト(serial_send、qr_tool、text_tool、webui変換)
+```
+
 機能を追加した場合は、その機能を単体検査できるように`tools/serial_tool`へ以下を追加する。
 
 - チェック用CSV: `tools/serial_tool/examples/<feature>_check.csv`

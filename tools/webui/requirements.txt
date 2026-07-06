@@ -1,1 +1,1 @@
-Pillow
+-r ../../requirements.txt

@@ -9,6 +9,20 @@ M5Stack Core2でCoreXYペンプロッタを制御するためのPlatformIOファ
 pio run
 ```
 
+## Test
+
+```bash
+# nativeテスト(CoreXY kinematics / planner / segment、ホストPC上で実行)
+pio test -e native
+
+# hostツールのテスト(Python)
+python -m pip install -r requirements.txt
+pytest
+```
+
+WindowsでnativeテストにはGCC(MinGW-w64等)がPATHに必要です。
+CI(GitHub Actions)はpush/PR時に`pio run`両env、`pio test -e native`、`pytest`を実行します。
+
 ## Host WebUI
 
 PCやRaspberry PiからUSB Serial経由で状態確認、手動操作、G-code送信を行う

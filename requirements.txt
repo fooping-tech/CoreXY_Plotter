@@ -1,0 +1,8 @@
+# CoreXY Plotter ホストツール共通依存。
+# ピン方針: メジャーバージョン上限つきの範囲指定で統一する。
+pyserial>=3.5,<4        # tools/serial_tool (実機Serial通信)
+qrcode[pil]>=7.4,<9     # tools/qr_tool
+Pillow>=10,<13          # tools/webui (image_to_svg)
+
+# テスト
+pytest>=8,<9

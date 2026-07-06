@@ -13,11 +13,12 @@ From the repository root:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r tools/serial_tool/requirements.txt
-python -m pip install -r tools/qr_tool/requirements.txt
-python -m pip install -r tools/webui/requirements.txt
+python -m pip install -r requirements.txt
 python tools/webui/server.py
 ```
+
+The repository root `requirements.txt` covers every host tool (pyserial, qrcode, Pillow, pytest).
+The per-tool `requirements.txt` files just include it for backward compatibility.
 
 Open:
 
@@ -52,25 +53,12 @@ http://localhost:8791
 
 ## Dependencies
 
-The WebUI server itself is mostly standard library code. Image to G-code raster tracing uses
-`Pillow`:
+The WebUI server itself is mostly standard library code. Runtime dependencies
+(`Pillow` for Image to G-code tracing, `pyserial` for actual serial sending via
+`tools/serial_tool/serial_send.py`, `qrcode` for QR G-code creation) are all installed by:
 
 ```bash
-python -m pip install -r tools/webui/requirements.txt
-```
-
-Actual serial sending still uses `tools/serial_tool/serial_send.py`, so `pyserial` is required
-when sending commands or jobs:
-
-```bash
-python -m pip install -r tools/serial_tool/requirements.txt
-```
-
-QR G-code creation on the Job page delegates to `tools/qr_tool/qr_to_plot_csv.py`, so install
-the QR tool requirements when using that feature:
-
-```bash
-python -m pip install -r tools/qr_tool/requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 Text G-code creation delegates to `tools/text_tool/kst32b_to_gcode.py` and requires

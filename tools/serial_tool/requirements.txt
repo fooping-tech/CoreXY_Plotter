@@ -1,1 +1,1 @@
-pyserial
+-r ../../requirements.txt
