@@ -1,8 +1,8 @@
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
-#include <iostream>
 #include <random>
+
+#include <unity.h>
 
 #include "CoreXYKinematics.h"
 #include "MotionBlock.h"
@@ -10,14 +10,10 @@
 #include "SegmentGenerator.h"
 #include "SegmentQueue.h"
 
-namespace {
+void setUp() {}
+void tearDown() {}
 
-void require(bool condition, const char* message) {
-  if (!condition) {
-    std::cerr << "FAIL: " << message << "\n";
-    std::exit(1);
-  }
-}
+namespace {
 
 void testAbsoluteStepClosedLoop() {
   constexpr size_t kTriangles = 3334;
@@ -67,12 +63,14 @@ void testAbsoluteStepClosedLoop() {
     add_target(0.0f, 0.0f);
   }
 
-  require(accumulated_a_steps == 0,
-          "absolute-step closed loop accumulated nonzero A steps");
-  require(accumulated_b_steps == 0,
-          "absolute-step closed loop accumulated nonzero B steps");
-  require(planned_a_steps == 0 && planned_b_steps == 0,
-          "absolute-step closed loop final target is not origin");
+  TEST_ASSERT_EQUAL_INT32_MESSAGE(
+      0, accumulated_a_steps,
+      "absolute-step closed loop accumulated nonzero A steps");
+  TEST_ASSERT_EQUAL_INT32_MESSAGE(
+      0, accumulated_b_steps,
+      "absolute-step closed loop accumulated nonzero B steps");
+  TEST_ASSERT_TRUE_MESSAGE(planned_a_steps == 0 && planned_b_steps == 0,
+                           "absolute-step closed loop final target is not origin");
 }
 
 void testSegmentGeneratorSumsToBlockSteps() {
@@ -93,8 +91,8 @@ void testSegmentGeneratorSumsToBlockSteps() {
       block.cruise_distance_mm = block.length_mm;
       block.cruise_time_s = std::max(0.05f, block.length_mm / 10.0f);
 
-      require(generator.generate(block, queue),
-              "SegmentGenerator rejected test block");
+      TEST_ASSERT_TRUE_MESSAGE(generator.generate(block, queue),
+                               "SegmentGenerator rejected test block");
       int32_t sum_a_steps = 0;
       int32_t sum_b_steps = 0;
       MotionSegment segment{};
@@ -102,19 +100,19 @@ void testSegmentGeneratorSumsToBlockSteps() {
         sum_a_steps += segment.a_steps;
         sum_b_steps += segment.b_steps;
       }
-      require(sum_a_steps == block.a_steps,
-              "SegmentGenerator A segment sum mismatch");
-      require(sum_b_steps == block.b_steps,
-              "SegmentGenerator B segment sum mismatch");
+      TEST_ASSERT_EQUAL_INT32_MESSAGE(block.a_steps, sum_a_steps,
+                                      "SegmentGenerator A segment sum mismatch");
+      TEST_ASSERT_EQUAL_INT32_MESSAGE(block.b_steps, sum_b_steps,
+                                      "SegmentGenerator B segment sum mismatch");
     }
   }
 }
 
 }  // namespace
 
-int main() {
-  testAbsoluteStepClosedLoop();
-  testSegmentGeneratorSumsToBlockSteps();
-  std::cout << "native motion drift tests passed\n";
-  return 0;
+int main(int, char**) {
+  UNITY_BEGIN();
+  RUN_TEST(testAbsoluteStepClosedLoop);
+  RUN_TEST(testSegmentGeneratorSumsToBlockSteps);
+  return UNITY_END();
 }

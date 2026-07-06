@@ -1,10 +1,7 @@
 #!/bin/sh
+# nativeテストはPlatformIOへ統合済み。このスクリプトは薄いラッパとして残す。
+# Windows/Linuxとも `pio test -e native` で同じテストが実行できる。
 set -eu
 
-c++ -std=c++17 -DSIMULATION_MODE=1 \
-  -Iinclude -Itest/native \
-  test/native/test_motion_drift.cpp \
-  src/CoreXYKinematics.cpp src/SegmentGenerator.cpp src/SegmentQueue.cpp \
-  -o /tmp/corexy_plotter_native_motion_tests
-
-/tmp/corexy_plotter_native_motion_tests
+cd "$(dirname "$0")/.."
+exec pio test -e native "$@"
