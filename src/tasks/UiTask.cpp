@@ -33,8 +33,28 @@ constexpr uint16_t COLOR_RED = 0xF946;
 constexpr uint16_t COLOR_BLUE = 0x3D7F;
 constexpr uint16_t COLOR_DISABLED = 0x4A69;
 
-constexpr float UI_JOG_STEP_MM = 1.0f;
-constexpr float UI_JOG_FEED_MM_MIN = 900.0f;
+// UI_JOG_STEP_MM / UI_JOG_FEED_MM_MIN はPlotterConfig.hで定義する。
+// 画面寸法・タイミング(M5Stack Core2 320x240、rotation=1固定)。
+constexpr int16_t UI_SCREEN_WIDTH_PX = 320;
+constexpr int16_t UI_FOOTER_TOP_PX = 214;
+constexpr int16_t UI_CONTENT_TOP_PX = 38;
+constexpr int16_t UI_CONTENT_BOTTOM_PX = 210;
+constexpr int16_t UI_PAGE_EDGE_TOUCH_PX = 24;
+constexpr int16_t UI_FLICK_MIN_DISTANCE_PX = 55;
+constexpr uint32_t UI_NOTICE_TIMEOUT_MS = 1800;
+constexpr uint32_t UI_CLOCK_REDRAW_INTERVAL_MS = 1000;
+
+// Controlページのレイアウトテーブル。
+// 描画とタッチhit-testの両方がここを参照する(リテラルの二重持ちを禁止)。
+constexpr Rect CONTROL_HOME_RECT{10, 42, 145, 36};
+constexpr Rect CONTROL_ALARM_CLEAR_RECT{165, 42, 145, 36};
+constexpr Rect CONTROL_JOG_UP_RECT{119, 86, 82, 34};
+constexpr Rect CONTROL_JOG_DOWN_RECT{119, 162, 82, 34};
+constexpr Rect CONTROL_JOG_LEFT_RECT{32, 124, 82, 34};
+constexpr Rect CONTROL_JOG_RIGHT_RECT{206, 124, 82, 34};
+constexpr Rect CONTROL_STOP_RECT{119, 124, 82, 34};
+constexpr Rect CONTROL_PEN_UP_RECT{10, 178, 94, 30};
+constexpr Rect CONTROL_PEN_DOWN_RECT{216, 178, 94, 30};
 
 UiPage current_page = UiPage::STATUS;
 bool force_redraw = true;
@@ -88,7 +108,7 @@ bool contains(const Rect& rect, int16_t x, int16_t y) {
 
 void setNotice(const char* text) {
   snprintf(ui_notice, sizeof(ui_notice), "%s", text);
-  ui_notice_until_ms = millis() + 1800;
+  ui_notice_until_ms = millis() + UI_NOTICE_TIMEOUT_MS;
   force_redraw = true;
 }
 
@@ -117,7 +137,7 @@ void drawButton(const Rect& rect, const char* label, uint16_t color,
 
 void drawHeader(const StatusMessage& status) {
   const MachineState& state = status.machine;
-  gfx().fillRect(0, 0, 320, 34, COLOR_BG);
+  gfx().fillRect(0, 0, UI_SCREEN_WIDTH_PX, 34, COLOR_BG);
   gfx().setTextDatum(top_left);
   gfx().setTextSize(2);
   gfx().setTextColor(COLOR_TEXT, COLOR_BG);
@@ -138,8 +158,8 @@ void drawHeader(const StatusMessage& status) {
 }
 
 void drawFooter() {
-  const int16_t y = 214;
-  gfx().fillRect(0, y, 320, 26, COLOR_BG);
+  const int16_t y = UI_FOOTER_TOP_PX;
+  gfx().fillRect(0, y, UI_SCREEN_WIDTH_PX, 26, COLOR_BG);
   const Rect tabs[] = {{12, y + 3, 86, 20}, {117, y + 3, 86, 20},
                        {222, y + 3, 86, 20}};
   const UiPage pages[] = {UiPage::STATUS, UiPage::CONTROL, UiPage::DETAIL};
@@ -227,17 +247,18 @@ void drawControlPage(const StatusMessage& status) {
   const bool enabled = canManualMove(state);
   const bool home_enabled =
       !state.homing_active && !state.motion_active && !state.job_active;
-  drawButton({10, 42, 145, 36}, "HOME", COLOR_BLUE, home_enabled, 2);
-  drawButton({165, 42, 145, 36}, "CLEAR ALARM", COLOR_RED, state.alarmed, 1);
+  drawButton(CONTROL_HOME_RECT, "HOME", COLOR_BLUE, home_enabled, 2);
+  drawButton(CONTROL_ALARM_CLEAR_RECT, "CLEAR ALARM", COLOR_RED, state.alarmed,
+             1);
 
-  drawButton({119, 86, 82, 34}, "UP", COLOR_PANEL_2, enabled, 1);
-  drawButton({119, 162, 82, 34}, "DOWN", COLOR_PANEL_2, enabled, 1);
-  drawButton({32, 124, 82, 34}, "LEFT", COLOR_PANEL_2, enabled, 1);
-  drawButton({206, 124, 82, 34}, "RIGHT", COLOR_PANEL_2, enabled, 1);
-  drawButton({119, 124, 82, 34}, "STOP", COLOR_RED, true, 1);
+  drawButton(CONTROL_JOG_UP_RECT, "UP", COLOR_PANEL_2, enabled, 1);
+  drawButton(CONTROL_JOG_DOWN_RECT, "DOWN", COLOR_PANEL_2, enabled, 1);
+  drawButton(CONTROL_JOG_LEFT_RECT, "LEFT", COLOR_PANEL_2, enabled, 1);
+  drawButton(CONTROL_JOG_RIGHT_RECT, "RIGHT", COLOR_PANEL_2, enabled, 1);
+  drawButton(CONTROL_STOP_RECT, "STOP", COLOR_RED, true, 1);
 
-  drawButton({10, 178, 94, 30}, "PEN UP", COLOR_GREEN, enabled, 1);
-  drawButton({216, 178, 94, 30}, "PEN DOWN", COLOR_YELLOW, enabled, 1);
+  drawButton(CONTROL_PEN_UP_RECT, "PEN UP", COLOR_GREEN, enabled, 1);
+  drawButton(CONTROL_PEN_DOWN_RECT, "PEN DOWN", COLOR_YELLOW, enabled, 1);
 
   if (!enabled) {
     gfx().setTextColor(COLOR_MUTED, COLOR_BG);
@@ -328,6 +349,9 @@ void queueSimpleCommand(CommandType type, const char* name) {
   if (queueCommand(command)) setNotice(name);
 }
 
+// 境界注記: jogのsoft limit clampとbase座標追跡はUI側の先行チェックにすぎない。
+// 最終的な移動可否・安全判定はfirmware motion経路(SafetyManager/MotionTask)が行う。
+// UI側clampの目的は、明らかに範囲外のXYを送ってNACK noticeを連発しないこと。
 void queueJog(const StatusMessage& status, float dx_mm, float dy_mm) {
   const MachineState& state = status.machine;
   if (!canManualMove(state)) {
@@ -361,7 +385,7 @@ void queueJog(const StatusMessage& status, float dx_mm, float dy_mm) {
 
 void handleControlTouch(const StatusMessage& status, int16_t x, int16_t y) {
   const MachineState& state = status.machine;
-  if (contains({10, 42, 145, 36}, x, y)) {
+  if (contains(CONTROL_HOME_RECT, x, y)) {
     if (state.homing_active) {
       setNotice("Homing now");
     } else if (state.motion_active || state.job_active) {
@@ -369,29 +393,29 @@ void handleControlTouch(const StatusMessage& status, int16_t x, int16_t y) {
     } else {
       queueSimpleCommand(CommandType::HOME, "HOME");
     }
-  } else if (contains({165, 42, 145, 36}, x, y)) {
+  } else if (contains(CONTROL_ALARM_CLEAR_RECT, x, y)) {
     if (state.alarmed) {
       queueSimpleCommand(CommandType::ALARM_CLEAR, "ALARM_CLEAR");
     } else {
       setNotice("No alarm");
     }
-  } else if (contains({119, 86, 82, 34}, x, y)) {
+  } else if (contains(CONTROL_JOG_UP_RECT, x, y)) {
     queueJog(status, 0.0f, UI_JOG_STEP_MM);
-  } else if (contains({119, 162, 82, 34}, x, y)) {
+  } else if (contains(CONTROL_JOG_DOWN_RECT, x, y)) {
     queueJog(status, 0.0f, -UI_JOG_STEP_MM);
-  } else if (contains({32, 124, 82, 34}, x, y)) {
+  } else if (contains(CONTROL_JOG_LEFT_RECT, x, y)) {
     queueJog(status, -UI_JOG_STEP_MM, 0.0f);
-  } else if (contains({206, 124, 82, 34}, x, y)) {
+  } else if (contains(CONTROL_JOG_RIGHT_RECT, x, y)) {
     queueJog(status, UI_JOG_STEP_MM, 0.0f);
-  } else if (contains({119, 124, 82, 34}, x, y)) {
+  } else if (contains(CONTROL_STOP_RECT, x, y)) {
     queueSimpleCommand(CommandType::ABORT, "ABORT");
-  } else if (contains({10, 178, 94, 30}, x, y)) {
+  } else if (contains(CONTROL_PEN_UP_RECT, x, y)) {
     if (canManualMove(state)) {
       queueSimpleCommand(CommandType::PEN_UP, "PENUP");
     } else {
       setNotice(state.homed ? "Manual locked" : "Home first");
     }
-  } else if (contains({216, 178, 94, 30}, x, y)) {
+  } else if (contains(CONTROL_PEN_DOWN_RECT, x, y)) {
     if (canManualMove(state)) {
       queueSimpleCommand(CommandType::PEN_DOWN, "PENDOWN");
     } else {
@@ -406,7 +430,8 @@ void handleTouch(const StatusMessage& status) {
 
   if (M5.Touch.getCount() == 0) return;
   const auto touch = M5.Touch.getDetail();
-  if (touch.wasFlicked() && abs(touch.distanceX()) > 55 &&
+  if (touch.wasFlicked() &&
+      abs(touch.distanceX()) > UI_FLICK_MIN_DISTANCE_PX &&
       abs(touch.distanceX()) > abs(touch.distanceY())) {
     nextPage(touch.distanceX() < 0 ? 1 : -1);
     return;
@@ -415,18 +440,20 @@ void handleTouch(const StatusMessage& status) {
 
   const int16_t x = touch.x;
   const int16_t y = touch.y;
-  if (y >= 214) {
-    if (x < 107) current_page = UiPage::STATUS;
-    else if (x < 214) current_page = UiPage::CONTROL;
+  if (y >= UI_FOOTER_TOP_PX) {
+    if (x < UI_SCREEN_WIDTH_PX / 3) current_page = UiPage::STATUS;
+    else if (x < UI_SCREEN_WIDTH_PX * 2 / 3) current_page = UiPage::CONTROL;
     else current_page = UiPage::DETAIL;
     force_redraw = true;
     return;
   }
-  if (x < 24 && y > 38 && y < 210) {
+  if (x < UI_PAGE_EDGE_TOUCH_PX && y > UI_CONTENT_TOP_PX &&
+      y < UI_CONTENT_BOTTOM_PX) {
     nextPage(-1);
     return;
   }
-  if (x > 296 && y > 38 && y < 210) {
+  if (x > UI_SCREEN_WIDTH_PX - UI_PAGE_EDGE_TOUCH_PX && y > UI_CONTENT_TOP_PX &&
+      y < UI_CONTENT_BOTTOM_PX) {
     nextPage(1);
     return;
   }
@@ -492,7 +519,8 @@ void uiTask(void*) {
           memcmp(&status, &displayed_status, sizeof(status)) != 0;
       const bool notice_expired =
           ui_notice_until_ms != 0 && millis() > ui_notice_until_ms;
-      const bool clock_tick = millis() - last_clock_redraw_ms > 1000;
+      const bool clock_tick =
+          millis() - last_clock_redraw_ms > UI_CLOCK_REDRAW_INTERVAL_MS;
       if (changed || force_redraw || notice_expired || clock_tick) {
         drawUi(status);
         displayed_status = status;

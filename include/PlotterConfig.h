@@ -239,6 +239,15 @@ constexpr uint32_t NEOPIXEL_FRAME_INTERVAL_MS = 33;
 constexpr uint8_t NEOPIXEL_INITIAL_PATTERN = 0;  // OFF
 
 // ============================================================================
+// Core2 LCD UI
+// ============================================================================
+// UIのjogボタン1回あたりの移動量 [mm]。
+constexpr float UI_JOG_STEP_MM = 1.0f;
+
+// UI jogのfeed [mm/min]。soft limit内の短距離移動用に控えめにする。
+constexpr float UI_JOG_FEED_MM_MIN = 900.0f;
+
+// ============================================================================
 // TMC2209 normal profile
 // ============================================================================
 // 通常動作時のmicrostep。

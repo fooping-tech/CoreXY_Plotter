@@ -100,10 +100,15 @@ bool Diagnostics::runSelfTest() {
     float current_x, current_y, target_x, target_y;
     int32_t expected_a, expected_b;
   };
+  // 期待値はSTEPS_PER_MMから導出する(定数変更でSELFTESTが自壊しないように)。
+  // CoreXY式: A = (dx + dy) * steps_per_mm, B = (dx - dy) * steps_per_mm
+  constexpr int32_t STEPS_10MM = static_cast<int32_t>(10.0f * STEPS_PER_MM);
   const TestCase cases[] = {
-      {0, 0, 10, 0, 800, 800}, {0, 0, 0, 10, 800, -800},
-      {0, 0, 10, 10, 1600, 0}, {10, 0, 10, 10, 800, -800},
-      {10, 10, 0, 0, -1600, 0},
+      {0, 0, 10, 0, STEPS_10MM, STEPS_10MM},
+      {0, 0, 0, 10, STEPS_10MM, -STEPS_10MM},
+      {0, 0, 10, 10, 2 * STEPS_10MM, 0},
+      {10, 0, 10, 10, STEPS_10MM, -STEPS_10MM},
+      {10, 10, 0, 0, -2 * STEPS_10MM, 0},
   };
   for (const auto& test : cases) {
     const CoreXYDelta delta = CoreXYKinematics::xyMoveToABSteps(

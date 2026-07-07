@@ -161,6 +161,11 @@ Core 0はユーザーインタフェース側を担当する。
 - `commandTask`
 - `logTask`
 
+`uiTask`はLCD描画に加えて、外付けNEOPIXELのLED lifecycleも駆動する。
+具体的には`NeoPixelController::begin()`、`LedCommandQueue`のdrain、
+`LedPatternEngine::tick()`をuiTaskのループ内で実行する。
+Core 1からのLED状態変化は`LedCommandQueue`経由でuiTaskへ届く。
+
 ### Core2 LCD / Touch UI
 
 Core2内蔵LCDは、Serial未接続でも機械状態と安全状態を確認し、bring-up操作を行えるローカルUIとして使う。
