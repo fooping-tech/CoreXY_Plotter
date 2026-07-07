@@ -10,6 +10,7 @@
 #include "PlannerQueue.h"
 #include "SegmentGenerator.h"
 #include "SegmentQueue.h"
+#include "TimedSegmentExecutor.h"
 #include "TrapezoidPlanner.h"
 
 namespace {
@@ -76,19 +77,6 @@ void nackXY(float target_x_mm, float target_y_mm, const char* reason) {
              reason);
 }
 
-MotionSyncReference captureMotionSyncReference() {
-  return MotionSyncTracker::capture(stepper_backend.currentASteps(),
-                                    stepper_backend.currentBSteps(),
-                                    machine_state);
-}
-
-void updateMachinePositionEstimateFromBackend(
-    const MotionSyncReference& reference) {
-  MotionSyncTracker::updateEstimate(reference, stepper_backend.currentASteps(),
-                                    stepper_backend.currentBSteps(),
-                                    STEPS_PER_MM, machine_state);
-}
-
 void resetDriftReference(const char* reason) {
 #if !SIMULATION_MODE
   motion_sync_tracker.resetReference(stepper_backend.currentASteps(),
@@ -128,91 +116,25 @@ bool stopForAbort(const char* context) {
   return true;
 }
 
-bool waitForMotionOrLimit(const MotionSyncReference& reference) {
-  while (stepper_backend.isRunning()) {
-    if (stopForAbort("Motion stopped")) {
-      return false;
-    }
-    updateMachinePositionEstimateFromBackend(reference);
-    safety_manager.poll();
-    if (safety_manager.isAlarmed()) {
-      stepper_backend.stop();
-      postLedStatus(LedStatus::ERROR);
-      logMessage("Motion stopped: alarm reason=%s", safety_manager.alarmReason());
-      return false;
-    }
-    vTaskDelay(pdMS_TO_TICKS(1));
-  }
-  updateMachinePositionEstimateFromBackend(reference);
-  return true;
+// TimedSegmentExecutorのフックは方針関数(abort/motion active/alarm)を注入する。
+TimedSegmentExecutorHooks makeTimedSegmentExecutorHooks() {
+  TimedSegmentExecutorHooks hooks;
+  hooks.stop_for_abort = &stopForAbort;
+  hooks.set_motion_active = &setMotionActive;
+  hooks.enter_alarm = static_cast<void (*)(const char*, const char*,
+                                           LedStatus)>(&enterAlarm);
+  return hooks;
 }
 
-bool waitForMotionOrLimit() {
-  const MotionSyncReference reference = captureMotionSyncReference();
-  return waitForMotionOrLimit(reference);
+TimedSegmentExecutor& timedExecutor() {
+  static TimedSegmentExecutor executor(stepper_backend, safety_manager,
+                                       machine_state,
+                                       makeTimedSegmentExecutorHooks());
+  return executor;
 }
 
-void handleTimedSegmentQueueError(const MotionSyncReference& reference,
-                                  const char* context) {
-  stepper_backend.stop();
-  updateMachinePositionEstimateFromBackend(reference);
-  enterAlarm("timed segment queue lost position confidence",
-             "timed segment queue error", LedStatus::ERROR);
-  logMessage("%s: ERROR position confidence lost; resynced from backend X=%.3f Y=%.3f A=%ld B=%ld",
-             context, machine_state.x_mm, machine_state.y_mm,
-             machine_state.a_steps, machine_state.b_steps);
-}
-
-bool queueTimedSegmentWithRetry(const MotionSegment& segment, bool start,
-                                const MotionSyncReference& reference) {
-  for (;;) {
-    if (stopForAbort("Motion stopped while queueing segment")) {
-      return false;
-    }
-    const StepperBackend::TimedSegmentResult result =
-        stepper_backend.queueTimedSegment(segment, start);
-    if (result == StepperBackend::TimedSegmentResult::QUEUED) return true;
-    if (result == StepperBackend::TimedSegmentResult::ERROR) {
-      handleTimedSegmentQueueError(reference,
-                                   "Motion stopped while queueing segment");
-      return false;
-    }
-    safety_manager.poll();
-    if (safety_manager.isAlarmed()) {
-      stepper_backend.stop();
-      postLedStatus(LedStatus::ERROR);
-      logMessage("Motion stopped while queueing segment: alarm reason=%s",
-                 safety_manager.alarmReason());
-      return false;
-    }
-    vTaskDelay(pdMS_TO_TICKS(1));
-  }
-}
-
-bool executeTimedSegments(SegmentQueue& queue) {
-  if (stopForAbort("Motion stopped before timed segment start")) {
-    return false;
-  }
-  const MotionSyncReference reference = captureMotionSyncReference();
-  MotionSegment segment{};
-  if (!queue.dequeue(segment)) return false;
-  if (!queueTimedSegmentWithRetry(segment, false, reference)) return false;
-  if (!stepper_backend.startTimedSegments()) return false;
-  setMotionActive(true);
-
-  while (queue.dequeue(segment)) {
-    if (stopForAbort("Motion stopped during timed segment queueing")) {
-      setMotionActive(false);
-      return false;
-    }
-    if (!queueTimedSegmentWithRetry(segment, true, reference)) {
-      setMotionActive(false);
-      return false;
-    }
-  }
-  const bool completed = waitForMotionOrLimit(reference);
-  setMotionActive(false);
-  return completed;
+MotionSyncReference captureMotionSyncReference() {
+  return timedExecutor().captureReference();
 }
 
 void stashPendingCommand(const CommandMessage& command) {
@@ -483,7 +405,7 @@ bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
   safety_manager.beginNormalMoveLimitReleaseAllowance(
       allow_x_limit_release, allow_y_limit_release, block.start_x_mm,
       block.start_y_mm);
-  const bool executed = executeTimedSegments(segment_queue);
+  const bool executed = timedExecutor().executeQueue(segment_queue);
   safety_manager.clearNormalMoveLimitReleaseAllowance();
   if (!executed) {
     const char* alarm_reason = safety_manager.alarmReason();
@@ -756,7 +678,7 @@ void handleABTimed(const CommandMessage& command) {
   logAbTimedState(detail);
   if (queue_result != StepperBackend::TimedSegmentResult::QUEUED) {
     if (queue_result == StepperBackend::TimedSegmentResult::ERROR) {
-      handleTimedSegmentQueueError(reference, "AB_TIMED queue");
+      timedExecutor().handleQueueError(reference, "AB_TIMED queue");
     }
     logMessage("NACK_AB_TIMED reason=queue_%s",
                timedSegmentResultName(queue_result));
@@ -767,12 +689,12 @@ void handleABTimed(const CommandMessage& command) {
            started ? "OK" : "ERROR");
   logAbTimedState(detail);
   if (!started) {
-    handleTimedSegmentQueueError(reference, "AB_TIMED start");
+    timedExecutor().handleQueueError(reference, "AB_TIMED start");
     logMessage("NACK_AB_TIMED reason=start_error");
     return;
   }
   setMotionActive(true);
-  if (!waitForMotionOrLimit(reference)) {
+  if (!timedExecutor().waitForMotionOrLimit(reference)) {
     setMotionActive(false);
     logAbTimedState("result=STOPPED");
     logMessage("NACK_AB_TIMED reason=stopped");
@@ -817,7 +739,7 @@ void handleSingleMotor(bool motor_a, int32_t steps) {
     return;
   }
   setMotionActive(true);
-  if (!waitForMotionOrLimit()) {
+  if (!timedExecutor().waitForMotionOrLimit()) {
     logMessage("ERROR: TEST_%c stopped", motor_a ? 'A' : 'B');
   }
   setMotionActive(false);
