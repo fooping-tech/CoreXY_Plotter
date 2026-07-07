@@ -5,10 +5,18 @@ from __future__ import annotations
 
 import argparse
 import csv
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 from xml.sax.saxutils import escape
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from common.plotter_gcode import (  # noqa: E402
+    GcodeEmitter,
+    QR_DRAW_FEED_MM_MIN,
+    QR_TRAVEL_FEED_MM_MIN,
+)
 
 import qrcode
 from qrcode.constants import (
@@ -37,8 +45,8 @@ DEFAULT_ORIGIN_X_MM = 0.0
 DEFAULT_ORIGIN_Y_MM = 0.0
 DEFAULT_MODULE_MM = 1.0
 DEFAULT_HATCH_PITCH_MM = 0.35
-DEFAULT_DRAW_FEED_MM_MIN = 600.0
-DEFAULT_TRAVEL_FEED_MM_MIN = 1800.0
+DEFAULT_DRAW_FEED_MM_MIN = QR_DRAW_FEED_MM_MIN
+DEFAULT_TRAVEL_FEED_MM_MIN = QR_TRAVEL_FEED_MM_MIN
 DEFAULT_ERROR_CORRECTION = "M"
 QUIET_ZONE_MODULES = 4
 POSITION_DECIMALS = 3
@@ -405,13 +413,6 @@ def xy_command(x_mm: float, y_mm: float, feed_mm_min: float) -> str:
     return f"XY {format_mm(x_mm)} {format_mm(y_mm)} {format_feed(feed_mm_min)}"
 
 
-def gcode_motion(command: str, x_mm: float, y_mm: float, feed_mm_min: float) -> str:
-    return (
-        f"{command} X{format_mm(x_mm)} Y{format_mm(y_mm)} "
-        f"F{format_feed(feed_mm_min)}"
-    )
-
-
 def build_csv_rows(
     paths: Sequence[StrokePath],
     draw_feed_mm_min: float,
@@ -472,30 +473,22 @@ def build_gcode_lines(
     dwell_ms: int,
 ) -> list[str]:
     display_text = text.replace("\n", "\\n")
-    lines = [
-        "G21",
-        "G90",
-        "M5",
-        "",
-        f"; QR text: {display_text}",
-        f"; stroke paths: {len(paths)}",
-    ]
+    emitter = GcodeEmitter(coord_fmt=format_mm, feed_fmt=format_feed)
+    emitter.blank()
+    emitter.comment(f"QR text: {display_text}")
+    emitter.comment(f"stroke paths: {len(paths)}")
     for index, path in enumerate(paths, start=1):
         start_x_mm, start_y_mm = path.points_mm[0]
-        lines.append("")
-        lines.append(f"; QR {path.kind} {index}")
-        lines.append(gcode_motion("G0", start_x_mm, start_y_mm, travel_feed_mm_min))
-        lines.append("M3")
-        if dwell_ms > 0:
-            lines.append(f"G4 P{dwell_ms}")
+        emitter.blank()
+        emitter.comment(f"QR {path.kind} {index}")
+        emitter.travel(start_x_mm, start_y_mm, travel_feed_mm_min)
+        emitter.pen_down(dwell_ms)
         for x_mm, y_mm in path.points_mm[1:]:
-            lines.append(gcode_motion("G1", x_mm, y_mm, draw_feed_mm_min))
-        lines.append("M5")
-        if dwell_ms > 0:
-            lines.append(f"G4 P{dwell_ms}")
-    lines.append("")
-    lines.append("M5")
-    return lines
+            emitter.draw(x_mm, y_mm, draw_feed_mm_min)
+        emitter.pen_up(dwell_ms)
+    emitter.blank()
+    emitter.raw("M5")
+    return emitter.lines
 
 
 def write_gcode(lines: Sequence[str], output_path: Path) -> None:

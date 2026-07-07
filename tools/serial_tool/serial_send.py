@@ -13,6 +13,13 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from common.plotter_gcode import (  # noqa: E402
+    HOST_ESTIMATE_FEED_MM_MIN,
+    gcode_words,
+    strip_gcode_comments,
+)
+
 
 DEFAULT_BAUD = 115200
 DEFAULT_TIMEOUT_S = 30.0
@@ -24,7 +31,7 @@ DEFAULT_CLOSE_DELAY_S = 0.3
 DEFAULT_QUEUE_RETRY_DELAY_MS = 100
 DEFAULT_QUEUE_RETRY_TIMEOUT_S = 30.0
 DEFAULT_MOTION_TIMEOUT_MARGIN_S = 5.0
-DEFAULT_ESTIMATE_FEED_MM_MIN = 1200.0
+DEFAULT_ESTIMATE_FEED_MM_MIN = HOST_ESTIMATE_FEED_MM_MIN
 READ_DRAIN_S = 0.2
 READ_IDLE_S = 0.15
 INTERRUPT_ABORT_TIMEOUT_S = 1.0
@@ -402,9 +409,6 @@ def load_input_rows(args: argparse.Namespace) -> list[CommandRow]:
     return rows
 
 
-GCODE_WORD_RE = re.compile(r"([A-Za-z])\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+))")
-
-
 @dataclass
 class MotionEstimateState:
     x_mm: float = 0.0
@@ -415,16 +419,8 @@ class MotionEstimateState:
     position_known: bool = True
 
 
-def strip_host_gcode_comments(command: str) -> str:
-    no_semicolon = command.split(";", maxsplit=1)[0]
-    return re.sub(r"\([^)]*\)", "", no_semicolon)
-
-
-def gcode_words(command: str) -> dict[str, float]:
-    return {
-        match.group(1).upper(): float(match.group(2))
-        for match in GCODE_WORD_RE.finditer(strip_host_gcode_comments(command))
-    }
+# gcode_words / strip_gcode_comments はtools/common/plotter_gcode.pyへ統合した。
+strip_host_gcode_comments = strip_gcode_comments
 
 
 def positive_or_zero(value_s: float) -> float:

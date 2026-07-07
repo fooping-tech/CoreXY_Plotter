@@ -12,7 +12,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-for _tool_dir in ("serial_tool", "qr_tool", "text_tool", "webui"):
-    _path = str(REPO_ROOT / "tools" / _tool_dir)
+# tools自体もパスへ入れる(共通モジュール tools/common 用)。
+for _tool_dir in ("", "serial_tool", "qr_tool", "text_tool", "webui"):
+    _path = str(REPO_ROOT / "tools" / _tool_dir if _tool_dir
+                else REPO_ROOT / "tools")
     if _path not in sys.path:
         sys.path.insert(0, _path)

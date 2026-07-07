@@ -9,6 +9,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from common.plotter_gcode import (  # noqa: E402
+    GcodeEmitter,
+    TEXT_DRAW_FEED_MM_MIN,
+    TEXT_TRAVEL_FEED_MM_MIN,
+)
+
 
 GRID_WIDTH = 30
 GRID_HEIGHT = 32
@@ -243,13 +250,9 @@ def text_to_gcode(
     y_mm = start_y_mm
     current_position_mm: Point | None = None
     display_text = text.replace("\n", "\\n")
-    lines = [
-        "G21",
-        "G90",
-        "M5",
-        "",
-        f"; text: {display_text}",
-    ]
+    emitter = GcodeEmitter(coord_fmt=fmt_coord, feed_fmt=lambda value: f"{value:g}")
+    emitter.blank()
+    emitter.comment(f"text: {display_text}")
 
     box = fallback_box()
 
@@ -259,8 +262,8 @@ def text_to_gcode(
         if char == "\n":
             x_mm = start_x_mm
             y_mm += size_mm + line_spacing_mm
-            lines.append("")
-            lines.append("; newline")
+            emitter.blank()
+            emitter.comment("newline")
             continue
         if char == "\t":
             x_mm += (GRID_WIDTH * scale + char_spacing_mm) * 4
@@ -280,32 +283,28 @@ def text_to_gcode(
                 x_mm += GRID_WIDTH * scale + char_spacing_mm
                 continue
             glyph = box
-            lines.append(f"; warning: missing glyph for {char}")
+            emitter.comment(f"warning: missing glyph for {char}")
 
-        lines.append(f"; char: {char}")
+        emitter.comment(f"char: {char}")
         for stroke in glyph.strokes:
             if len(stroke) < 2:
                 continue
             first_x, first_y = transform_point(stroke[0], x_mm, y_mm, scale, flip_y)
             first_point_mm = (first_x, first_y)
             if not same_point(current_position_mm, first_point_mm):
-                lines.append(f"G0 X{fmt_coord(first_x)} Y{fmt_coord(first_y)} F{rapid_feed_mm_min:g}")
+                emitter.travel(first_x, first_y, rapid_feed_mm_min)
                 current_position_mm = first_point_mm
-            lines.append("M3")
-            if dwell_ms > 0:
-                lines.append(f"G4 P{dwell_ms}")
+            emitter.pen_down(dwell_ms)
             for point in stroke[1:]:
                 draw_x, draw_y = transform_point(point, x_mm, y_mm, scale, flip_y)
-                lines.append(f"G1 X{fmt_coord(draw_x)} Y{fmt_coord(draw_y)} F{feed_mm_min:g}")
+                emitter.draw(draw_x, draw_y, feed_mm_min)
                 current_position_mm = (draw_x, draw_y)
-            lines.append("M5")
-            if dwell_ms > 0:
-                lines.append(f"G4 P{dwell_ms}")
+            emitter.pen_up(dwell_ms)
         x_mm += glyph.advance_units * scale + char_spacing_mm
 
-    lines.append("")
-    lines.append("M5")
-    return lines
+    emitter.blank()
+    emitter.raw("M5")
+    return emitter.lines
 
 
 GCODE_X_RE = re.compile(r"(?:^|\s)X([-+]?\d+(?:\.\d*)?)")
@@ -449,8 +448,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--size", type=float, default=20.0, help="Character height in mm")
     parser.add_argument("--char-spacing", type=float, default=3.0, help="Character spacing in mm")
     parser.add_argument("--line-spacing", type=float, default=6.0, help="Line spacing in mm")
-    parser.add_argument("--feed", type=float, default=3000.0, help="Draw feed in mm/min")
-    parser.add_argument("--rapid-feed", type=float, default=8000.0, help="Pen-up feed in mm/min")
+    parser.add_argument(
+        "--feed", type=float, default=TEXT_DRAW_FEED_MM_MIN,
+        help="Draw feed in mm/min")
+    parser.add_argument(
+        "--rapid-feed", type=float, default=TEXT_TRAVEL_FEED_MM_MIN,
+        help="Pen-up feed in mm/min")
     parser.add_argument("--dwell-ms", type=int, default=80, help="Dwell after pen up/down in ms")
     parser.add_argument("--flip-y", action="store_true", help="Flip glyph Y axis")
     parser.add_argument("--max-x", type=float, help="Reject or auto-scale output above this X mm")

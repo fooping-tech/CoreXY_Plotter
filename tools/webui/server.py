@@ -53,7 +53,10 @@ DEFAULT_SEND_SETTINGS: dict[str, object] = {
 
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from common.plotter_gcode import gcode_words  # noqa: E402
 from svg_to_gcode import SvgToGcodeOptions, convert_svg_to_gcode  # noqa: E402
 from image_to_svg import RasterTraceOptions, trace_mode_from_value, trace_raster_image_to_svg  # noqa: E402
 
@@ -102,7 +105,7 @@ JOB_RE = re.compile(r"JOB=(ACTIVE|IDLE)|JOB_STATUS state=(RUNNING|STARTING|ENDIN
 PEN_RE = re.compile(r"PEN=(UP|DOWN)|pen:\s*(UP|DOWN)|PEN\s+(UP|DOWN)", re.IGNORECASE)
 LIMIT_RE = re.compile(r"LIMIT_X=(OPEN|ACTIVE|ON|OFF).*LIMIT_Y=(OPEN|ACTIVE|ON|OFF)", re.IGNORECASE)
 TMC_RE = re.compile(r"TMC[:=]\s*(READY|NOT READY|OFF)", re.IGNORECASE)
-GCODE_WORD_RE = re.compile(r"([A-Z])\s*(-?\d+(?:\.\d+)?)", re.IGNORECASE)
+# G-code語のトークナイザはtools/common/plotter_gcode.pyのgcode_wordsを使う。
 
 
 def now_ms() -> int:
@@ -337,9 +340,11 @@ def svg_options_from_mapping(data: dict[str, object]) -> SvgToGcodeOptions:
         width_mm=clamp_float(data.get("width_mm", 50), name="width_mm", minimum=1.0, maximum=1000.0),
         height_mm=clamp_float(data.get("height_mm", 50), name="height_mm", minimum=1.0, maximum=1000.0),
         margin_mm=clamp_float(data.get("margin_mm", 5), name="margin_mm", minimum=0.0, maximum=500.0),
-        feed_mm_min=clamp_float(data.get("feed_mm_min", 800), name="feed_mm_min", minimum=1.0, maximum=50000.0),
+        feed_mm_min=clamp_float(
+            data.get("feed_mm_min", SvgToGcodeOptions().feed_mm_min),
+            name="feed_mm_min", minimum=1.0, maximum=50000.0),
         travel_feed_mm_min=clamp_float(
-            data.get("travel_feed_mm_min", 1200),
+            data.get("travel_feed_mm_min", SvgToGcodeOptions().travel_feed_mm_min),
             name="travel_feed_mm_min",
             minimum=1.0,
             maximum=50000.0,
@@ -563,10 +568,6 @@ def save_gcode(text: str) -> Path:
     with temp:
         temp.write(text)
     return Path(temp.name)
-
-
-def gcode_words(line: str) -> dict[str, float]:
-    return {match.group(1).upper(): float(match.group(2)) for match in GCODE_WORD_RE.finditer(line.split(";")[0])}
 
 
 def replace_motion_xy(line: str, x_mm: float, y_mm: float) -> str:

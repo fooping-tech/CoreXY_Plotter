@@ -13,6 +13,13 @@ from pathlib import Path
 from typing import Iterable
 from xml.etree import ElementTree
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from common.plotter_gcode import (  # noqa: E402
+    GcodeEmitter,
+    SVG_DRAW_FEED_MM_MIN,
+    SVG_TRAVEL_FEED_MM_MIN,
+)
+
 
 Point = tuple[float, float]
 Stroke = list[Point]
@@ -29,8 +36,8 @@ class SvgToGcodeOptions:
     width_mm: float = 50.0
     height_mm: float = 50.0
     margin_mm: float = 5.0
-    feed_mm_min: float = 800.0
-    travel_feed_mm_min: float = 1200.0
+    feed_mm_min: float = SVG_DRAW_FEED_MM_MIN
+    travel_feed_mm_min: float = SVG_TRAVEL_FEED_MM_MIN
     simplify_tolerance_mm: float = 0.2
     min_stroke_length_mm: float = 0.5
     optimize_stroke_order: bool = True
@@ -437,21 +444,16 @@ def fmt(value: float) -> str:
 
 
 def strokes_to_gcode(strokes: list[Stroke], options: SvgToGcodeOptions) -> str:
-    lines = ["G21", "G90", "M5"]
+    emitter = GcodeEmitter(coord_fmt=fmt, feed_fmt=fmt)
     for stroke in strokes:
-        start = stroke[0]
-        if lines[-1] != "M5":
-            lines.append("M5")
-        lines.extend([
-            f"G0 X{fmt(start[0])} Y{fmt(start[1])} F{fmt(options.travel_feed_mm_min)}",
-            "M3",
-        ])
+        emitter.pen_up(skip_if_up=True)
+        emitter.travel(stroke[0][0], stroke[0][1], options.travel_feed_mm_min)
+        emitter.pen_down()
         for point in stroke[1:]:
-            lines.append(f"G1 X{fmt(point[0])} Y{fmt(point[1])} F{fmt(options.feed_mm_min)}")
-        lines.append("M5")
-    if lines[-1] != "M5":
-        lines.append("M5")
-    return "\n".join(lines) + "\n"
+            emitter.draw(point[0], point[1], options.feed_mm_min)
+        emitter.pen_up()
+    emitter.pen_up(skip_if_up=True)
+    return emitter.text()
 
 
 def validate_options(options: SvgToGcodeOptions) -> None:
@@ -525,8 +527,8 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument("--width-mm", type=float, default=50.0)
     parser.add_argument("--height-mm", type=float, default=50.0)
     parser.add_argument("--margin-mm", type=float, default=5.0)
-    parser.add_argument("--feed-mm-min", type=float, default=800.0)
-    parser.add_argument("--travel-feed-mm-min", type=float, default=1200.0)
+    parser.add_argument("--feed-mm-min", type=float, default=SVG_DRAW_FEED_MM_MIN)
+    parser.add_argument("--travel-feed-mm-min", type=float, default=SVG_TRAVEL_FEED_MM_MIN)
     parser.add_argument("--simplify-tolerance-mm", type=float, default=0.2)
     parser.add_argument("--min-stroke-length-mm", type=float, default=0.5)
     parser.add_argument("--no-optimize-stroke-order", action="store_true")
