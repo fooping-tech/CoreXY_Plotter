@@ -27,3 +27,14 @@ CoreXYDelta CoreXYKinematics::xyMoveToABSteps(float current_x_mm,
   return xyDeltaToABSteps(target_x_mm - current_x_mm,
                           target_y_mm - current_y_mm, steps_per_mm);
 }
+
+CoreXYXYDeltaMm CoreXYKinematics::abStepsToXYDeltaMm(int32_t delta_a_steps,
+                                                     int32_t delta_b_steps,
+                                                     float steps_per_mm) {
+  CoreXYXYDeltaMm delta{};
+  const float delta_a_mm = static_cast<float>(delta_a_steps) / steps_per_mm;
+  const float delta_b_mm = static_cast<float>(delta_b_steps) / steps_per_mm;
+  delta.dx_mm = (delta_a_mm + delta_b_mm) * 0.5f;
+  delta.dy_mm = (delta_a_mm - delta_b_mm) * 0.5f;
+  return delta;
+}

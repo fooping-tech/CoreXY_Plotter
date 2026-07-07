@@ -5,6 +5,7 @@
 #include "Diagnostics.h"
 #include "GcodeInterpreter.h"
 #include "JunctionPlanner.h"
+#include "MotionSyncTracker.h"
 #include "PlotterConfig.h"
 #include "PlannerQueue.h"
 #include "SegmentGenerator.h"
@@ -18,22 +19,9 @@ GcodeInterpreter gcode_interpreter;
 SegmentGenerator segment_generator;
 SegmentQueue segment_queue;
 PlannerQueue planner_queue;
+MotionSyncTracker motion_sync_tracker;
 CommandMessage pending_command;
 bool has_pending_command = false;
-
-struct MotionSyncReference {
-  int32_t backend_a_steps = 0;
-  int32_t backend_b_steps = 0;
-  int32_t machine_a_steps = 0;
-  int32_t machine_b_steps = 0;
-  float machine_x_mm = 0.0f;
-  float machine_y_mm = 0.0f;
-};
-
-int32_t drift_backend_origin_a_steps = 0;
-int32_t drift_backend_origin_b_steps = 0;
-int32_t drift_machine_origin_a_steps = 0;
-int32_t drift_machine_origin_b_steps = 0;
 
 void setMotionActive(bool active) {
   if (machine_state.motion_active == active) return;
@@ -89,60 +77,41 @@ void nackXY(float target_x_mm, float target_y_mm, const char* reason) {
 }
 
 MotionSyncReference captureMotionSyncReference() {
-  MotionSyncReference reference{};
-  reference.backend_a_steps = stepper_backend.currentASteps();
-  reference.backend_b_steps = stepper_backend.currentBSteps();
-  reference.machine_a_steps = machine_state.a_steps;
-  reference.machine_b_steps = machine_state.b_steps;
-  reference.machine_x_mm = machine_state.x_mm;
-  reference.machine_y_mm = machine_state.y_mm;
-  return reference;
+  return MotionSyncTracker::capture(stepper_backend.currentASteps(),
+                                    stepper_backend.currentBSteps(),
+                                    machine_state);
 }
 
 void updateMachinePositionEstimateFromBackend(
     const MotionSyncReference& reference) {
-  const int32_t delta_a_steps =
-      stepper_backend.currentASteps() - reference.backend_a_steps;
-  const int32_t delta_b_steps =
-      stepper_backend.currentBSteps() - reference.backend_b_steps;
-  machine_state.a_steps = reference.machine_a_steps + delta_a_steps;
-  machine_state.b_steps = reference.machine_b_steps + delta_b_steps;
-  const float delta_a_mm = static_cast<float>(delta_a_steps) / STEPS_PER_MM;
-  const float delta_b_mm = static_cast<float>(delta_b_steps) / STEPS_PER_MM;
-  machine_state.x_mm = reference.machine_x_mm + (delta_a_mm + delta_b_mm) * 0.5f;
-  machine_state.y_mm = reference.machine_y_mm + (delta_a_mm - delta_b_mm) * 0.5f;
+  MotionSyncTracker::updateEstimate(reference, stepper_backend.currentASteps(),
+                                    stepper_backend.currentBSteps(),
+                                    STEPS_PER_MM, machine_state);
 }
 
 void resetDriftReference(const char* reason) {
 #if !SIMULATION_MODE
-  drift_backend_origin_a_steps = stepper_backend.currentASteps();
-  drift_backend_origin_b_steps = stepper_backend.currentBSteps();
+  motion_sync_tracker.resetReference(stepper_backend.currentASteps(),
+                                     stepper_backend.currentBSteps(),
+                                     machine_state);
 #else
-  drift_backend_origin_a_steps = machine_state.a_steps;
-  drift_backend_origin_b_steps = machine_state.b_steps;
+  motion_sync_tracker.resetReference(machine_state.a_steps,
+                                     machine_state.b_steps, machine_state);
 #endif
-  drift_machine_origin_a_steps = machine_state.a_steps;
-  drift_machine_origin_b_steps = machine_state.b_steps;
   logMessage("DRIFT reference reset reason=%s A=%ld B=%ld",
              reason, machine_state.a_steps, machine_state.b_steps);
 }
 
 void warnIfDriftDetected() {
 #if !SIMULATION_MODE
-  const int32_t machine_delta_a =
-      machine_state.a_steps - drift_machine_origin_a_steps;
-  const int32_t machine_delta_b =
-      machine_state.b_steps - drift_machine_origin_b_steps;
-  const int32_t backend_delta_a =
-      stepper_backend.currentASteps() - drift_backend_origin_a_steps;
-  const int32_t backend_delta_b =
-      stepper_backend.currentBSteps() - drift_backend_origin_b_steps;
-  const int32_t drift_a = machine_delta_a - backend_delta_a;
-  const int32_t drift_b = machine_delta_b - backend_delta_b;
-  if (drift_a != 0 || drift_b != 0) {
+  const MotionDrift drift = motion_sync_tracker.computeDrift(
+      stepper_backend.currentASteps(), stepper_backend.currentBSteps(),
+      machine_state);
+  if (drift.detected()) {
     logMessage("WARN: DRIFT a=%ld b=%ld machine=(%ld,%ld) backend=(%ld,%ld)",
-               drift_a, drift_b, machine_delta_a, machine_delta_b,
-               backend_delta_a, backend_delta_b);
+               drift.drift_a_steps, drift.drift_b_steps,
+               drift.machine_delta_a_steps, drift.machine_delta_b_steps,
+               drift.backend_delta_a_steps, drift.backend_delta_b_steps);
   }
 #endif
 }

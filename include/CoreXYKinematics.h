@@ -14,6 +14,11 @@ struct CoreXYPositionSteps {
   int32_t b_steps;
 };
 
+struct CoreXYXYDeltaMm {
+  float dx_mm;
+  float dy_mm;
+};
+
 class CoreXYKinematics {
  public:
   static CoreXYPositionSteps xyPositionToABSteps(float x_mm, float y_mm,
@@ -23,4 +28,8 @@ class CoreXYKinematics {
   static CoreXYDelta xyMoveToABSteps(float current_x_mm, float current_y_mm,
                                      float target_x_mm, float target_y_mm,
                                      float steps_per_mm);
+  // 逆変換: A/B step差分をXY mm差分へ。CoreXY式はこのモジュールに閉じる。
+  static CoreXYXYDeltaMm abStepsToXYDeltaMm(int32_t delta_a_steps,
+                                            int32_t delta_b_steps,
+                                            float steps_per_mm);
 };
