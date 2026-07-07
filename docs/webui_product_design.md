@@ -1,5 +1,8 @@
 # Host WebUI Product Design Brief
 
+> 位置づけ: 本書はWebUI設計時のデザイン経緯資料である。
+> 画面構成・操作ルール・APIの仕様の正は`SPEC.md` §20とし、差異がある場合はSPECが優先する。
+
 ## Scope
 
 The initial WebUI runs on a PC or Raspberry Pi and controls the M5Stack Core2 firmware through USB Serial.
@@ -24,69 +27,12 @@ The WebUI must not reimplement queue retry, ACK waiting, Job Lifecycle wrapping,
 
 ## Information Architecture
 
-### Dashboard
+画面一覧(Dashboard / Manual Control / Job / Console / Settings)と操作ルールは
+`SPEC.md` §20.1〜§20.3を正とする。ここではSPECに含めていない設計判断のみ残す。
 
-- Serial connection state
-- Machine state: `READY`, `ALARM`, `NEED HOME`, `HOMING`
-- Position: X/Y
-- Pen: up/down
-- Homed state
-- Limit X/Y
-- TMC ready
-- Recent firmware log
-
-### Manual Control
-
-- `HOME`
-- `ALARM_CLEAR`
-- `PENUP`
-- `PENDOWN`
-- Jog: up/down/left/right
-- Jog step: 0.1 mm, 1 mm, 5 mm
-
-Rules:
-
-- Jog and pen controls are disabled unless the host state says homed, not alarmed, and not homing.
-- Job execution disables manual jog.
-- Unknown state disables motion-producing controls.
-
-### Job
-
-- G-code file selection
-- G-code preview canvas
-- File bounds
-- Soft limit box
-- Warning list
-- Send job
-- Abort job
-
-`serial_send.py` default options for job sending:
-
-```text
---gcode <file>
---port <serial_port>
---baud 115200
---queue-mode
---stream-gcode-motion
---job-lifecycle
-```
-
-### Console
-
-- Firmware output
-- Host bridge output
-- Sent command lines
-- ACK/NACK/ERROR classification
-- Manual command input for diagnostics
-
-### Settings
-
-- Serial port
-- Baudrate
-- Startup delay
-- Queue mode
-- Stream G-code motion mode
-- Jog step default
+- Jog step選択肢は 0.1 mm / 1 mm / 5 mm とする
+- Consoleにはfirmware出力に加えてhost bridge出力も表示する
+- 状態不明(host stateが取得できない)時はmotionを伴う操作をdisabledにする
 
 ## G-code Preview Requirements
 

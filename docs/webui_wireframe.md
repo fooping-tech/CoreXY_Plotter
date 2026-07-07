@@ -1,5 +1,8 @@
 # Host WebUI Wireframe
 
+> 位置づけ: 本書はWebUI設計時のワイヤーフレーム経緯資料である。
+> 画面構成・操作ルールの仕様の正は`SPEC.md` §20とし、差異がある場合はSPECが優先する。
+
 ## Design Direction
 
 The WebUI is a PC/Raspberry Pi hosted control surface for the CoreXY plotter.

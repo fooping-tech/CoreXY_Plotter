@@ -1511,6 +1511,8 @@ PC画面で状態、ログ、G-code preview、ジョブ送信を扱えるよう�
 
 ### 11.1.2 画面
 
+画面構成・操作ルールの仕様の正は`SPEC.md` §20とする。以下は実装進捗の記録。
+
 - [x] Dashboard: 接続port、state、X/Y、pen、homed、limit、TMC、直近log
 - [x] Manual Control: `HOME`、`ALARM_CLEAR`、`PENUP`、`PENDOWN`、上下左右jog、jog step
 - [x] Job: G-code file選択、preview、bounds、warning、send、abort
