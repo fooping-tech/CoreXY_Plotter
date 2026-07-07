@@ -6,9 +6,15 @@
 
 class NeoPixelController;
 
+// LEDコマンド解釈と状態機械。描画はLedRenderer、状態→演出マッピングは
+// LedStatusConfig.hのテーブルへ分離している。
+// グローバルI/Oへ依存せず、応答はsetResponder()のコールバックへ出す。
 class LedPatternEngine {
  public:
+  using Responder = void (*)(const char* text);
+
   void begin(NeoPixelController& controller);
+  void setResponder(Responder responder) { responder_ = responder; }
   void tick(uint32_t now_ms);
   void applyCommand(const LedCommand& command);
   void setStatus(LedStatus status);
@@ -17,22 +23,16 @@ class LedPatternEngine {
 
  private:
   void render(uint32_t now_ms);
-  void renderBreath(uint32_t now_ms, RgbColor* leds, uint16_t count);
-  void renderChase(uint32_t now_ms, RgbColor* leds, uint16_t count);
-  void renderProgress(RgbColor* leds, uint16_t count);
-  void renderAlert(uint32_t now_ms, RgbColor* leds, uint16_t count);
-  void renderSuccess(uint32_t now_ms, RgbColor* leds, uint16_t count);
-  void renderPacifica(uint32_t now_ms, RgbColor* leds, uint16_t count);
-  void renderFire(RgbColor* leds, uint16_t count);
   void applyStatusConfig(LedStatus status, uint32_t now_ms);
   bool shouldApplyStatus(LedStatus status, uint32_t now_ms) const;
+  void respond(const char* format, ...) const;
   static uint8_t statusPriority(LedStatus status);
   static const char* patternName(LedPattern pattern);
   static const char* parameterName(LedParameter parameter);
   static const char* statusName(LedStatus status);
-  static RgbColor scaleColor(RgbColor color, uint8_t scale);
 
   NeoPixelController* controller_ = nullptr;
+  Responder responder_ = nullptr;
   LedAnimationConfig config_;
   LedPattern pattern_ = static_cast<LedPattern>(NEOPIXEL_INITIAL_PATTERN);
   LedStatus status_ = LedStatus::IDLE;

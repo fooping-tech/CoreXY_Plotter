@@ -493,6 +493,9 @@ void uiTask(void*) {
     logMessage("ERROR: M5 UI disabled by pin configuration");
   }
   neopixel_controller.begin();
+  // engineはグローバルI/O非依存。応答はコールバック経由でLogQueueへ流す。
+  led_pattern_engine.setResponder(
+      [](const char* text) { logMessage("%s", text); });
   led_pattern_engine.begin(neopixel_controller);
   led_pattern_engine.setStatus(LedStatus::IDLE);
 

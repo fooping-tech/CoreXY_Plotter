@@ -8,7 +8,7 @@ struct RgbColor {
   uint8_t b = 0;
 
   RgbColor() = default;
-  RgbColor(uint8_t red, uint8_t green, uint8_t blue)
+  constexpr RgbColor(uint8_t red, uint8_t green, uint8_t blue)
       : r(red), g(green), b(blue) {}
 };
 

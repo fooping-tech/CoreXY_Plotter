@@ -238,6 +238,14 @@ constexpr uint32_t NEOPIXEL_FRAME_INTERVAL_MS = 33;
 // 起動時のLED pattern。0はOFF。
 constexpr uint8_t NEOPIXEL_INITIAL_PATTERN = 0;  // OFF
 
+// COMPLETED/WARNING演出の保持時間 [ms]。経過後にIDLE表示へ自動復帰する。
+constexpr uint32_t NEOPIXEL_TRANSIENT_STATUS_MS = 2500;
+
+// IDLE(待機Pacifica)の輝度上限。待機中はデフォルトより暗くする。
+constexpr uint8_t NEOPIXEL_IDLE_BRIGHTNESS_MAX = 16;
+
+// 状態→pattern/color/速度のマッピング表はinclude/LedStatusConfig.hにある。
+
 // ============================================================================
 // Core2 LCD UI
 // ============================================================================
