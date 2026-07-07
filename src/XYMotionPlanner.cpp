@@ -214,8 +214,8 @@ bool XYMotionPlanner::handleBatch(const CommandMessage& first_command) {
 
   CommandMessage next_command;
   while (!planner_queue_.isFull() &&
-         hooks_.receive_next_command(next_command,
-                                     LOOKAHEAD_BATCH_COLLECT_MS)) {
+         hooks_.receive_next_command(
+             next_command, pdMS_TO_TICKS(LOOKAHEAD_BATCH_COLLECT_MS))) {
     if (hooks_.reject_disallowed(next_command)) {
       continue;
     }

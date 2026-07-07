@@ -21,9 +21,9 @@ class TimedSegmentExecutor;
 // 関数フックとして注入する。
 struct XYMotionPlannerHooks {
   bool (*stop_for_abort)(const char* context) = nullptr;
-  // lookahead収集用。wait_msだけ待って次コマンドを取り出す。
+  // lookahead収集用。wait_ticks(FreeRTOS tick)だけ待って次コマンドを取り出す。
   bool (*receive_next_command)(CommandMessage& command,
-                               uint32_t wait_ms) = nullptr;
+                               uint32_t wait_ticks) = nullptr;
   void (*stash_pending_command)(const CommandMessage& command) = nullptr;
   bool (*reject_disallowed)(const CommandMessage& command) = nullptr;
   GcodeInterpreterResult (*translate_gcode)(const CommandMessage& command,
