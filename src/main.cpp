@@ -25,14 +25,25 @@ void requestMotionAbort() { motion_abort_requested = true; }
 bool isMotionAbortRequested() { return motion_abort_requested; }
 void clearMotionAbort() { motion_abort_requested = false; }
 
+// LogQueue満杯時のdropポリシー: ここではブロックもSerial直接出力もしない
+// (time-critical文脈から呼ばれるため)。dropは計数し、logTaskが後から
+// "WARN: LogQueue dropped N messages" として報告する。
+volatile uint32_t log_dropped_count = 0;
+
+uint32_t takeDroppedLogCount() {
+  const uint32_t count = log_dropped_count;
+  log_dropped_count = 0;
+  return count;
+}
+
 void logMessage(const char* format, ...) {
   LogMessage message{};
   va_list args;
   va_start(args, format);
   vsnprintf(message.text, sizeof(message.text), format, args);
   va_end(args);
-  if (log_queue != nullptr) {
-    xQueueSend(log_queue, &message, 0);
+  if (log_queue == nullptr || xQueueSend(log_queue, &message, 0) != pdTRUE) {
+    ++log_dropped_count;
   }
 }
 

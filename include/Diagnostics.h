@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MachineState.h"
+#include "Messages.h"
 
 class Diagnostics {
  public:

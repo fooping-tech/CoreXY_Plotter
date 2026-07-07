@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "CommandMessage.h"
 #include "MachineState.h"
+#include "Messages.h"
 #include "HomingController.h"
 #include "JobController.h"
 #include "LedPatternEngine.h"
@@ -32,6 +33,7 @@ void requestMotionAbort();
 bool isMotionAbortRequested();
 void clearMotionAbort();
 void logMessage(const char* format, ...);
+uint32_t takeDroppedLogCount();
 StatusMessage captureStatus();
 void publishStatus();
 void postLedStatus(LedStatus status);
