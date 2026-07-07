@@ -1,28 +1,20 @@
 #include <Arduino.h>
 #include <string.h>
 #include "AppContext.h"
-#include "CoreXYKinematics.h"
 #include "Diagnostics.h"
 #include "GcodeInterpreter.h"
-#include "JunctionPlanner.h"
 #include "MotionSyncTracker.h"
 #include "PlotterConfig.h"
-#include "PlannerQueue.h"
-#include "SegmentGenerator.h"
-#include "SegmentQueue.h"
 #include "TimedSegmentExecutor.h"
-#include "TrapezoidPlanner.h"
+#include "XYMotionPlanner.h"
 
 namespace {
-TrapezoidPlanner trapezoid_planner;
-JunctionPlanner junction_planner;
 GcodeInterpreter gcode_interpreter;
-SegmentGenerator segment_generator;
-SegmentQueue segment_queue;
-PlannerQueue planner_queue;
 MotionSyncTracker motion_sync_tracker;
 CommandMessage pending_command;
 bool has_pending_command = false;
+
+XYMotionPlanner& xyPlanner();
 
 void setMotionActive(bool active) {
   if (machine_state.motion_active == active) return;
@@ -63,18 +55,6 @@ void enterAlarm(const char* alarm_reason, const char* homed_reason,
 
 void enterAlarm(const char* reason, LedStatus led_status) {
   enterAlarm(reason, reason, led_status);
-}
-
-void ackXY(float target_x_mm, float target_y_mm, int32_t a_steps,
-           int32_t b_steps, float feed_mm_min) {
-  logMessage("ACK_XY target=(%.3f,%.3f) A=%ld B=%ld F=%.3f", target_x_mm,
-             target_y_mm, static_cast<long>(a_steps),
-             static_cast<long>(b_steps), feed_mm_min);
-}
-
-void nackXY(float target_x_mm, float target_y_mm, const char* reason) {
-  logMessage("NACK_XY target=(%.3f,%.3f) reason=%s", target_x_mm, target_y_mm,
-             reason);
 }
 
 void resetDriftReference(const char* reason) {
@@ -142,6 +122,10 @@ void stashPendingCommand(const CommandMessage& command) {
   has_pending_command = true;
 }
 
+void clearPendingCommand() {
+  has_pending_command = false;
+}
+
 bool receiveNextCommand(CommandMessage& command, TickType_t ticks_to_wait) {
   if (has_pending_command) {
     command = pending_command;
@@ -151,26 +135,23 @@ bool receiveNextCommand(CommandMessage& command, TickType_t ticks_to_wait) {
   return xQueueReceive(command_queue, &command, ticks_to_wait) == pdTRUE;
 }
 
+bool receiveNextCommandMs(CommandMessage& command, uint32_t wait_ms) {
+  return receiveNextCommand(command, pdMS_TO_TICKS(wait_ms));
+}
+
 bool commandQueueEmpty() {
   return command_queue == nullptr || uxQueueMessagesWaiting(command_queue) == 0;
 }
 
 void clearMotionQueues(const char* reason, bool clear_pending = true) {
-  planner_queue.clear();
-  segment_queue.clear();
-  if (clear_pending) {
-    has_pending_command = false;
-  }
-  if (reason != nullptr) {
-    logMessage("MOTION_QUEUES cleared reason=%s", reason);
-  }
+  xyPlanner().clearQueues(reason, clear_pending);
 }
 
 JobPreflight currentJobPreflight() {
   JobPreflight preflight{};
   preflight.pending_empty = !has_pending_command;
-  preflight.planner_empty = planner_queue.isEmpty();
-  preflight.segment_empty = segment_queue.isEmpty();
+  preflight.planner_empty = xyPlanner().plannerQueueEmpty();
+  preflight.segment_empty = xyPlanner().segmentQueueEmpty();
   preflight.command_queue_empty = commandQueueEmpty();
   preflight.backend_idle = !stepper_backend.isRunning();
   return preflight;
@@ -288,278 +269,23 @@ void resetGcodeModalForJob() {
              DEFAULT_FEED_MM_MIN);
 }
 
-bool buildXYBlock(const CommandMessage& command, float start_x_mm,
-                  float start_y_mm, int32_t start_a_steps,
-                  int32_t start_b_steps, MotionBlock& block) {
-  if (stopForAbort("XY rejected before planning")) {
-    nackXY(command.x_mm, command.y_mm, "abort");
-    return false;
-  }
-  safety_manager.poll();
-  float feed_mm_min = command.feed_mm_min;
-  if (!safety_manager.validateMove(command.x_mm, command.y_mm, feed_mm_min)) {
-    nackXY(command.x_mm, command.y_mm, "rejected");
-    return false;
-  }
-  const float dx_mm = command.x_mm - start_x_mm;
-  const float dy_mm = command.y_mm - start_y_mm;
-  const CoreXYPositionSteps target_steps =
-      CoreXYKinematics::xyPositionToABSteps(command.x_mm, command.y_mm,
-                                            STEPS_PER_MM);
-  block = MotionBlock{};
-  block.start_x_mm = start_x_mm;
-  block.start_y_mm = start_y_mm;
-  block.target_x_mm = command.x_mm;
-  block.target_y_mm = command.y_mm;
-  block.dx_mm = dx_mm;
-  block.dy_mm = dy_mm;
-  block.length_mm = sqrtf(dx_mm * dx_mm + dy_mm * dy_mm);
-  block.nominal_speed_mm_min = feed_mm_min;
-  block.entry_speed_mm_min = 0.0f;
-  block.exit_speed_mm_min = 0.0f;
-  block.a_steps = target_steps.a_steps - start_a_steps;
-  block.b_steps = target_steps.b_steps - start_b_steps;
-  block.target_a_steps = target_steps.a_steps;
-  block.target_b_steps = target_steps.b_steps;
-  block.pen_down = machine_state.pen_down;
-  return true;
+// XYMotionPlannerへコマンド受信・job許可・G-code変換の方針関数を注入する。
+XYMotionPlannerHooks makeXYMotionPlannerHooks() {
+  XYMotionPlannerHooks hooks;
+  hooks.stop_for_abort = &stopForAbort;
+  hooks.receive_next_command = &receiveNextCommandMs;
+  hooks.stash_pending_command = &stashPendingCommand;
+  hooks.reject_disallowed = &rejectDisallowedJobCommand;
+  hooks.translate_gcode = &translateGcodeCommand;
+  hooks.clear_pending_command = &clearPendingCommand;
+  hooks.warn_if_drift_detected = &warnIfDriftDetected;
+  return hooks;
 }
 
-bool isNoOpXYBlock(const MotionBlock& block) {
-  return block.a_steps == 0 && block.b_steps == 0;
-}
-
-void acknowledgeNoOpXY(const MotionBlock& block, bool update_machine_state) {
-  if (update_machine_state) {
-    machine_state.x_mm = block.target_x_mm;
-    machine_state.y_mm = block.target_y_mm;
-    machine_state.a_steps = block.target_a_steps;
-    machine_state.b_steps = block.target_b_steps;
-    machine_state.feed_mm_min = block.nominal_speed_mm_min;
-  }
-  logMessage("XY no-op current=(%.3f,%.3f) target=(%.3f,%.3f) F=%.3f",
-             block.start_x_mm, block.start_y_mm, block.target_x_mm,
-             block.target_y_mm, block.nominal_speed_mm_min);
-  ackXY(block.target_x_mm, block.target_y_mm, block.a_steps, block.b_steps,
-        block.nominal_speed_mm_min);
-}
-
-bool planQueuedBlocks() {
-  if (!junction_planner.plan(planner_queue)) {
-    logMessage("ERROR: junction planner rejected XY batch");
-    return false;
-  }
-  for (size_t index = 0; index < planner_queue.count(); ++index) {
-    MotionBlock* block = planner_queue.at(index);
-    if (block == nullptr || !trapezoid_planner.plan(*block)) {
-      logMessage("ERROR: trapezoid planner rejected XY batch index=%u",
-                 static_cast<unsigned>(index));
-      return false;
-    }
-  }
-  return true;
-}
-
-bool executePlannedBlock(MotionBlock& block, size_t index, size_t count) {
-  logMessage("XY batch=%u/%u current=(%.3f,%.3f) target=(%.3f,%.3f) dx=%.3f dy=%.3f A=%ld B=%ld F=%.3f entry=%.3f exit=%.3f",
-             static_cast<unsigned>(index + 1), static_cast<unsigned>(count),
-             block.start_x_mm, block.start_y_mm, block.target_x_mm,
-             block.target_y_mm, block.dx_mm, block.dy_mm, block.a_steps,
-             block.b_steps,
-             block.nominal_speed_mm_min, block.entry_speed_mm_min,
-             block.exit_speed_mm_min);
-  logMessage("TRAPEZOID profile=%s length=%.3f accel=%.3f peak=%.3f accel_d=%.3f cruise_d=%.3f decel_d=%.3f t=%.3f",
-             block.triangular_profile ? "TRIANGULAR" : "TRAPEZOID",
-             block.length_mm, block.acceleration_mm_s2, block.peak_speed_mm_s,
-             block.acceleration_distance_mm, block.cruise_distance_mm,
-             block.deceleration_distance_mm,
-             block.acceleration_time_s + block.cruise_time_s +
-                 block.deceleration_time_s);
-  if (!segment_generator.generate(block, segment_queue)) {
-    logMessage("ERROR: segment generator rejected XY move");
-    nackXY(block.target_x_mm, block.target_y_mm, "segment");
-    return false;
-  }
-  logMessage("SEGMENTS count=%u duration=%.3f dda=YES",
-             static_cast<unsigned>(segment_queue.count()),
-             block.acceleration_time_s + block.cruise_time_s +
-                 block.deceleration_time_s);
-#if SIMULATION_MODE
-  logMessage("SIMULATION_MODE: no motor output");
-  ackXY(block.target_x_mm, block.target_y_mm, block.a_steps, block.b_steps,
-        block.nominal_speed_mm_min);
-#else
-  safety_manager.poll();
-  const bool allow_x_limit_release =
-      safety_manager.xLimitActive() &&
-      block.dx_mm * static_cast<float>(HOMING_X_DIR) < 0.0f;
-  const bool allow_y_limit_release =
-      safety_manager.yLimitActive() &&
-      block.dy_mm * static_cast<float>(HOMING_Y_DIR) < 0.0f;
-  if (allow_x_limit_release || allow_y_limit_release) {
-    logMessage("LIMIT_RELEASE_ALLOW X=%s Y=%s max=%.3f",
-               allow_x_limit_release ? "YES" : "NO",
-               allow_y_limit_release ? "YES" : "NO",
-               NORMAL_MOVE_LIMIT_RELEASE_MM);
-  }
-  safety_manager.beginNormalMoveLimitReleaseAllowance(
-      allow_x_limit_release, allow_y_limit_release, block.start_x_mm,
-      block.start_y_mm);
-  const bool executed = timedExecutor().executeQueue(segment_queue);
-  safety_manager.clearNormalMoveLimitReleaseAllowance();
-  if (!executed) {
-    const char* alarm_reason = safety_manager.alarmReason();
-    if (safety_manager.isAlarmed()) {
-      const bool abort_alarm =
-          strstr(alarm_reason, "abort requested") != nullptr;
-      logMessage("ERROR: timed XY move stopped: alarm reason=%s",
-                 alarm_reason);
-      nackXY(block.target_x_mm, block.target_y_mm,
-             abort_alarm ? "abort" : "alarm");
-    } else {
-      logMessage("ERROR: backend rejected timed XY move");
-      nackXY(block.target_x_mm, block.target_y_mm, "backend");
-    }
-    return false;
-  }
-  ackXY(block.target_x_mm, block.target_y_mm, block.a_steps, block.b_steps,
-        block.nominal_speed_mm_min);
-#endif
-  machine_state.x_mm = block.target_x_mm;
-  machine_state.y_mm = block.target_y_mm;
-  machine_state.a_steps = block.target_a_steps;
-  machine_state.b_steps = block.target_b_steps;
-  machine_state.feed_mm_min = block.nominal_speed_mm_min;
-  return true;
-}
-
-bool handleXYBatch(const CommandMessage& first_command) {
-  planner_queue.clear();
-  float planned_x_mm = machine_state.x_mm;
-  float planned_y_mm = machine_state.y_mm;
-  int32_t planned_a_steps = machine_state.a_steps;
-  int32_t planned_b_steps = machine_state.b_steps;
-  float planned_feed_mm_min = machine_state.feed_mm_min;
-
-  MotionBlock block{};
-  if (!buildXYBlock(first_command, planned_x_mm, planned_y_mm,
-                    planned_a_steps, planned_b_steps, block)) {
-    clearMotionQueues("XY build first failed");
-    return false;
-  }
-  if (isNoOpXYBlock(block)) {
-    acknowledgeNoOpXY(block, true);
-  } else {
-    if (!planner_queue.enqueue(block)) {
-      nackXY(first_command.x_mm, first_command.y_mm, "planner_queue_full");
-      return false;
-    }
-  }
-  planned_x_mm = first_command.x_mm;
-  planned_y_mm = first_command.y_mm;
-  planned_a_steps = block.target_a_steps;
-  planned_b_steps = block.target_b_steps;
-  planned_feed_mm_min = first_command.feed_mm_min;
-
-  CommandMessage next_command;
-  while (!planner_queue.isFull() &&
-         receiveNextCommand(next_command,
-                            pdMS_TO_TICKS(LOOKAHEAD_BATCH_COLLECT_MS))) {
-    if (rejectDisallowedJobCommand(next_command)) {
-      continue;
-    }
-    if (next_command.type == CommandType::GCODE) {
-      MachineState planned_state = machine_state;
-      planned_state.x_mm = planned_x_mm;
-      planned_state.y_mm = planned_y_mm;
-      planned_state.a_steps = planned_a_steps;
-      planned_state.b_steps = planned_b_steps;
-      planned_state.feed_mm_min = planned_feed_mm_min;
-      CommandMessage translated{};
-      const GcodeInterpreterResult result =
-          translateGcodeCommand(next_command, planned_state, translated);
-      if (result == GcodeInterpreterResult::ERROR) {
-        clearMotionQueues("GCODE translate failed");
-        return false;
-      }
-      if (result == GcodeInterpreterResult::MODAL_UPDATE) {
-        continue;
-      }
-      if (translated.type != CommandType::XY) {
-        stashPendingCommand(translated);
-        break;
-      }
-      next_command = translated;
-    }
-    if (rejectDisallowedJobCommand(next_command)) {
-      continue;
-    }
-    if (next_command.type != CommandType::XY) {
-      stashPendingCommand(next_command);
-      break;
-    }
-    MotionBlock next_block{};
-    if (!buildXYBlock(next_command, planned_x_mm, planned_y_mm,
-                      planned_a_steps, planned_b_steps, next_block)) {
-      clearMotionQueues("XY build batch failed");
-      return false;
-    }
-    if (isNoOpXYBlock(next_block)) {
-      acknowledgeNoOpXY(next_block, planner_queue.isEmpty());
-    } else {
-      if (!planner_queue.enqueue(next_block)) {
-        nackXY(next_command.x_mm, next_command.y_mm, "planner_queue_full");
-        return false;
-      }
-    }
-    planned_x_mm = next_command.x_mm;
-    planned_y_mm = next_command.y_mm;
-    planned_a_steps = next_block.target_a_steps;
-    planned_b_steps = next_block.target_b_steps;
-    planned_feed_mm_min = next_command.feed_mm_min;
-  }
-
-  if (planner_queue.isEmpty()) {
-    return true;
-  }
-
-  if (!planQueuedBlocks()) {
-    const MotionBlock* failed = planner_queue.peekNext();
-    nackXY(failed != nullptr ? failed->target_x_mm : first_command.x_mm,
-           failed != nullptr ? failed->target_y_mm : first_command.y_mm,
-           "planner");
-    clearMotionQueues("XY planning failed");
-    return false;
-  }
-
-  logMessage("LOOKAHEAD blocks=%u junction_deviation=%.3f classic_jerk=%.3f",
-             static_cast<unsigned>(planner_queue.count()),
-             JUNCTION_DEVIATION_MM, CLASSIC_JERK_LIMIT_MM_S);
-
-  postLedStatus(machine_state.pen_down ? LedStatus::DRAWING_PEN_DOWN
-                                       : LedStatus::DRAWING_PEN_UP);
-  const size_t planned_count = planner_queue.count();
-  for (size_t index = 0; index < planned_count; ++index) {
-    MotionBlock* planned_block = planner_queue.at(index);
-    if (planned_block == nullptr ||
-        !executePlannedBlock(*planned_block, index, planned_count)) {
-      postLedStatus(safety_manager.isAlarmed() ? LedStatus::ERROR
-                                               : LedStatus::WARNING);
-      clearMotionQueues("XY execution failed");
-      return false;
-    }
-  }
-  machine_state.x_mm = planned_x_mm;
-  machine_state.y_mm = planned_y_mm;
-  machine_state.a_steps = planned_a_steps;
-  machine_state.b_steps = planned_b_steps;
-  machine_state.feed_mm_min = planned_feed_mm_min;
-  warnIfDriftDetected();
-  clearMotionQueues("XY complete", false);
-  if (!job_controller.isRunning()) {
-    postLedStatus(LedStatus::IDLE);
-  }
-  return true;
+XYMotionPlanner& xyPlanner() {
+  static XYMotionPlanner planner(safety_manager, machine_state, job_controller,
+                                 timedExecutor(), makeXYMotionPlannerHooks());
+  return planner;
 }
 
 bool moveToJobEndPark() {
@@ -582,7 +308,7 @@ bool moveToJobEndPark() {
   park.feed_mm_min = JOB_END_PARK_FEED_MM_MIN;
   logMessage("JOB_END park target=(%.3f,%.3f) F=%.3f",
              park.x_mm, park.y_mm, park.feed_mm_min);
-  return handleXYBatch(park);
+  return xyPlanner().handleBatch(park);
 }
 
 void handleJobEnd() {
@@ -789,7 +515,7 @@ void motionTask(void*) {
         break;
       case CommandType::XY:
         if (ensureTmcReadyForMotion("XY")) {
-          handleXYBatch(command);
+          xyPlanner().handleBatch(command);
         }
         break;
       case CommandType::DWELL:
@@ -898,7 +624,7 @@ void motionTask(void*) {
         }
         if (translated.type == CommandType::XY) {
           if (ensureTmcReadyForMotion("GCODE_XY")) {
-            handleXYBatch(translated);
+            xyPlanner().handleBatch(translated);
           }
         } else {
           stashPendingCommand(translated);
