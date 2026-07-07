@@ -414,7 +414,11 @@ TMC系(`TMC_INIT`/`TMC_STATUS`)、pen系(`PENUP`/`PENDOWN`)に大別される。
 必ず以下を更新する。
 
 - `SPEC.md`: 追加された仕様、制約、動作条件、安全仕様、設定項目の意味を反映する
-- `PLANS.md`: 追加仕様の実装計画、チェックリスト、実機確認結果、未解決リスク、変更履歴を反映する
+- `PLANS.md`: 追加仕様の実装計画、チェックリスト、実機確認結果を反映する
+- `CHANGELOG.md`: 変更履歴を記録する(旧PLANS.md §15)
+- `docs/risks.md`: 未解決リスクを記録する(旧PLANS.md §14)
+- `docs/manual_tests.md`: 手動テスト手順を追加・更新する(旧PLANS.md §12)
+- コマンド仕様の変更は`docs/command_reference.md`も更新する
 
 例:
 
