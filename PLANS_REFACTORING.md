@@ -2,7 +2,7 @@
 
 # M5Stack Core2 CoreXYペンプロッタ リファクタリング計画・進捗管理
 
-Version: 0.1
+Version: 0.2
 Status: Refactoring plan (progress-tracking)
 Scope: ファームウェア(C++)、ホストツール(Python/JS)、ドキュメント、テスト/CI、リポジトリ衛生
 Relation: 機能実装の計画・進捗は`PLANS.md`が正。本ファイルはリファクタリング専用。両方に関わる変更は両方を更新する。
@@ -33,13 +33,15 @@ Relation: 機能実装の計画・進捗は`PLANS.md`が正。本ファイルは
 ## 1. 現在地
 
 ```text
-現在地: RF0 未着手。調査完了(2026-07-02)。全指摘はこの時点のコードに基づく。
+現在地: RF0〜RF4 完了(2026-07-08)。残件は実機回帰確認(RR1)と、
+保留2件(app.js分割、serial_send.py分割 — RF2.2参照)のみ。
 ```
 
 現在の最優先作業:
 
 ```text
-RF0(安全網の整備)を先に完了させる。テストなしで挙動を変えるリファクタリングを始めない。
+実機接続時にhoming/gcode/job_lifecycle/lookahead check CSVで回帰確認し、
+RF1の[-]項目を[x]へ更新する。
 ```
 
 ---
@@ -60,11 +62,11 @@ RF0(安全網の整備)を先に完了させる。テストなしで挙動を変
 
 | Phase | 名前 | 目的 | 依存 | 状態 |
 |---:|---|---|---|---|
-| RF0 | 安全網(テスト/CI基盤) | リファクタ前に回帰検出手段を整える | なし | [ ] |
-| RF1 | ファームウェア構造 | MotionTask分割、重複排除、config集約 | RF0 | [ ] |
-| RF2 | ホストツール | 共通モジュール化、テスト統一、依存整理 | RF0 | [ ] |
-| RF3 | ドキュメント | 陳腐化修正、PLANS.md分割、リファレンス一元化 | なし(即時可) | [ ] |
-| RF4 | リポジトリ衛生 | 生成物削除、.gitignore、placeholder整理 | なし(即時可) | [ ] |
+| RF0 | 安全網(テスト/CI基盤) | リファクタ前に回帰検出手段を整える | なし | [x] |
+| RF1 | ファームウェア構造 | MotionTask分割、重複排除、config集約 | RF0 | [-] 実機回帰のみ残 |
+| RF2 | ホストツール | 共通モジュール化、テスト統一、依存整理 | RF0 | [-] app.js/serial_send分割は保留 |
+| RF3 | ドキュメント | 陳腐化修正、PLANS.md分割、リファレンス一元化 | なし(即時可) | [x] |
+| RF4 | リポジトリ衛生 | 生成物削除、.gitignore、placeholder整理 | なし(即時可) | [x] |
 
 推奨順序: RF3.1(即時修正)とRF4は独立で先行可。コード変更(RF1/RF2)はRF0完了後。
 
@@ -88,27 +90,27 @@ RF0(安全網の整備)を先に完了させる。テストなしで挙動を変
 
 ### RF0.1 nativeテストのPlatformIO統合
 
-- [ ] `platformio.ini`へ`[env:native]`(platform=native)を追加し、`pio test -e native`で既存2テストが走る
-- [ ] `test/native/Arduino.h`スタブを`pio test`構成と両立させる(またはUnityへ移行)
-- [ ] `tools/run_native_motion_tests.sh`の`/tmp`固定を廃止し、`pio test`へ委譲またはポータブル化する
-- [ ] RF1.1で抽出予定のモジュール(drift追跡、XYブロック生成、no-op判定)を先にテスト可能な範囲でカバーする
+- [x] `platformio.ini`へ`[env:native]`(platform=native)を追加し、`pio test -e native`で既存2テストが走る
+- [x] `test/native/Arduino.h`スタブを`pio test`構成と両立させる(Unityへ移行済み。スタブは`-I test/native`で併用)
+- [x] `tools/run_native_motion_tests.sh`の`/tmp`固定を廃止し、`pio test`へ委譲またはポータブル化する
+- [x] RF1.1で抽出予定のモジュール(drift追跡、XYブロック生成、no-op判定)を先にテスト可能な範囲でカバーする(test_planners 9項目を先行追加、抽出後にtest_motion_sync 5項目を追加)
 
 ### RF0.2 hostテストの統一
 
-- [ ] `tools/webui/test_image_to_svg.py`と`test_svg_to_gcode.py`を`tests/`配下へ移動し、pytest形式へ統一する
-- [ ] `conftest.py`または`pyproject.toml`で`sys.path.insert`の重複を整理する
-- [ ] `pytest`一発で全hostテストが走ることを確認する
+- [x] `tools/webui/test_image_to_svg.py`と`test_svg_to_gcode.py`を`tests/`配下へ移動し、pytest形式へ統一する
+- [x] `conftest.py`または`pyproject.toml`で`sys.path.insert`の重複を整理する(tests/conftest.pyへ一括化)
+- [x] `pytest`一発で全hostテストが走ることを確認する(54件)
 
 ### RF0.3 CIと手順の明文化
 
-- [ ] GitHub Actions workflowを追加する(`pio run`両env、`pio test -e native`、`pytest`)
-- [ ] READMEへテスト実行方法(`pio test -e native`、`pytest`)を記載する
-- [ ] AGENTS.md §16へnativeテストとpytestを検証手順として追記する
+- [x] GitHub Actions workflowを追加する(`pio run`両env、`pio test -e native`、`pytest`)
+- [x] READMEへテスト実行方法(`pio test -e native`、`pytest`)を記載する
+- [x] AGENTS.md §16へnativeテストとpytestを検証手順として追記する
 
 ## RF0 完了条件
 
-- [ ] Windows/Linuxの両方で全テストが1コマンドずつで実行できる
-- [ ] CIがpush時にbuild+testを実行する
+- [x] Windows/Linuxの両方で全テストが1コマンドずつで実行できる(Windowsで確認済み。LinuxはCIで実行)
+- [x] CIがpush時にbuild+testを実行する(.github/workflows/ci.yml)
 
 ---
 
@@ -120,82 +122,77 @@ RF0(安全網の整備)を先に完了させる。テストなしで挙動を変
 
 ## RF1.1 MotionTask.cpp分割(最重要)
 
-`src/tasks/MotionTask.cpp`は1075行で、無名namespace内に約40個の関数と6個のファイルstaticなplannerオブジェクトを持ち、`motionTask()`本体は220行のコマンドswitchになっている。以下の責務が混在している(行番号は2026-07-02時点)。
+`src/tasks/MotionTask.cpp`は1075行で、無名namespace内に約40個の関数と6個のファイルstaticなplannerオブジェクトを持ち、`motionTask()`本体は220行のコマンドswitchになっている(2026-07-02時点)。
 
-| 責務 | 行 | 抽出先案 |
-|---|---|---|
-| pipelineシングルトン群(TrapezoidPlanner等6個) | 14–20 | `MotionController`が所有するメンバへ |
-| drift追跡・backend位置推定 | 24–36, 86–143 | `MotionSyncTracker`(純ロジック、nativeテスト可) |
-| abort/alarm停止シーケンス | 145–159, 185–196 | `enterAlarm()`共通関数(RF1.2b) |
-| timed segment実行エンジン | 161–248 | `TimedSegmentExecutor` |
-| Job lifecycle接続(auto home、park、終了処理) | 295–338, 685–742 | `JobController`近傍へ |
-| G-code変換グルー | 369–392 | `GcodeInterpreter`側へ |
-| XYブロック生成・計画・実行 | 401–683 | `XYMotionPlanner`(約280行) |
-| AB_TIMED診断経路 | 744–833 | 診断モジュールへ |
-| コマンドdispatch switch | 856–1075 | テーブル駆動dispatch |
+分割結果(2026-07-08、MotionTask.cpp 1075行→400行):
 
-- [ ] `MotionSyncTracker`を抽出し、nativeテストを追加する
-- [ ] `TimedSegmentExecutor`を抽出する
-- [ ] `XYMotionPlanner`(buildXYBlock / planQueuedBlocks / executePlannedBlock / handleXYBatch)を抽出する
-- [ ] Job lifecycle接続処理を`JobController`側へ寄せる
-- [ ] `motionTask()`のswitchをテーブル駆動またはハンドラ関数群へ整理する
-- [ ] 分割後もplanner系がファイルstaticグローバルでなく所有関係で持たれている
-- [ ] 分割の各段階で`pio run`両envが通り、homing/gcode/job_lifecycle check CSVで回帰確認する
+| 責務 | 抽出先(実績) |
+|---|---|
+| pipelineシングルトン群 | `XYMotionPlanner`のメンバ所有へ(function-local static経由) |
+| drift追跡・backend位置推定 | `MotionSyncTracker`(純ロジック、nativeテストあり) |
+| abort/alarm停止シーケンス | `enterAlarm()`共通関数(RF1.2b) |
+| timed segment実行エンジン | `TimedSegmentExecutor` |
+| Job lifecycle接続 | `JobLifecycleHandler`(JobController近傍のグルー) |
+| G-code変換グルー | `GcodeCommandTranslator` |
+| XYブロック生成・計画・実行 | `XYMotionPlanner` |
+| AB_TIMED診断経路+TEST_A/B | `MotionDiagnostics` |
+| コマンドdispatch switch | テーブル駆動dispatch(`kCommandHandlers`) |
 
-補足(設計判断が必要、勝手に変えない):
+- [x] `MotionSyncTracker`を抽出し、nativeテストを追加する
+- [x] `TimedSegmentExecutor`を抽出する
+- [x] `XYMotionPlanner`(buildXYBlock / planQueuedBlocks / executePlannedBlock / handleXYBatch)を抽出する
+- [x] Job lifecycle接続処理を`JobController`側へ寄せる(`JobLifecycleHandler`として分離)
+- [x] `motionTask()`のswitchをテーブル駆動またはハンドラ関数群へ整理する
+- [x] 分割後もplanner系がファイルstaticグローバルでなく所有関係で持たれている
+- [-] 分割の各段階で`pio run`両envが通り、homing/gcode/job_lifecycle check CSVで回帰確認する
+  (`pio run`両env+native 16テストは各段階で通過。**check CSVの実機回帰は未実行**: 開発機に実機未接続のため。RR1参照)
 
-- `stepperFeedTask`(`src/tasks/StepperFeedTask.cpp`)と`tmcTask`(`src/tasks/TmcTask.cpp`)は空のplaceholderのままで、AGENTS.md §7が両taskへ割り当てた役割(stepper投入管理、TMC init)は実際には`motionTask`内で実行されている。最高優先度(6)のtaskが何もしていない。**実装をtaskへ移すか、AGENTS.md/SPEC.mdの記述を実態(motionTask内実行)へ合わせるかを決めてから着手する。** 前者はCore 1のtask間同期設計が必要で挙動不変リファクタの範囲を超えるため、初期はドキュメント側の整合(RF3.5)を推奨。
+補足(設計判断): `stepperFeedTask`/`tmcTask`のplaceholder実態は、実装移動ではなくドキュメント整合で対応した(RF3.5 `docs/architecture.md`に現状と完成形の差分を明記。移動はRR2の通り設計課題として保留)。
 
 ## RF1.2 重複コードの排除
 
-- [ ] (a) `StatusMessage`手組みスナップショットの一本化: `MotionTask.cpp:72–77`と`main.cpp:43–47`が同一の4引数構築。`StatusMessage::capture()`等のファクトリへ
-- [ ] (b) alarm突入シーケンスの一本化: backend停止→setAlarm→`alarmed=true`→homed無効化→LED ERROR→ログ、が`MotionTask.cpp:145–159, 185–196, 986–998, 1015–1026`の4箇所に重複。`enterAlarm(reason, LedStatus)`へ
-- [ ] (c) `job_active`同期の一本化: `MotionTask.cpp:38–41`と`SafetyTask.cpp:17–18`が同一式。さらに`JobController::isActive()`はRUNNINGを含むため`|| isRunning()`は冗長 → 共通ヘルパ化し冗長条件を除去(挙動不変を確認の上)
-- [ ] (d) LED `SET_STATUS`送信の一本化: `MotionTask.cpp:43–51`(drop時WARN)と`SafetyTask.cpp:9–14`(drop無視)で失敗ポリシーも不一致。共通ヘルパで統一
-- [ ] (e) `HOME`/`HOME_X`/`HOME_Y`ケース(`MotionTask.cpp:926–967`)の3重複をパラメタ化
-- [ ] (f) AB_TIMEDのbackend queue状態ログ5重複(`MotionTask.cpp:780–830`)を`logBackendQueueState()`へ
-- [ ] (g) `ACK_XY`/`NACK_XY`ログのフォーマット重複(ACK 3箇所、NACK 8箇所)を`ackXY()`/`nackXY()`ヘルパへ
-- [ ] (h) `square()`の2重定義(`TrapezoidPlanner.cpp:10–12`、`JunctionPlanner.cpp:12–14`)と3種のclampイディオム(`UiTask.cpp:330`の自前`clampFloat`、Arduino `constrain`、`static_assert`)を共通mathユーティリティへ
+- [x] (a) `StatusMessage`手組みスナップショットの一本化 → `captureStatus()`(main.cpp)
+- [x] (b) alarm突入シーケンスの一本化(4箇所) → `enterAlarm(reason, LedStatus)`
+- [x] (c) `job_active`同期の一本化 → `syncJobActiveFlag()`。`isActive()`はRUNNINGを含むため`|| isRunning()`の冗長条件を除去(挙動不変)
+- [x] (d) LED `SET_STATUS`送信の一本化 → `postLedStatus()`(drop時WARNポリシーで統一)
+- [x] (e) `HOME`/`HOME_X`/`HOME_Y`の3重複 → `handleHomeCommand(name, メンバ関数ポインタ)`
+- [x] (f) AB_TIMEDのbackend queue状態ログ5重複 → `logAbTimedState()`(現MotionDiagnostics内)
+- [x] (g) `ACK_XY`/`NACK_XY`ログのフォーマット重複 → `ackXY()`/`nackXY()`(現XYMotionPlanner内)
+- [x] (h) `square()`の2重定義とclampイディオム → `include/MathUtils.h`(square/clampFloat)。UiTaskの自前clampFloatも置換
 
 ## RF1.3 UiTaskの整理
 
-`src/tasks/UiTask.cpp`(511行)は描画・タッチ入力・レイアウト・motionポリシーが混在している。
-
-- [ ] 描画rectとタッチhit-test rectの二重リテラル(例: `{10, 42, 145, 36}`が`UiTask.cpp:229`と`369`に重複)を、単一の`Rect`レイアウトテーブルへ集約し描画とhit-test両方で参照する
-- [ ] 色定数、画面寸法(320/214)、notice timeout(1800ms)等のマジックナンバーを整理する
-- [ ] jogの soft limit clamp・base追跡(`queueJog`, `UiTask.cpp:336–365`)のmotionドメインロジックをUI外へ寄せる、または境界をコメントで明確化する
-- [ ] `UI_JOG_FEED_MM_MIN`/`UI_JOG_STEP_MM`(`UiTask.cpp:35–36`)を`PlotterConfig.h`へ移す
-- [ ] uiTaskがLED lifecycle(`neopixel_controller.begin()`、`led_command_queue` drain、`tick()`)も駆動している構造を、少なくともAGENTS.md/SPECに明文化する(taskを分ける場合はCore 0負荷を再評価)
+- [x] 描画rectとタッチhit-test rectの二重リテラルを単一の`Rect`レイアウトテーブル(`CONTROL_*_RECT`)へ集約
+- [x] 色定数、画面寸法(320/214)、notice timeout(1800ms)等のマジックナンバーを整理する(命名定数化)
+- [x] jogのsoft limit clamp・base追跡の境界をコメントで明確化(UI側は先行チェック、最終判定はfirmware motion経路)
+- [x] `UI_JOG_FEED_MM_MIN`/`UI_JOG_STEP_MM`を`PlotterConfig.h`へ移す
+- [x] uiTaskがLED lifecycleも駆動している構造をSPEC.md §7と`docs/architecture.md`に明文化(task分割はCore 0負荷再評価が必要なため未実施)
 
 ## RF1.4 LedPatternEngineの分離
 
-`src/LedPatternEngine.cpp`(408行)は (1)コマンド解釈・状態機械 (2)状態→演出マッピング (3)生アニメーション描画、の3責務を持つ。
-
-- [ ] renderer群(`renderPacifica/Fire/Breath/Chase/Progress/Alert/Success`、268–355行)を純関数の`LedRenderer`へ分離する
-- [ ] 状態→演出テーブル(`applyStatusConfig`、164–235行)のハードコード値(輝度/色相/速度、transient 2500ms等)を`PlotterConfig.h`のNeoPixelセクションへ移す
-- [ ] engine内からの`logMessage`直接呼び出しを応答コールバックまたは戻り値へ置き換え、engineをグローバルI/O非依存にする
+- [x] renderer群を純関数の`LedRenderer`へ分離する
+- [x] 状態→演出テーブルのハードコード値を`include/LedStatusConfig.h`のconstexprテーブルへ移し、transient 2500msとIDLE輝度上限を`PlotterConfig.h`のNeoPixelセクションへ
+- [x] engine内からの`logMessage`直接呼び出しを`setResponder()`コールバックへ置き換え、engineをグローバルI/O非依存にする(応答文字列は不変)
 
 ## RF1.5 config集約の徹底
 
-`PlotterConfig.h`自体は単位付き命名と`static_assert`検証があり良好。だが各所に直書き定数が残る。
-
-- [ ] `Diagnostics.cpp:104–106`のSELFTEST期待値(800/1600)を`STEPS_PER_MM`から導出する(`STEPS_PER_MM`変更で自壊するのを防ぐ)
-- [ ] `SafetyTask.cpp:23`の100msポーリング、`CommandTask.cpp:23,70,86`の10ms/50msを`TaskConfig.h`へ
-- [ ] RF1.3/RF1.4のUI・LED定数移動と合わせ、「調整可能定数はconfigへ集約」(PLANS.md §0.2.1)の原則へ再整合する
+- [x] `Diagnostics.cpp`のSELFTEST期待値(800/1600)を`STEPS_PER_MM`から導出する
+- [x] `SafetyTask.cpp`の100msポーリング、`CommandTask.cpp`の10ms/50msを`TaskConfig.h`へ
+- [x] RF1.3/RF1.4のUI・LED定数移動と合わせ、「調整可能定数はconfigへ集約」の原則へ再整合する
 
 ## RF1.6 その他の構造改善
 
-- [ ] `CoreXYKinematics`へ逆変換API(A/B steps→XY)を追加し、`MotionTask.cpp:97–109`のインライン逆変換 `(delta_a_mm ± delta_b_mm) * 0.5f` を置き換える(CoreXY式の集約ルールを逆方向にも適用)
-- [ ] `StatusMessage`/`LogMessage`を`MachineState.h`から`Messages.h`等へ移し、`CommandMessage.h`/`LedTypes.h`と並べる
-- [ ] `logMessage`のログ用途とコマンド応答用途("OK:"/"ACK_"/"NACK_"/"ERROR:"文字列プレフィクス)の混在を整理する。最低限プレフィクス文字列を定数化、可能ならseverity/応答種別のenum化(Serialプロトコル互換を壊さないこと)
-- [ ] `logMessage`のqueue full時silent drop(`main.cpp:34–36`)のポリシーを決めて明文化する(drop計数など)
-- [ ] `AppContext.h`のグローバルextern hub構造は当面維持でよいが、RF1.1で抽出する新モジュールは参照渡しで受け取り、グローバル直接参照を増やさない
+- [x] `CoreXYKinematics`へ逆変換API(`abStepsToXYDeltaMm`)を追加し、インライン逆変換を置き換え
+- [x] `StatusMessage`/`LogMessage`を`MachineState.h`から`Messages.h`へ移す
+- [x] `logMessage`の応答プレフィクス文字列を`Messages.h`でマクロ定数化し、ホスト側expectパターンとの互換要件を明文化(enum化はSerialプロトコル互換維持のため見送り。出力文字列は不変)
+- [x] `logMessage`のqueue full時silent dropを廃止: drop計数+logTaskによる`WARN: LogQueue dropped N messages`報告
+- [x] RF1.1で抽出した新モジュールは参照渡し+フック注入で受け取り、グローバル直接参照を増やしていない(`AppContext.h`のhub構造自体は維持)
 
 ## RF1 完了条件
 
-- [ ] `MotionTask.cpp`が400行以下になり、抽出モジュールにnativeテストがある
-- [ ] RF1.2の重複8項目が解消されている
-- [ ] `pio run`両env、`pio test -e native`、実機`SELFTEST`+主要check CSVが通る
+- [x] `MotionTask.cpp`が400行以下になり(400行)、抽出モジュールにnativeテストがある(MotionSyncTracker)
+- [x] RF1.2の重複8項目が解消されている
+- [-] `pio run`両env、`pio test -e native`は通過。**実機`SELFTEST`+主要check CSVは未実行**(実機未接続。RR1)
 
 ---
 
@@ -205,44 +202,32 @@ RF0(安全網の整備)を先に完了させる。テストなしで挙動を変
 
 Pythonツール間の重複排除と、巨大単一ファイルの分割。
 
-## 背景(2026-07-02調査)
-
-| ファイル | 行数 | テスト |
-|---|---:|---|
-| `tools/webui/static/app.js` | 2163 | なし |
-| `tools/serial_tool/serial_send.py` | 1257 | `tests/test_serial_send.py` |
-| `tools/webui/server.py` | 1182 | なし |
-| `tools/qr_tool/qr_to_plot_csv.py` | 618 | `tests/test_qr_to_plot_csv.py` |
-| `tools/webui/svg_to_gcode.py` | 558 | `tools/webui/test_svg_to_gcode.py` |
-| `tools/webui/image_to_svg.py` | 546 | `tools/webui/test_image_to_svg.py` |
-| `tools/text_tool/kst32b_to_gcode.py` | 510 | `tests/test_kst32b_to_gcode.py` |
-
 ## RF2.1 共通モジュール`tools/common/`の新設
 
-- [ ] G-code出力ロジックの3重複を統合する: `svg_to_gcode.py:439`、`kst32b_to_gcode.py:227`、`qr_to_plot_csv.py:467`が同じ`G21/G90/M5 … M3 … G1 … M5`構造を各自実装している → 共通のG-code emitterへ
-- [ ] `gcode_words()`トークナイザの2重複(`serial_send.py:423`、`server.py:568`)を統合する
-- [ ] feed既定値の不一致を解消する: draw feedが`qr_to_plot_csv.py:40`=600、`svg_to_gcode.py:32`=800(`server.py:340`でも再ハードコード)、`serial_send.py:27`=1200と3種類ある。共通configへ集約し、ファームウェア側`PlotterConfig.h`の値との関係(意図的な差か否か)をコメントで明記する
-- [ ] 共通化後、既存の生成G-codeサンプルと出力が一致することを回帰確認する(意図的な差異のみ許容)
+- [x] G-code出力ロジックの3重複を統合する → `tools/common/plotter_gcode.py`の`GcodeEmitter`(座標/feed書式はツール別注入で既存出力を維持)
+- [x] `gcode_words()`トークナイザの2重複を統合する(正規表現はserial_send側の上位互換)
+- [x] feed既定値の不一致を解消する: 共通configへ集約し、ファームウェア側`PlotterConfig.h`との関係と意図的な差(QR 600=ハッチ品質優先、SVG 800、TEXT 3000、推定用1200)をコメントで明記。値自体は用途依存のため統一しない(RR3の通り)
+- [x] 共通化後、既存の生成G-codeサンプルと出力が一致することを回帰確認する(QR/SVGでバイト一致を確認)
 
-注意: `server.py`が`serial_send.py`/`qr_to_plot_csv.py`/`kst32b_to_gcode.py`をsubprocessで再利用する構造は良い分離であり、維持する。pyserial依存が`serial_send.py`に閉じている点も維持する。
+注意: `server.py`のsubprocess再利用構造とpyserial依存の閉じ込めは維持した。
 
 ## RF2.2 大型ファイルの分割
 
-- [ ] `server.py`(1182行)をAPIハンドラ/subprocess実行/G-code処理のモジュールへ分割し、分割単位でテストを追加する
-- [ ] `app.js`(2163行)を画面別(Dashboard/Control/Job/Console/Settings/Fun)またはレイヤ別(API client/preview/UI)に分割する
-- [ ] `serial_send.py`(1257行)のCLI/プロトコル待ち合わせ/timeout見積りを分離する(挙動が実機運用に直結するため、check CSVでの回帰確認とセットで行う)
+- [x] `server.py`(1182行)を分割: `gcode_processing.py`(変換パイプライン)+`webui_settings.py`(設定/CLI引数構築)+server.py(HTTP層+subprocess管理、772行)。分割単位のテスト12件を追加
+- [-] `app.js`(2163行)の分割は**保留**: ブラウザでの動作確認手段が無い環境での無検証分割はリスクが利益を上回る。着手時はWebUIを起動して画面別に回帰確認しながら行うこと
+- [-] `serial_send.py`(1257行)の分割は**保留**: 計画の通り実機check CSV回帰とセットが前提であり、実機未接続のため。tokenizer/feed定数のcommon移行までは実施済み
 
 ## RF2.3 依存関係の整理
 
-- [ ] `tools/webui/requirements.txt`が実依存(pyserial、qrcode)を含まない問題を解消する: root `requirements.txt`または`pyproject.toml`(extras方式)へ統合する
-- [ ] バージョンピンの方針を統一する(現状qrcodeのみピン、pyserial/Pillowは未ピン)
-- [ ] `tools/webui/README.md`のvenv手順を統合後の手順へ更新する
+- [x] root `requirements.txt`へ統合(pyserial/qrcode/Pillow/pytest)。各ツールのrequirements.txtは`-r ../../requirements.txt`参照へ
+- [x] バージョンピンの方針を統一する(メジャーバージョン上限つき範囲指定)
+- [x] `tools/webui/README.md`(および qr_tool/serial_tool README)のvenv手順を統合後の手順へ更新する
 
 ## RF2 完了条件
 
-- [ ] G-code生成・トークナイザ・feed定数の重複がゼロ
-- [ ] 全hostテストが`pytest`一発で通る(RF0.2)
-- [ ] WebUIからのQR/テキスト/画像→G-code→送信の一連の動作が手動確認できている
+- [x] G-code生成・トークナイザ・feed定数の重複がゼロ
+- [x] 全hostテストが`pytest`一発で通る(54件)
+- [-] WebUIからのQR/テキスト/画像→G-code→送信の一連の手動確認は未実施(実機未接続。変換系はユニットテストで担保)
 
 ---
 
@@ -254,47 +239,41 @@ Pythonツール間の重複排除と、巨大単一ファイルの分割。
 
 ## RF3.1 即時修正(コード変更不要、先行可)
 
-- [ ] `README.md:76–77`の重複タイトル`# CoreXY_Plotter` ×2行を削除する
-- [ ] `AGENTS.md` §13の陳腐化を解消する: 「初期Serialコマンド」12個のみ記載、「G-code parserは実装しない」と記述したままだが、実際は約40コマンド+G-code実装済み → 現状へ更新するか、コマンド一覧はRF3.3のリファレンスへの参照に置き換える
-- [ ] `SPEC.md` §15コマンド表へ未記載のLEDコマンド6個(`LED_PATTERN`/`LED_BRIGHTNESS`/`LED_PARAM`/`LED_STATUS`/`LED_AUTO`/`LED_STATUS_SET`)を追加する
-- [ ] `G4`の記載不整合(READMEは対応と記載、AGENTS.md §13の将来G-code一覧に無い)を解消する
-- [ ] `SPEC.md` §2「非目的」にWebUIが残っている点を実態(Host WebUI実装済み)へ更新する
+- [x] `README.md`末尾の重複タイトル`# CoreXY_Plotter` ×2行を削除する
+- [x] `AGENTS.md` §13の陳腐化を解消する(実態へ更新し、一覧は`docs/command_reference.md`参照へ)
+- [x] `SPEC.md` §15コマンド表へ未記載のLEDコマンド6個を追加する
+- [x] `G4`の記載不整合を解消する(AGENTS §13の更新に含む)
+- [x] `SPEC.md` §2「非目的」をESP32内WebUIに限定し、Host WebUI実装済み(§20)を明記
 
-## RF3.2 PLANS.mdの分割(2340行 → 約1590行)
+## RF3.2 PLANS.mdの分割(2340行 → 1659行)
 
-進捗計画と実行記録が混在している。以下を分割する(分割後、AGENTS.md §15の更新先指定も合わせて修正)。
-
-- [ ] §12 手動テスト手順(1588–1980行、約393行)→ `docs/manual_tests.md`へ移し、`tools/serial_tool/docs/*.md`(18ファイル)との重複を解消する(どちらかを正とし、他方はリンクにする)
-- [ ] §13 Codex用プロンプト(1981–2159行)→ `docs/codex_prompts.md`へ移す、または役目を終えたものとして削除する
-- [ ] §14 リスク・未解決事項(2160–2205行)→ `docs/risks.md`へ移す(またはissue管理へ)
-- [ ] §15 変更履歴(2206–2293行)→ `CHANGELOG.md`へ移す
-- [ ] 分割後のPLANS.mdはPhase計画+チェックリスト+マイルストーンに限定する
+- [x] §12 手動テスト手順 → `docs/manual_tests.md`。各checkの実行手順の正は`tools/serial_tool/docs/`と明記(重複本文の完全解消は今後の棚卸しで実施)
+- [x] §13 Codex用プロンプト → `docs/codex_prompts.md`(アーカイブ)
+- [x] §14 リスク・未解決事項 → `docs/risks.md`
+- [x] §15 変更履歴 → `CHANGELOG.md`
+- [x] 分割後のPLANS.mdはPhase計画+チェックリスト+マイルストーンに限定。旧セクション位置にリンクを残し、AGENTS.md §15の更新先も同時改訂(RR5)
 
 ## RF3.3 コマンドリファレンスの一元化
 
-コマンド仕様がSPEC §15/§16/§21、READMEのbring-upブロック、AGENTS §13に分散し、完全かつ最新の一覧がどこにも無い。
-
-- [ ] `docs/command_reference.md`を新設し、全Serialコマンド+対応G-codeを引数・応答(ACK/NACK/OK形式)・前提条件(homed/TMC ready/job中可否)付きで一覧化する
-- [ ] SPEC/README/AGENTSのコマンド記述は要約+リンクへ置き換える
-- [ ] `CommandDispatcher.cpp`のコマンド一覧と突き合わせて欠落ゼロを確認する
+- [x] `docs/command_reference.md`を新設し、全Serialコマンド+対応G-codeを引数・応答・前提条件付きで一覧化する
+- [x] SPEC/README/AGENTSのコマンド記述は要約+リンクへ置き換える(SPEC §15は応答ルール仕様として保持し、完全一覧はリファレンスが正)
+- [x] `CommandDispatcher.cpp`のコマンド一覧と突き合わせて欠落ゼロを確認する
 
 ## RF3.4 WebUI文書の統合
 
-WebUIの画面構成・操作ルールが`SPEC.md` §20、`docs/webui_product_design.md`、`docs/webui_wireframe.md`、`PLANS.md` §11.1の4箇所に重複記載されている。
-
-- [ ] 正とする文書を1つ決め(推奨: SPEC §20を仕様の正、docs/はデザイン経緯資料として位置づけ)、他はリンク+差分のみへ整理する
-- [ ] 画面一覧(Dashboard/Manual Control/Job/Console/Settings)の三重記載を解消する
+- [x] SPEC §20を仕様の正とし、`docs/webui_product_design.md`/`docs/webui_wireframe.md`は経緯資料として位置づけを明記
+- [x] 画面一覧の三重記載を解消(product_designはSPECに無い設計判断のみ残し、PLANS §11.1.2は進捗記録と注記)
 
 ## RF3.5 as-builtアーキテクチャ文書
 
-- [ ] `docs/architecture.md`を新設し、現状のモジュール構成(タスク実態: timed segment投入はmotionTask内、stepperFeedTask/tmcTaskはplaceholder)、queue接続、Core割り付けを「完成形」ではなく「現状」として記述する
-- [ ] AGENTS.md §7/§9の「完成形」記述と現状の差分を明記する(RF1.1の設計判断の入力になる)
+- [x] `docs/architecture.md`を新設し、現状のモジュール構成・タスク実態・queue接続・Core割り付けを「現状」として記述する
+- [x] AGENTS.md §7/§9の「完成形」記述と現状の差分を明記する(5点)
 
 ## RF3 完了条件
 
-- [ ] 実態と矛盾する記述(RF3.1の5点)がゼロ
-- [ ] コマンドはリファレンス1箇所を見れば全部わかる
-- [ ] PLANS.mdが計画・進捗のみになっている
+- [x] 実態と矛盾する記述(RF3.1の5点)がゼロ
+- [x] コマンドはリファレンス1箇所を見れば全部わかる
+- [x] PLANS.mdが計画・進捗のみになっている
 
 ---
 
@@ -306,20 +285,22 @@ WebUIの画面構成・操作ルールが`SPEC.md` §20、`docs/webui_product_de
 
 ## チェックリスト
 
-- [ ] `tools/qr_tool/20260611_212014.gcode`(タイムスタンプ名のツール実行出力)を削除する
-- [ ] `tools/qr_tool/qr_hello.svg`(ツール直下の生成プレビュー)を削除または`examples/`へ移す
-- [ ] `.gitignore`へツール出力パターン(タイムスタンプ名`.gcode`等、生成物の置き場所ルール)を追加する。既存の`examples/`配下の意図的なfixture(38ファイル)は維持し、docsから参照されないものだけ棚卸しする
-- [ ] `include/README`、`lib/README`、`test/README`(PlatformIO雛形のまま)を削除するか、プロジェクト固有の説明へ書き換える
-- [ ] `.github/workflows/`のCI追加(RF0.3と同一作業)
+- [x] `tools/qr_tool/20260611_212014.gcode`を削除する
+- [x] `tools/qr_tool/qr_hello.svg`を`examples/`へ移す(README参照も更新)
+- [x] `.gitignore`へツール出力パターンを追加する(ツール直下の.gcode/.svg/.csv、webui uploads/output、__pycache__)
+- [x] `include/README`、`lib/README`、`test/README`をプロジェクト固有の説明へ書き換える
+- [x] `.github/workflows/`のCI追加(RF0.3と同一作業)
 
 ## RF4 完了条件
 
-- [ ] `git ls-files`に用途不明な生成物が無い
-- [ ] 新たな生成物コミットが`.gitignore`で予防されている
+- [x] `git ls-files`に用途不明な生成物が無い
+- [x] 新たな生成物コミットが`.gitignore`で予防されている
 
 ---
 
 ## 4. 優先度まとめ
+
+(完了済み。履歴として保持)
 
 | 優先 | 項目 | 理由 |
 |---|---|---|
@@ -339,12 +320,13 @@ WebUIの画面構成・操作ルールが`SPEC.md` §20、`docs/webui_product_de
 
 | ID | 状態 | 内容 | 対応 |
 |---|---|---|---|
-| RR1 | [ ] | RF1.1のmotion経路分割は、実機でしか出ない脱調・drift・timing問題を再発させるリスクがある | 分割は小さく刻み、各段階でhoming/gcode/job_lifecycle/lookahead check CSVを実機実行する。実機未確認の段階を`[-]`のまま残す |
-| RR2 | [ ] | stepperFeedTask/tmcTaskへの実装移動はCore 1内のtask間同期設計が必要で、挙動不変リファクタの範囲を超える | RF1.1では移動せずドキュメント整合(RF3.5)で対応し、移動は`PLANS.md`側の設計課題として起票する |
-| RR3 | [ ] | RF2.1のfeed既定値統一は、意図的にツールごとへ調整されていた値を潰す可能性がある | 統一前に各値の由来をPLANS.md変更履歴から確認し、機械条件依存の値はconfig引数として残す |
-| RR4 | [ ] | `logMessage`プレフィクスのenum化はSerial ToolやWebUIのexpectパターンを壊しうる | 出力文字列は変えず内部表現のみ変更する。文字列変更が必要な場合はserial_send.py/server.pyのexpect更新とセットで行う |
-| RR5 | [ ] | PLANS.md分割はAGENTS.md §15の「PLANS.mdを更新せよ」ルールと外部参照(過去ログ・PR)を壊しうる | 分割時にAGENTS.md §15の更新先を同時改訂し、旧セクション位置にリンクを残す |
-| RR6 | [ ] | native test基盤の`Arduino.h`スタブ(21行)はTrapezoidPlanner等へテストを広げると不足する | RF0.1でスタブ拡張方針(必要関数のみ追加 or ArduinoFake等の採用)を決める |
+| RR1 | [-] | RF1.1のmotion経路分割は、実機でしか出ない脱調・drift・timing問題を再発させるリスクがある | 分割は小さく刻み、各段階で`pio run`両env+native 16テストを通過済み。**homing/gcode/job_lifecycle/lookahead check CSVの実機実行は未実施**(開発機に実機未接続)。実機接続時に最優先で実行し、RF1の`[-]`を更新する |
+| RR2 | [x] | stepperFeedTask/tmcTaskへの実装移動はCore 1内のtask間同期設計が必要 | RF1.1では移動せず、`docs/architecture.md`で現状と完成形の差分を明文化した。移動は`PLANS.md`側の設計課題 |
+| RR3 | [x] | RF2.1のfeed既定値統一は、意図的にツールごとへ調整されていた値を潰す可能性 | 値は統一せず`tools/common/plotter_gcode.py`へ集約し、各値の用途依存の理由をコメントで明記した |
+| RR4 | [x] | `logMessage`プレフィクスのenum化はSerial Tool/WebUIのexpectパターンを壊しうる | enum化は見送り、マクロ定数化+互換要件の明文化に留めた。出力文字列は不変 |
+| RR5 | [x] | PLANS.md分割はAGENTS.md §15ルールと外部参照を壊しうる | AGENTS.md §15の更新先を同時改訂し、旧セクション位置にリンクを残した |
+| RR6 | [x] | native test基盤の`Arduino.h`スタブはテスト拡大で不足しうる | RF0.1でUnityへ移行し、スタブは必要関数のみの現構成を維持(TrapezoidPlanner/JunctionPlannerテストは現スタブで動作) |
+| RR7 | [ ] | app.js(2163行)は依然テスト・分割なし | 分割着手時はWebUIをブラウザで起動し画面別に回帰確認する。node等のJS実行環境があればユニットテスト導入を先行する |
 
 ---
 
@@ -353,3 +335,4 @@ WebUIの画面構成・操作ルールが`SPEC.md` §20、`docs/webui_product_de
 | 日付 | 変更 | 更新者 |
 |---|---|---|
 | 2026-07-02 | 初版作成。ファームウェア/ドキュメント/ツールの調査結果(行番号付き)を基にRF0〜RF4を定義 | Codex |
+| 2026-07-08 | RF0〜RF4を実施し完了状態へ更新。RF0(pio test -e native統合+Unity移行+planner/sync計16テスト、pytest 54件統一、GitHub Actions CI)。RF1(MotionTask 1075→400行: MotionSyncTracker/TimedSegmentExecutor/XYMotionPlanner/JobLifecycleHandler/MotionDiagnostics/GcodeCommandTranslator抽出+テーブル駆動dispatch、重複8項目排除、UiTaskレイアウトテーブル、LedPatternEngine3責務分離、config集約、Messages.h/ログdropポリシー)。RF2(tools/common新設で出力バイト一致を回帰確認、server.py 1182→772行分割+テスト12件、requirements統合。app.js/serial_send.py分割は保留)。RF3(即時修正5点、command_reference.md新設、PLANS.md 2340→1659行分割、WebUI文書統合、architecture.md新設)。RF4(生成物削除、.gitignore、README雛形書き換え)。実機回帰(RR1)のみ未実施 | Claude |
