@@ -1150,6 +1150,30 @@ Serial Toolは`NACK`、`REJECT:`、`ALARM=YES`、`machine is alarmed`、`ERROR:`
 
 ---
 
+## 21.2 コントローラPCB HW Testファームウェア仕様
+
+コントローラPCBを単体検査するため、通常ファームウェアとは別のPlatformIO env `m5stack-core2-hwtest`を持つ。
+
+| 項目 | 内容 |
+|---|---|
+| ソース | `src/hwtest/`。通常env (`m5stack-core2` / `-sim`) は`build_src_filter`で除外する |
+| 再利用モジュール | `TMC2209Manager`、`StepperBackendFastAccel`、`PenController`、`NeoPixelController`のみ |
+| 含まないもの | planner、G-code、homing、SafetyManager、MachineState |
+| Core 0 | `hwCommandTask`(Serial解析)、`hwUiTask`(LCD/Touch button/NEOPIXEL/AXP192)、`hwLogTask` |
+| Core 1 | `hwTestTask`(limit入力、STEP/DIR静的probe、TMC2209 UART、stepper、servo) |
+| 設定 | `src/hwtest/HwTestConfig.h`。初回通電向けにTMC電流既定400mA、MOTOR最大1600 steps / 4000 steps/s |
+| 手順書 | `tools/serial_tool/docs/hwtest-check.md` |
+
+追加仕様・制約:
+
+- `TMC2209Manager`に`beginUart()`(レジスタ書込みなしでSerial2を開く)、`readDiagnostics()`(IOIN/GSTAT/GCONF/DRV_STATUS/IFCNT/SG_RESULTの生値取得)、`applyCustomProfile()`を追加した。TMC UARTは引き続き`TMC2209Manager`内に閉じる。
+- `PenController`に診断用`setAngleDeg()`を追加した。pen up/down状態は変更しない。
+- `PIN_CHECK`はSTEP/DIR 4本を1本ずつ静的HIGHにし、TMC2209 A/BのIOIN.STEP/IOIN.DIRで該当ビットだけが追従することを確認する。GPIO→ドライバ入力の断線、A/B入替、STEP/DIR入替、ネット間短絡を検出する。STEP HIGHごとに1 microstep動く。
+- STEP/DIR静的出力(`PIN_CHECK`/`PIN_SET`)は最初の`MOTOR`実行前だけ許可する。`MOTOR`後はピン所有権が`StepperBackendFastAccel`へ移り、リセットまで静的出力を拒否する。STEPパルス列はhwtestでもFastAccelStepperだけが生成する。
+- `MOTOR`は`moveABSteps()`のbring-up経路で単独モータを動かす。移動中に1回だけDRV_STATUSを読みopen load/shortを判定する(高頻度UART読みはしない)。開始時OFFだったlimitがONになったら停止する。
+- `SELFTEST`はモータを回さない自動判定(limit安定性、TMC A/B UART/version/アドレスピン/ENN/GSTAT/DRV_STATUS、PIN_CHECK)で、最終行は`SELFTEST RESULT PASS|FAIL fails=N`。
+- 判定NGは`FAIL`/`WARN`接頭辞でログし、Serial Toolを止める`ERROR:`はコマンド書式エラーだけに使う。
+
 ## 22. 受け入れ条件
 
 初期版は以下を満たすこと。

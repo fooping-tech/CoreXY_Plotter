@@ -106,6 +106,7 @@ python tools/serial_tool/serial_send.py \
 
 | Check | Purpose | CSV |
 |---|---|---|
+| [HW Test Check](docs/hwtest-check.md) | コントローラPCB単体検査(専用`m5stack-core2-hwtest` firmware) | `examples/hwtest_check.csv` |
 | [Bringup Check](docs/bringup-check.md) | Serial、基本設定、TMC、CoreXYログの初期確認 | `examples/bringup.csv` |
 | [Direction Check](docs/direction-check.md) | XY実機方向とA/Bモータ方向反転設定 | `examples/config_check.csv`, `examples/xy_direction_check.csv` |
 | [CoreXY Check](docs/corexy-check.md) | CoreXY変換ログと短いXY移動 | `examples/corexy_check.csv` |

@@ -1,0 +1,19 @@
+command,delay_ms,expect,comment
+INFO,500,INFO DONE,Confirm hwtest firmware and pin map
+POWER,500,POWER DONE,Read Core2 AXP192 VBUS/battery (VM must be checked with a meter)
+LIMIT,300,LIMIT DONE,Both limit switches released
+SELFTEST,1500,SELFTEST RESULT,Non-motion checks: limit stability / TMC UART / STEP-DIR IOIN loopback
+TMC_PING,800,TMC_PING,UART read only; expect PASS
+TMC_INIT 400,1500,TMC_INIT,Write low-current test profile (400 mA)
+TMC_STATUS,1000,TMC_STATUS DONE,Verify GSTAT/DRV_STATUS flags after init
+LED_TEST,8000,LED_TEST DONE,Watch R/G/B/W then a single white pixel walking the chain
+PENUP,800,PENUP DONE,Servo to pen-up angle
+PENDOWN,800,PENDOWN DONE,Servo to pen-down angle
+SERVO_SWEEP,8000,SERVO_SWEEP DONE,Servo sweeps between pen-up and pen-down angles
+PENUP,800,PENUP DONE,Return servo to pen-up
+MOTOR A 400,3000,MOTOR A DONE,Motor A forward 400 steps at 800 steps/s; confirm rotation
+MOTOR A -400,3000,MOTOR A DONE,Motor A back to start
+MOTOR B 400,3000,MOTOR B DONE,Motor B forward 400 steps at 800 steps/s; confirm rotation
+MOTOR B -400,3000,MOTOR B DONE,Motor B back to start
+TMC_STATUS,1000,TMC_STATUS DONE,Check flags after motion
+LIMIT_WATCH 15,16000,LIMIT_WATCH DONE,Press and release X then Y switch within 15 s

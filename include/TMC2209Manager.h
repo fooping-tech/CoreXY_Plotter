@@ -11,13 +11,37 @@ struct TMC2209Profile {
   bool spread_cycle;
 };
 
+enum class TMC2209Axis : uint8_t {
+  A,
+  B,
+};
+
+// Raw register snapshot for hardware diagnostics. Decoding is left to the
+// caller so this manager stays a thin UART owner.
+struct TMC2209Diagnostics {
+  uint8_t address = 0;
+  uint8_t connection = 0xFF;  // test_connection(): 0=OK, 1=no reply, 2=zero
+  uint8_t version = 0;        // IOIN[31:24], TMC2209 expects 0x21
+  uint8_t ifcnt = 0;
+  uint8_t gstat = 0;
+  uint32_t gconf = 0;
+  uint32_t ioin = 0;
+  uint32_t drv_status = 0;
+  uint16_t sg_result = 0;
+};
+
 class TMC2209Manager {
  public:
   explicit TMC2209Manager(HardwareSerial& serial);
   bool begin();
+  // Opens Serial2 without writing any driver register.
+  bool beginUart();
   bool configureDrivers();
   bool applyNormalProfile();
   bool applyMelodyProfile();
+  bool applyCustomProfile(const TMC2209Profile& profile, const char* label);
+  // Low-frequency diagnostics only. Do not call in a motion loop.
+  bool readDiagnostics(TMC2209Axis axis, TMC2209Diagnostics& diagnostics);
   void printStatus() const;
   bool isReady() const;
 

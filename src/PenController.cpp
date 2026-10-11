@@ -32,3 +32,7 @@ void PenController::penDown() {
 }
 
 bool PenController::isPenDown() const { return pen_down_; }
+
+void PenController::setAngleDeg(unsigned angle_deg) {
+  writeAngle(angle_deg > 180U ? 180U : angle_deg);
+}

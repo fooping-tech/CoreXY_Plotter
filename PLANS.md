@@ -1978,6 +1978,24 @@ KST32Bストロークフォントデータをホスト側で読み、日本語�
 
 ---
 
+## 12.12 コントローラPCB HW Test
+
+専用env `m5stack-core2-hwtest`でコントローラPCBを単体検査する。手順は`tools/serial_tool/docs/hwtest-check.md`。
+
+- [x] `src/hwtest/`にCore0/Core1分離のテスト専用ファームウェアを追加
+- [x] `TMC2209Manager`に`beginUart()` / `readDiagnostics()` / `applyCustomProfile()`を追加
+- [x] `PenController`に診断用`setAngleDeg()`を追加
+- [x] 通常envから`src/hwtest/`を`build_src_filter`で除外
+- [x] `tools/serial_tool/examples/hwtest_check.csv`と手順書を追加
+- [ ] `pio run -e m5stack-core2-hwtest --target upload`と実機`SELFTEST`
+- [ ] VM未接続→VM接続(モータ無し)→モータ接続の順で`hwtest_check.csv`を実行
+- [ ] PIN_CHECKでSTEP/DIR 4本の対角一致を確認
+- [ ] MOTOR A/B中の`ola/olb=0`と回転方向を確認
+- [ ] LIMIT_WATCHでX/Y各2 edge、bounce量を確認
+- [ ] 検査後に通常ファームウェアを書き戻し、通常`SELFTEST`を確認
+
+---
+
 # 13. Codex用プロンプト
 
 ## Prompt 1: Core2土台
@@ -2200,6 +2218,8 @@ Phase 6.9を実装してください。
 | R37 | [ ] | stream G-code drift対策はbuild、upload、SELFTEST、native closed-loopテストまで完了したが、実際の長時間stream描画での閉じ位置と`WARN: DRIFT`未発生は未確認 | `--gcode --queue-mode --stream-gcode-motion --job-lifecycle`で長い微小線分ジョブを低速から実行し、DRIFTログ、閉じ位置、脱調、pen timingを確認する |
 | R38 | [ ] | timed segment部分投入失敗時は位置信頼性喪失としてalarm停止するが、意図的にFastAccelStepper queueを詰めた再現試験は未実施 | queue余裕が少ない高密度segment条件またはテスト用fault injectionを用意し、部分投入失敗時のstop、再同期、homed無効化ログを確認する |
 | R39 | [ ] | WebUI Image to G-codeのPNG/JPEG traceはホスト側単体テストのみで、実機での描画品質、線分密度、ペン/紙条件に対する最適設定が未確認 | Line Art/Outline Trace、threshold、skeletonize、max segmentsを小さい画像から確認し、必要ならOpenCV/scikit-imageベースのtraceへ差し替える |
+| R40 | [ ] | 新規コントローラPCBのhwtestはbuild確認のみで、実機でのUART応答、PIN_CHECK、open load判定、limit pull-up、servo/LED動作が未確認 | `hwtest-check.md`の順でVM無し→VM有り/モータ無し→モータ有りと段階的に実行し、結果をここへ反映する |
+| R41 | [ ] | hwtestのTMC電流既定400mAとMOTOR速度800 steps/sは初回通電用の暫定値。open load判定(ola/olb)は速度依存で誤検出があり得る | 実機で回転確認後に必要なら`TMC_INIT <mA>`で上げ、ola/olbが出る場合は低速で再確認する |
 
 ---
 
@@ -2288,6 +2308,7 @@ Phase 6.9を実装してください。
 | 2026-06-14 | WebUI Funタブを調整。Mazeを3mm/1mm path幅とS/G線画付きに変更し、Lissajous/Gridへ生成前previewを追加、Fun生成後は既存Job layoutへ遷移するようにした。Webcam Portraitは輪郭線に暗部hatchingを重ねるボールペン線画寄り処理へ変更。READY/IDLE LED自動表示はBREATHからPACIFICAへ変更 | Codex |
 | 2026-06-14 | Fun MazeのSVG出力をセル壁ごとの`line`から、接続壁componentをDFS walkした長い`polyline`へ変更。1mm/2mm刻みの壁ごとにpen up/downする問題を軽減し、S/G文字は小さめの独立strokeとして維持 | Codex |
 | 2026-06-14 | Fun MazeのS/G文字も個別`line`から連続`polyline`へ変更し、Hard maze変換結果を4 strokes（壁2、S、G）へ削減。SVG to G-codeのstroke間に出ていた重複`M5`も除去 | Codex |
+| 2026-10-04 | コントローラPCB検査用`m5stack-core2-hwtest` envを追加。limit安定性、TMC2209 UART/IOIN/GSTAT/DRV_STATUS、STEP/DIR→IOINループバック、単独MOTOR、servo、NEOPIXEL、AXP192電源表示をSerial/LCDで検査。`TMC2209Manager`/`PenController`へ診断APIを追加。実機確認は未実施(R40/R41) | Claude |
 
 ---
 

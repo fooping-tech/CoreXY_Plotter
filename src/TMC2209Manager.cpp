@@ -33,17 +33,26 @@ TMC2209Manager::TMC2209Manager(HardwareSerial& serial)
   driver_b_ = &driver_b;
 }
 
+bool TMC2209Manager::beginUart() {
+#if !SIMULATION_MODE
+  if (!initialized_) {
+    serial_.begin(TMC_UART_BAUD, SERIAL_8N1, TMC_UART_RX_PIN, TMC_UART_TX_PIN);
+  }
+#endif
+  initialized_ = true;
+  return true;
+}
+
 bool TMC2209Manager::begin() {
 #if SIMULATION_MODE
-  initialized_ = true;
+  beginUart();
   ready_ = true;
   applyNormalProfile();
   logMessage("TMC_INIT simulation: UART TX=%u RX=%u baud=%lu A=%u B=%u",
              TMC_UART_TX_PIN, TMC_UART_RX_PIN, TMC_UART_BAUD,
              TMC_A_UART_ADDRESS, TMC_B_UART_ADDRESS);
 #else
-  serial_.begin(TMC_UART_BAUD, SERIAL_8N1, TMC_UART_RX_PIN, TMC_UART_TX_PIN);
-  initialized_ = true;
+  beginUart();
   ready_ = true;
   configureDrivers();
   ready_ = refreshConnectionStatus();
@@ -127,6 +136,38 @@ bool TMC2209Manager::applyNormalProfile() {
 
 bool TMC2209Manager::applyMelodyProfile() {
   return applyProfile(MELODY_PROFILE, "melody");
+}
+
+bool TMC2209Manager::applyCustomProfile(const TMC2209Profile& profile,
+                                        const char* label) {
+  return applyProfile(profile, label);
+}
+
+bool TMC2209Manager::readDiagnostics(TMC2209Axis axis,
+                                     TMC2209Diagnostics& diagnostics) {
+  diagnostics = TMC2209Diagnostics{};
+  const bool is_a = axis == TMC2209Axis::A;
+  diagnostics.address = is_a ? TMC_A_UART_ADDRESS : TMC_B_UART_ADDRESS;
+  if (!initialized_) return false;
+#if SIMULATION_MODE
+  diagnostics.connection = 0;
+  diagnostics.version = 0x21;
+  diagnostics.ioin = (0x21UL << 24) | (1UL << 6) |
+                     (diagnostics.address & 0x01 ? (1UL << 2) : 0) |
+                     (diagnostics.address & 0x02 ? (1UL << 3) : 0);
+#else
+  TMC2209Stepper& driver = is_a ? *driver_a_ : *driver_b_;
+  diagnostics.connection = driver.test_connection();
+  diagnostics.ioin = driver.IOIN();
+  diagnostics.version = static_cast<uint8_t>(diagnostics.ioin >> 24);
+  diagnostics.ifcnt = driver.IFCNT();
+  diagnostics.gstat = driver.GSTAT();
+  diagnostics.gconf = driver.GCONF();
+  diagnostics.drv_status = driver.DRV_STATUS();
+  diagnostics.sg_result = driver.SG_RESULT();
+#endif
+  (is_a ? connection_a_ : connection_b_) = diagnostics.connection;
+  return diagnostics.connection == 0;
 }
 
 bool TMC2209Manager::refreshConnectionStatus() {
